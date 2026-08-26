@@ -90,6 +90,12 @@ public sealed class Composition : IAsyncDisposable
                 capture!, hotkey!, transcriber, injector!,
                 () => dictionary.Entries);
 
+            // A freshly recorded shortcut must work right away — "restart to apply" reads
+            // as "recording is broken". The hook reads Keys per event, so swapping the
+            // array reference live is safe.
+            settings.Changed += (_, _) =>
+                PlatformFactory.UpdateHotkeyChord(hotkey!, settings.Data.ResolvedPushToTalkKeys);
+
             engine.Completed += (_, result) =>
             {
                 if (!settings.Data.KeepHistory) return;

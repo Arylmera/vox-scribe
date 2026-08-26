@@ -152,9 +152,8 @@ public sealed class SettingsWindow : Window
                     _hotkeyButton,
                     _keyWarning,
                     Note("Click, then press the key — or hold several keys together for a "
-                       + "combination; releasing them records it. Escape cancels. Hold the "
-                       + "recorded key(s) anywhere to dictate; takes effect the next time "
-                       + "Murmur starts."),
+                       + "combination; releasing them records it. Escape cancels. The new "
+                       + "shortcut works immediately: hold it anywhere to dictate."),
                 },
             }),
 

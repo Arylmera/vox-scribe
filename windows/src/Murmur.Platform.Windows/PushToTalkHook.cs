@@ -286,6 +286,10 @@ public sealed class PushToTalkHook : IHotkeySource
         var isUp = message is WM_KEYUP or WM_SYSKEYUP;
         if (!isDown && !isUp) return;
 
+        // The chord can be swapped live while keys from the old one are still down; purge
+        // strays here, on the hook thread, so the all-members-down count stays honest.
+        _chordDown.RemoveWhere(k => Array.IndexOf(Keys, k) < 0);
+
         var key = Normalize(e);
         if (Array.IndexOf(Keys, key) < 0) return;
 

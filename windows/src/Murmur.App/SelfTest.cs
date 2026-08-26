@@ -124,6 +124,11 @@ public static class SelfTest
         failures += Check("hotkey source constructs with Right Ctrl", hotkey is not null);
         hotkey?.Dispose();
 
+        var recorder = PlatformFactory.StartKeyCapture((_, _) => { });
+        failures += Check("key recorder hook installs", recorder is not null);
+        recorder?.Dispose();
+        Console.WriteLine($"    key name check: 0xA1 -> {PlatformFactory.KeyDisplayName(0xA1)}");
+
         // Listed by name so a "my microphone is missing" report is diagnosable from the log.
         var devices = PlatformFactory.ListCaptureDevices();
         failures += Check("capture devices enumerate", devices.Length > 0);

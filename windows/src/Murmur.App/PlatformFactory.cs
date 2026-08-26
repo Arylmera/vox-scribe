@@ -111,6 +111,15 @@ internal static class PlatformFactory
         return hook;
     }
 
+    /// <summary>Re-arms a live hook with a new chord, so a recorded shortcut works
+    /// immediately instead of after a restart.</summary>
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2075:DynamicallyAccessedMembers",
+        Justification = "Murmur.Platform.Windows is published whole and never trimmed.")]
+    public static void UpdateHotkeyChord(IHotkeySource hotkey, int[] virtualKeys) =>
+        hotkey.GetType().GetProperty("Keys")?.SetValue(hotkey, virtualKeys);
+
     /// <summary>
     /// Starts the global key recorder, or returns null off Windows. Dispose to stop.
     /// </summary>
