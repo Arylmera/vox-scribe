@@ -16,6 +16,18 @@ public sealed record SettingsData
     /// </remarks>
     public int PushToTalkKey { get; init; } = 0xA3;
 
+    /// <summary>
+    /// The full push-to-talk chord as virtual-key codes, or null for pre-chord settings
+    /// files. Read through <see cref="ResolvedPushToTalkKeys"/>, which falls back to
+    /// <see cref="PushToTalkKey"/> so old settings keep working untouched.
+    /// </summary>
+    public int[]? PushToTalkKeys { get; init; }
+
+    /// <summary>The chord to arm, whichever era this settings file is from.</summary>
+    [JsonIgnore]
+    public int[] ResolvedPushToTalkKeys =>
+        PushToTalkKeys is { Length: > 0 } keys ? keys : [PushToTalkKey];
+
     /// <summary>Where the speech model lives, or null to search the default locations.</summary>
     public string? ModelDirectory { get; init; }
 

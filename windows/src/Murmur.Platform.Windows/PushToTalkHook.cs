@@ -156,8 +156,21 @@ public sealed class PushToTalkHook : IHotkeySource
     private uint _threadId;
     private volatile bool _isDown;
 
-    /// <summary>Which key triggers dictation.</summary>
-    public PushToTalkKey Key { get; set; } = PushToTalkKey.RightControl;
+    /// <summary>Which key triggers dictation. Convenience view over <see cref="Keys"/>.</summary>
+    public PushToTalkKey Key
+    {
+        get => (PushToTalkKey)Keys[0];
+        set => Keys = [(int)value];
+    }
+
+    /// <summary>
+    /// The chord that triggers dictation: pressed when every key is down, released when any
+    /// comes up. A single-element array is the classic one-key push-to-talk.
+    /// </summary>
+    public int[] Keys { get; set; } = [(int)PushToTalkKey.RightControl];
+
+    /// <summary>Keys of the chord currently held. Touched only on the hook thread.</summary>
+    private readonly HashSet<int> _chordDown = [];
 
     /// <inheritdoc />
     public event EventHandler? Pressed;
@@ -227,6 +240,7 @@ public sealed class PushToTalkHook : IHotkeySource
         _thread = null;
         _threadId = 0;
         _isDown = false;
+        _chordDown.Clear();
 
         if (ReferenceEquals(s_instance, this))
         {
@@ -272,20 +286,30 @@ public sealed class PushToTalkHook : IHotkeySource
         var isUp = message is WM_KEYUP or WM_SYSKEYUP;
         if (!isDown && !isUp) return;
 
-        if (Normalize(e) != (int)Key) return;
+        var key = Normalize(e);
+        if (Array.IndexOf(Keys, key) < 0) return;
 
         if (isDown)
         {
-            // The OS re-fires key-down while a key is held; only the first is a press.
-            if (_isDown) return;
-            _isDown = true;
-            Pressed?.Invoke(this, EventArgs.Empty);
+            // The OS re-fires key-down while a key is held; Add returns false on repeats.
+            if (!_chordDown.Add(key)) return;
+
+            if (_chordDown.Count == Keys.Length && !_isDown)
+            {
+                _isDown = true;
+                Pressed?.Invoke(this, EventArgs.Empty);
+            }
         }
         else
         {
-            if (!_isDown) return;
-            _isDown = false;
-            Released?.Invoke(this, EventArgs.Empty);
+            if (!_chordDown.Remove(key)) return;
+
+            // Any member of the chord coming up ends the hold.
+            if (_isDown)
+            {
+                _isDown = false;
+                Released?.Invoke(this, EventArgs.Empty);
+            }
         }
     }
 
@@ -307,12 +331,12 @@ public sealed class PushToTalkHook : IHotkeySource
     /// Both signals are accepted here.
     /// </para>
     /// </remarks>
-    private static int Normalize(in KBDLLHOOKSTRUCT e)
-    {
-        var key = (int)e.VirtualKey;
-        var scan = (int)(e.ScanCode & 0xFF);
-        var extended = (e.Flags & LLKHF_EXTENDED) != 0;
+    private static int Normalize(in KBDLLHOOKSTRUCT e) =>
+        Normalize((int)e.VirtualKey, (int)(e.ScanCode & 0xFF), (e.Flags & LLKHF_EXTENDED) != 0);
 
+    /// <summary>Shared with <see cref="KeyCaptureHook"/> so recording and matching agree.</summary>
+    internal static int Normalize(int key, int scan, bool extended)
+    {
         return key switch
         {
             VK_CONTROL => extended ? VK_RCONTROL : VK_LCONTROL,

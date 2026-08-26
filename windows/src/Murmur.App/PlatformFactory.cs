@@ -94,23 +94,62 @@ internal static class PlatformFactory
     }
 
     /// <summary>Creates the low-level keyboard hook, or null off Windows.</summary>
+    public static IHotkeySource? CreateHotkeySource(int virtualKey) =>
+        CreateHotkeySource([virtualKey]);
+
+    /// <summary>Creates the hook armed with a chord, or null off Windows.</summary>
     [UnconditionalSuppressMessage(
         "Trimming",
         "IL2075:DynamicallyAccessedMembers",
         Justification = "Murmur.Platform.Windows is published whole and never trimmed.")]
-    public static IHotkeySource? CreateHotkeySource(int virtualKey)
+    public static IHotkeySource? CreateHotkeySource(int[] virtualKeys)
     {
         var hook = Create<IHotkeySource>("PushToTalkHook", []);
-        if (hook is null) return null;
 
-        // Key is an enum on the concrete type; set it by name to avoid referencing it.
-        var property = hook.GetType().GetProperty("Key");
-        if (property is not null && property.PropertyType.IsEnum)
-        {
-            property.SetValue(hook, Enum.ToObject(property.PropertyType, virtualKey));
-        }
-
+        // Keys is int[] on the concrete type; set by name to avoid referencing it.
+        hook?.GetType().GetProperty("Keys")?.SetValue(hook, virtualKeys);
         return hook;
+    }
+
+    /// <summary>
+    /// Starts the global key recorder, or returns null off Windows. Dispose to stop.
+    /// </summary>
+    /// <param name="onKey">(normalized virtual key, isDown) — called on the hook thread.</param>
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2075:DynamicallyAccessedMembers",
+        Justification = "Murmur.Platform.Windows is published whole and never trimmed.")]
+    public static IDisposable? StartKeyCapture(Action<int, bool> onKey)
+    {
+        if (Create<IDisposable>("KeyCaptureHook", [onKey]) is not { } hook) return null;
+
+        var started = hook.GetType().GetMethod("Start")?.Invoke(hook, null) as bool? ?? false;
+        if (started) return hook;
+
+        hook.Dispose();
+        return null;
+    }
+
+    /// <summary>The layout-local display name of a virtual key, e.g. "RIGHT CTRL".</summary>
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2075:DynamicallyAccessedMembers",
+        Justification = "Murmur.Platform.Windows is published whole and never trimmed.")]
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2026:RequiresUnreferencedCode",
+        Justification = "Murmur.Platform.Windows is published whole and never trimmed.")]
+    public static string KeyDisplayName(int virtualKey)
+    {
+        var method = Load()?.GetType($"{Namespace}.KeyCaptureHook")?.GetMethod("NameOf");
+        try
+        {
+            return method?.Invoke(null, [virtualKey]) as string ?? $"VK 0x{virtualKey:X2}";
+        }
+        catch (TargetInvocationException)
+        {
+            return $"VK 0x{virtualKey:X2}";
+        }
     }
 
     /// <summary>Creates the SendInput injector, or null off Windows.</summary>

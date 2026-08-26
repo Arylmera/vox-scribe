@@ -68,7 +68,7 @@ public sealed class Composition : IAsyncDisposable
         var transcripts = new TranscriptStore(TranscriptStore.DefaultPath);
 
         var capture = PlatformFactory.CreateAudioCapture(settings.Data.AudioDeviceId);
-        var hotkey = PlatformFactory.CreateHotkeySource(settings.Data.PushToTalkKey);
+        var hotkey = PlatformFactory.CreateHotkeySource(settings.Data.ResolvedPushToTalkKeys);
         var injector = PlatformFactory.CreateTextInjector();
 
         DictationEngine? engine = null;

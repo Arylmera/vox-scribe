@@ -12,27 +12,24 @@ namespace Murmur.App.Views;
 /// <summary>Settings: the hotkey and the model.</summary>
 public sealed class SettingsWindow : Window
 {
-    /// <summary>
-    /// The keys offered, in recommendation order.
-    /// </summary>
-    /// <remarks>
-    /// Right Alt is included but listed last and carries a warning: on German, Polish, UK,
-    /// Nordic and most Latin-American layouts it is AltGr, and binding push-to-talk there
-    /// breaks typing <c>@</c>, <c>€</c>, <c>\</c> and <c>|</c>.
-    /// </remarks>
-    private static readonly (int Key, string Label, string? Warning)[] Keys =
-    [
-        (0xA3, "RIGHT CTRL", null),
-        (0xA1, "RIGHT SHIFT", null),
-        (0x14, "CAPS LOCK", null),
-        (0x7C, "F13", null),
-        (0xA5, "RIGHT ALT", "Right Alt is AltGr on many European layouts — binding it here "
-                          + "will interfere with typing @, €, \\ and |."),
-    ];
+    /// <summary>Escape cancels a recording rather than becoming the trigger.</summary>
+    private const int VkEscape = 0x1B;
+
+    /// <summary>Right Alt is AltGr on many European layouts; warn rather than forbid.</summary>
+    private const int VkRightAlt = 0xA5;
 
     private readonly AppSettings _settings;
-    private readonly StackPanel _keyRow;
+    private readonly TransportKey _hotkeyButton;
     private readonly TextBlock _keyWarning;
+
+    /// <summary>The live recorder hook, non-null only while recording.</summary>
+    private IDisposable? _recorder;
+
+    /// <summary>Chord members seen so far this recording, in press order.</summary>
+    private readonly List<int> _captured = [];
+
+    /// <summary>Chord members currently held; recording ends when this empties.</summary>
+    private readonly HashSet<int> _held = [];
 
     /// <summary>Builds the settings window.</summary>
     public SettingsWindow(AppSettings settings)
@@ -46,11 +43,8 @@ public sealed class SettingsWindow : Window
         Background = Tokens.Brushes.Chassis;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
 
-        _keyRow = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = Tokens.Space.Snug,
-        };
+        _hotkeyButton = new TransportKey { EngagedColor = Tokens.Colors.Ink };
+        _hotkeyButton.Click += (_, _) => { if (_recorder is null) StartRecording(); else CancelRecording(); };
 
         _keyWarning = new TextBlock
         {
@@ -61,19 +55,88 @@ public sealed class SettingsWindow : Window
             IsVisible = false,
         };
 
-        foreach (var (key, label, warning) in Keys)
-        {
-            var button = new TransportKey { Content = label, EngagedColor = Tokens.Colors.Ink };
-            button.Click += (_, _) => SelectKey(key, warning);
-            _keyRow.Children.Add(button);
-        }
-
         Content = BuildContent();
-        SelectKey(_settings.Data.PushToTalkKey, WarningFor(_settings.Data.PushToTalkKey));
+        ShowChord(_settings.Data.ResolvedPushToTalkKeys);
     }
 
-    private static string? WarningFor(int key) =>
-        Keys.FirstOrDefault(k => k.Key == key).Warning;
+    /// <inheritdoc />
+    protected override void OnClosed(EventArgs e)
+    {
+        CancelRecording();
+        base.OnClosed(e);
+    }
+
+    private void StartRecording()
+    {
+        _captured.Clear();
+        _held.Clear();
+
+        // Events arrive on the hook thread; every touch of the UI below is posted. Same
+        // lesson as the transcriptions view: off-thread Avalonia access fails silently.
+        _recorder = PlatformFactory.StartKeyCapture((key, isDown) =>
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => OnRecordedKey(key, isDown)));
+
+        if (_recorder is null) return; // off Windows, or the hook failed to install
+
+        _hotkeyButton.IsEngaged = true;
+        _hotkeyButton.Content = "PRESS YOUR KEY(S)…";
+    }
+
+    private void OnRecordedKey(int key, bool isDown)
+    {
+        if (_recorder is null) return;
+
+        if (isDown)
+        {
+            if (key == VkEscape && _captured.Count == 0)
+            {
+                CancelRecording();
+                return;
+            }
+
+            if (!_captured.Contains(key)) _captured.Add(key);
+            _held.Add(key);
+            _hotkeyButton.Content = ChordLabel(_captured);
+            return;
+        }
+
+        _held.Remove(key);
+
+        // The chord is whatever was held together; the last release commits it.
+        if (_captured.Count > 0 && _held.Count == 0) CommitRecording();
+    }
+
+    private void CommitRecording()
+    {
+        var chord = _captured.ToArray();
+        CancelRecording();
+
+        Save(_settings.Data with { PushToTalkKeys = chord, PushToTalkKey = chord[0] });
+        ShowChord(chord);
+    }
+
+    private void CancelRecording()
+    {
+        _recorder?.Dispose();
+        _recorder = null;
+        _hotkeyButton.IsEngaged = false;
+        ShowChord(_settings.Data.ResolvedPushToTalkKeys);
+    }
+
+    private void ShowChord(int[] chord)
+    {
+        _hotkeyButton.Content = ChordLabel(chord);
+
+        var altGr = chord.Contains(VkRightAlt);
+        _keyWarning.Text = altGr
+            ? "Right Alt is AltGr on many European layouts — binding it here will interfere "
+            + "with typing @, €, \\ and |."
+            : string.Empty;
+        _keyWarning.IsVisible = altGr;
+    }
+
+    private static string ChordLabel(IReadOnlyList<int> chord) =>
+        string.Join(" + ", chord.Select(PlatformFactory.KeyDisplayName));
 
     private StackPanel BuildContent() => new StackPanel
     {
@@ -86,10 +149,12 @@ public sealed class SettingsWindow : Window
                 Spacing = Tokens.Space.Snug,
                 Children =
                 {
-                    _keyRow,
+                    _hotkeyButton,
                     _keyWarning,
-                    Note("Hold this key anywhere to dictate. The key is passed through to the "
-                       + "focused app rather than swallowed, so it never gets stuck down."),
+                    Note("Click, then press the key — or hold several keys together for a "
+                       + "combination; releasing them records it. Escape cancels. Hold the "
+                       + "recorded key(s) anywhere to dictate; takes effect the next time "
+                       + "Murmur starts."),
                 },
             }),
 
@@ -190,19 +255,6 @@ public sealed class SettingsWindow : Window
                  + string.Join("\n", ParakeetTranscriber.DefaultSearchPaths()));
 
         return new StackPanel { Spacing = Tokens.Space.Snug, Children = { status, detail } };
-    }
-
-    private void SelectKey(int key, string? warning)
-    {
-        for (var i = 0; i < Keys.Length; i++)
-        {
-            ((TransportKey)_keyRow.Children[i]).IsEngaged = Keys[i].Key == key;
-        }
-
-        _keyWarning.Text = warning ?? string.Empty;
-        _keyWarning.IsVisible = warning is not null;
-
-        if (_settings.Data.PushToTalkKey != key) Save(_settings.Data with { PushToTalkKey = key });
     }
 
     private void Save(SettingsData data) => _settings.Update(data);
