@@ -48,7 +48,10 @@ public sealed class TranscriptionsView : UserControl
             },
         };
 
-        _store.Changed += (_, _) => Refresh();
+        // Changed fires from the dictation engine's worker thread (its pipeline runs
+        // ConfigureAwait(false) throughout); touching Avalonia controls there throws and the
+        // view silently stops refreshing. Always marshal to the UI thread.
+        _store.Changed += (_, _) => Avalonia.Threading.Dispatcher.UIThread.Post(Refresh);
         Refresh();
     }
 
