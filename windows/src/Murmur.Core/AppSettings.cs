@@ -24,6 +24,24 @@ public sealed record SettingsData
 
     /// <summary>Whether to keep a transcript history.</summary>
     public bool KeepHistory { get; init; } = true;
+
+    /// <summary>
+    /// OpenAI-compatible API base for remote transcription (e.g. a LiteLLM gateway,
+    /// <c>http://192.168.1.100:4000/v1</c>), or null to transcribe locally.
+    /// </summary>
+    public string? SttEndpoint { get; init; }
+
+    /// <summary>Model name the remote gateway routes on.</summary>
+    public string SttModel { get; init; } = "stt-mac";
+
+    /// <summary>Bearer key for the remote endpoint, or null when unauthenticated.</summary>
+    public string? SttApiKey { get; init; }
+
+    /// <summary>
+    /// WASAPI capture device ID (<c>MMDevice.ID</c>), or null for the system default
+    /// communications device. Applied at startup.
+    /// </summary>
+    public string? AudioDeviceId { get; init; }
 }
 
 /// <summary>Settings, persisted as JSON.</summary>

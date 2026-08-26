@@ -52,8 +52,13 @@ public sealed class Composition : IAsyncDisposable
     /// <summary>Whether real audio and hotkey support were found.</summary>
     public bool IsPlatformAvailable { get; }
 
-    /// <summary>Whether the speech model is present on disk.</summary>
-    public static bool IsModelInstalled => ParakeetTranscriber.Locate() is not null;
+    /// <summary>
+    /// Whether transcription is possible: a local model on disk, or a remote endpoint
+    /// configured — the missing-model banner is wrong on a machine that dictates remotely.
+    /// </summary>
+    public static bool IsModelInstalled =>
+        ParakeetTranscriber.Locate() is not null
+        || new AppSettings(AppSettings.DefaultPath).Data.SttEndpoint is { Length: > 0 };
 
     /// <summary>Builds the object graph.</summary>
     public static Composition Create()
@@ -62,7 +67,7 @@ public sealed class Composition : IAsyncDisposable
         var dictionary = new DictionaryFile(DictionaryFile.DefaultPath);
         var transcripts = new TranscriptStore(TranscriptStore.DefaultPath);
 
-        var capture = PlatformFactory.CreateAudioCapture();
+        var capture = PlatformFactory.CreateAudioCapture(settings.Data.AudioDeviceId);
         var hotkey = PlatformFactory.CreateHotkeySource(settings.Data.PushToTalkKey);
         var injector = PlatformFactory.CreateTextInjector();
 
@@ -73,9 +78,13 @@ public sealed class Composition : IAsyncDisposable
         {
             var modelDirectory = settings.Data.ModelDirectory ?? ParakeetTranscriber.Locate();
 
-            ITranscriber transcriber = modelDirectory is not null
-                ? new ParakeetTranscriber(modelDirectory)
-                : new UnavailableTranscriber();
+            // A configured remote endpoint wins over the local model: it is an explicit
+            // user choice, and the machines that set it deliberately have no local model.
+            ITranscriber transcriber = settings.Data.SttEndpoint is { Length: > 0 } endpoint
+                ? new RemoteTranscriber(endpoint, settings.Data.SttModel, settings.Data.SttApiKey)
+                : modelDirectory is not null
+                    ? new ParakeetTranscriber(modelDirectory)
+                    : new UnavailableTranscriber();
 
             engine = new DictationEngine(
                 capture!, hotkey!, transcriber, injector!,

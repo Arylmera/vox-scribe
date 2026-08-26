@@ -64,8 +64,31 @@ internal static class PlatformFactory
     private static bool _resolverInstalled;
 
     /// <summary>Creates the WASAPI capture, or null off Windows.</summary>
-    public static IAudioCapture? CreateAudioCapture() =>
-        Create<IAudioCapture>("WasapiAudioCapture", [null]);
+    /// <param name="deviceId">An <c>MMDevice.ID</c>, or null for the system default.</param>
+    public static IAudioCapture? CreateAudioCapture(string? deviceId = null) =>
+        Create<IAudioCapture>("WasapiAudioCapture", [deviceId]);
+
+    /// <summary>Active capture devices as (ID, friendly name) pairs; empty off Windows.</summary>
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2075:DynamicallyAccessedMembers",
+        Justification = "Murmur.Platform.Windows is published whole and never trimmed.")]
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2026:RequiresUnreferencedCode",
+        Justification = "Murmur.Platform.Windows is published whole and never trimmed.")]
+    public static KeyValuePair<string, string>[] ListCaptureDevices()
+    {
+        var method = Load()?.GetType($"{Namespace}.AudioDeviceCatalog")?.GetMethod("ListCapture");
+        try
+        {
+            return method?.Invoke(null, null) as KeyValuePair<string, string>[] ?? [];
+        }
+        catch (TargetInvocationException)
+        {
+            return []; // no audio service — settings shows only "system default"
+        }
+    }
 
     /// <summary>Creates the low-level keyboard hook, or null off Windows.</summary>
     [UnconditionalSuppressMessage(

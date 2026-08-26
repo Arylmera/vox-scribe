@@ -93,6 +93,8 @@ public sealed class SettingsWindow : Window
                 },
             }),
 
+            Section("MICROPHONE", BuildMicrophoneSection()),
+
             Section("MODEL", BuildModelSection()),
 
             Section("BEHAVIOUR", new StackPanel
@@ -108,6 +110,47 @@ public sealed class SettingsWindow : Window
             }),
         },
     };
+
+    private StackPanel BuildMicrophoneSection()
+    {
+        // First entry is the system default; real devices follow. Tag carries the MMDevice ID
+        // (null for default) so the display string never has to be parsed back.
+        var choices = new List<ComboBoxItem>
+        {
+            new() { Content = "System default (communications device)", Tag = null },
+        };
+        choices.AddRange(PlatformFactory.ListCaptureDevices()
+            .Select(d => new ComboBoxItem { Content = d.Value, Tag = d.Key }));
+
+        var picker = new ComboBox
+        {
+            ItemsSource = choices,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            FontFamily = Tokens.Fonts.Grotesque,
+            FontSize = Tokens.Fonts.Body,
+        };
+
+        var saved = _settings.Data.AudioDeviceId;
+        picker.SelectedItem =
+            choices.FirstOrDefault(c => Equals(c.Tag, saved)) ?? choices[0];
+
+        picker.SelectionChanged += (_, _) =>
+        {
+            var id = (picker.SelectedItem as ComboBoxItem)?.Tag as string;
+            if (id != _settings.Data.AudioDeviceId)
+                Save(_settings.Data with { AudioDeviceId = id });
+        };
+
+        return new StackPanel
+        {
+            Spacing = Tokens.Space.Snug,
+            Children =
+            {
+                picker,
+                Note("Which microphone to record from. Takes effect the next time Murmur starts."),
+            },
+        };
+    }
 
     private static StackPanel BuildModelSection()
     {
