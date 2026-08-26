@@ -124,6 +124,11 @@ public static class SelfTest
         failures += Check("hotkey source constructs with Right Ctrl", hotkey is not null);
         hotkey?.Dispose();
 
+        // Listed by name so a "my microphone is missing" report is diagnosable from the log.
+        var devices = PlatformFactory.ListCaptureDevices();
+        failures += Check("capture devices enumerate", devices.Length > 0);
+        foreach (var (id, name) in devices) Console.WriteLine($"    mic: {name} ({id})");
+
         return failures;
     }
 

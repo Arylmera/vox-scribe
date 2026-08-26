@@ -5,6 +5,11 @@
     <TargetFramework>net10.0-windows</TargetFramework>
     <RootNamespace>Murmur.Platform.Windows</RootNamespace>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <!-- Murmur.App copies this project's output (including NAudio*.dll) beside its own
+         executable and resolves it at run time. A library build does not copy package
+         assemblies by default, so without this the NAudio DLLs never reach the app and
+         capture dies with FileNotFoundException at first use. -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
   <ItemGroup>

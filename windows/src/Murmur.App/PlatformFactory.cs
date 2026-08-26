@@ -54,9 +54,12 @@ internal static class PlatformFactory
 
         AssemblyLoadContext.Default.Resolving += (context, name) =>
         {
-            if (!string.Equals(name.Name, AssemblyName, StringComparison.Ordinal)) return null;
+            // Not just the platform assembly: its dependencies (NAudio.Wasapi, NAudio.Core…)
+            // are equally invisible to the compiler, so they are not in deps.json either and
+            // default probing refuses them even when the file sits right beside the exe.
+            if (name.Name is null) return null;
 
-            var candidate = System.IO.Path.Combine(AppContext.BaseDirectory, AssemblyName + ".dll");
+            var candidate = System.IO.Path.Combine(AppContext.BaseDirectory, name.Name + ".dll");
             return File.Exists(candidate) ? context.LoadFromAssemblyPath(candidate) : null;
         };
     }
