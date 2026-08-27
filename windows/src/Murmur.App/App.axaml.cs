@@ -55,6 +55,9 @@ public partial class App : Application
 
     private void OnTrayQuit(object? sender, EventArgs e)
     {
+        // Lift the hide-to-tray guard first, or Shutdown's window close gets cancelled
+        // and the quit silently does nothing.
+        if (_main is not null) _main.ExitAllowed = true;
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop) desktop.Shutdown();
     }
 

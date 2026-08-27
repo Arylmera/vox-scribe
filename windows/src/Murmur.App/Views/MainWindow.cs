@@ -40,6 +40,9 @@ public sealed class MainWindow : Window
     private Control? _dictionaryView;
     private DateTimeOffset? _startedAt;
 
+    /// <summary>Set just before an explicit quit so the hide-to-tray guard steps aside.</summary>
+    public bool ExitAllowed { get; set; }
+
     /// <summary>Builds a window with no engine behind it. Used by headless tests.</summary>
     public MainWindow() : this(null) { }
 
@@ -56,6 +59,16 @@ public sealed class MainWindow : Window
         Background = Tokens.Brushes.Chassis;
         Icon = new WindowIcon(Avalonia.Platform.AssetLoader.Open(
             new Uri("avares://Murmur.App/Assets/app.ico")));
+
+        // The close button hides to the tray instead of closing: a closed Avalonia window
+        // is destroyed and the tray's "Show" could never bring it back. Real exit goes
+        // through the tray menu, which sets ExitAllowed before shutting down.
+        Closing += (_, e) =>
+        {
+            if (ExitAllowed) return;
+            e.Cancel = true;
+            Hide();
+        };
 
         _recordKey = new TransportKey { Content = "RECORD" };
         _recordKey.Click += (_, _) => ToggleRecording();
