@@ -1,0 +1,17 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "title": "Direction A — Aquila", "x": 0, "y": 0, "w": 880, "h": 720 },
+    { "file": "VoidGlass.dc.html", "title": "Direction B — Void Glass", "x": 980, "y": 0, "w": 880, "h": 720 },
+    { "file": "Cogitator.dc.html", "title": "Direction C — Cogitator", "x": 1960, "y": 0, "w": 880, "h": 720 }
+  ],
+  "annotations": [
+    {
+      "id": "directions-brief",
+      "x": 0,
+      "y": -190,
+      "w": 560,
+      "text": "Vox-Scribe redesign — three directions, same screens (main window + dictation pill).\nA · Aquila: imperial-modern. Chamfered panels, gold on warm black, Cinzel display. Grandeur without steampunk.\nB · Void Glass: the most modern. Cool dark glass, cyan signal color, rounded and soft. Least Warhammer.\nC · Cogitator: machine-cult brutalism. Hard edges, signal red + amber on carbon, corner ticks, dense data. Most Warhammer.\nPick one and Main becomes the full build-out."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}
