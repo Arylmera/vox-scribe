@@ -10,6 +10,10 @@
     <!-- The exe's own icon: Explorer, taskbar, Alt-Tab. Same artwork as the macOS bundle,
          converted to a multi-size .ico (16-256 px). -->
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <!-- What Task Manager, file properties and tray hover text call the app. The assembly
+         and namespaces stay Murmur.* to keep upstream merges clean. -->
+    <Product>Vox-Scribe</Product>
+    <AssemblyTitle>Vox-Scribe</AssemblyTitle>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
