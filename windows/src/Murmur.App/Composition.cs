@@ -1,4 +1,6 @@
+using Avalonia.Media;
 using Murmur.Abstractions;
+using Murmur.App.Design;
 using Murmur.Core;
 using Murmur.Dictionary;
 using Murmur.Speech;
@@ -60,10 +62,21 @@ public sealed class Composition : IAsyncDisposable
         ParakeetTranscriber.Locate() is not null
         || new AppSettings(AppSettings.DefaultPath).Data.SttEndpoint is { Length: > 0 };
 
+    /// <summary>Parses and installs the accent, keeping the default on a bad value.</summary>
+    private static void ApplyAccent(string hex)
+    {
+        if (Color.TryParse(hex, out var color)) Tokens.Colors.Accent = color;
+    }
+
     /// <summary>Builds the object graph.</summary>
     public static Composition Create()
     {
         var settings = new AppSettings(AppSettings.DefaultPath);
+
+        // The accent is live everywhere the moment it changes — same promise as the hotkey.
+        ApplyAccent(settings.Data.AccentColor);
+        settings.Changed += (_, _) => ApplyAccent(settings.Data.AccentColor);
+
         var dictionary = new DictionaryFile(DictionaryFile.DefaultPath);
         var transcripts = new TranscriptStore(TranscriptStore.DefaultPath);
 

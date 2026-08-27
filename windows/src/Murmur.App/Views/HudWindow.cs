@@ -139,7 +139,7 @@ internal sealed class HudBars : Control
     public override void Render(DrawingContext context)
     {
         var recording = _state == DictationState.Recording;
-        var color = recording ? Tokens.Colors.MeterGreen : Tokens.Colors.MeterAmber;
+        var color = recording ? Tokens.Colors.Accent : Tokens.Colors.MeterAmber;
 
         var slot = Bounds.Width / BarCount;
         var barWidth = Math.Max(2.0, slot * 0.55);

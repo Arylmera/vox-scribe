@@ -60,6 +60,12 @@ public sealed record SettingsData
     /// communications device. Applied at startup.
     /// </summary>
     public string? AudioDeviceId { get; init; }
+
+    /// <summary>
+    /// Accent colour as <c>#RRGGBB</c> — tints the dictation pill and highlights. Part of
+    /// the Void Glass redesign; the default is its cyan.
+    /// </summary>
+    public string AccentColor { get; init; } = "#4FD8E8";
 }
 
 /// <summary>Settings, persisted as JSON.</summary>

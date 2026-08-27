@@ -164,6 +164,8 @@ public sealed class SettingsWindow : Window
                 },
             }),
 
+            Section("APPEARANCE", BuildAppearanceSection()),
+
             Section("MICROPHONE", BuildMicrophoneSection()),
 
             Section("MODEL", BuildModelSection()),
@@ -183,6 +185,57 @@ public sealed class SettingsWindow : Window
             }),
         },
     };
+
+    /// <summary>The curated accent swatches — Void Glass cyan first, its default.</summary>
+    private static readonly string[] AccentChoices =
+        ["#4FD8E8", "#5A8CF5", "#4FE8A0", "#F06AD8", "#E8B44F"];
+
+    private StackPanel BuildAppearanceSection()
+    {
+        var dots = new List<(string Hex, Border Dot)>();
+
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = Tokens.Space.Base };
+        foreach (var hex in AccentChoices)
+        {
+            var dot = new Border
+            {
+                Width = 30,
+                Height = 30,
+                CornerRadius = new CornerRadius(15),
+                Background = new SolidColorBrush(Color.Parse(hex)),
+                BorderThickness = new Thickness(2),
+                Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
+            };
+            dot.PointerPressed += (_, _) =>
+            {
+                Save(_settings.Data with { AccentColor = hex });
+                MarkSelectedAccent(dots);
+            };
+            dots.Add((hex, dot));
+            row.Children.Add(dot);
+        }
+
+        MarkSelectedAccent(dots);
+
+        return new StackPanel
+        {
+            Spacing = Tokens.Space.Snug,
+            Children =
+            {
+                row,
+                Note("Accent colour — tints the dictation pill and highlights. Applies immediately."),
+            },
+        };
+    }
+
+    /// <summary>Rings the swatch matching the saved accent; clears the others.</summary>
+    private void MarkSelectedAccent(List<(string Hex, Border Dot)> dots)
+    {
+        foreach (var (hex, dot) in dots)
+            dot.BorderBrush = string.Equals(hex, _settings.Data.AccentColor, StringComparison.OrdinalIgnoreCase)
+                ? Tokens.Brushes.Ink
+                : Avalonia.Media.Brushes.Transparent;
+    }
 
     private StackPanel BuildMicrophoneSection()
     {

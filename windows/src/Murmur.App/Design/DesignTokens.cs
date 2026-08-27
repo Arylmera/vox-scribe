@@ -99,6 +99,13 @@ public static class Tokens
         /// <summary>Row under the pointer, before selection.</summary>
         public static Color Hover => Face(0xC2BDB6, 0x343130);
 
+        /// <summary>
+        /// The user's accent, from settings (Void Glass redesign). Mutable on purpose:
+        /// set at startup and whenever settings change; controls that repaint per frame
+        /// (the HUD bars) pick it up immediately.
+        /// </summary>
+        public static Color Accent { get; set; } = Color.FromRgb(0x4F, 0xD8, 0xE8);
+
         // Instrumentation only. Never use these for UI chrome.
 
         /// <summary>Classic cream VU face.</summary>
