@@ -28,6 +28,12 @@ public sealed record SettingsData
     public int[] ResolvedPushToTalkKeys =>
         PushToTalkKeys is { Length: > 0 } keys ? keys : [PushToTalkKey];
 
+    /// <summary>
+    /// Shortcut behaviour: false = hold to talk (default), true = press once to start and
+    /// again to stop.
+    /// </summary>
+    public bool PushToTalkToggle { get; init; }
+
     /// <summary>Where the speech model lives, or null to search the default locations.</summary>
     public string? ModelDirectory { get; init; }
 

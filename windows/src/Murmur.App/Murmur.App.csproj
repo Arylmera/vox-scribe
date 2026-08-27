@@ -7,6 +7,9 @@
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>Murmur.App</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- The exe's own icon: Explorer, taskbar, Alt-Tab. Same artwork as the macOS bundle,
+         converted to a multi-size .ico (16-256 px). -->
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>

@@ -36,7 +36,7 @@ public sealed class SettingsWindow : Window
     {
         _settings = settings;
 
-        Title = "Murmur Settings";
+        Title = "Vox-Scribe Settings";
         Width = 540;
         SizeToContent = SizeToContent.Height;
         CanResize = false;
@@ -154,6 +154,9 @@ public sealed class SettingsWindow : Window
                     Note("Click, then press the key — or hold several keys together for a "
                        + "combination; releasing them records it. Escape cancels. The new "
                        + "shortcut works immediately: hold it anywhere to dictate."),
+                    Toggle("Toggle mode — press once to start, press again to stop",
+                        _settings.Data.PushToTalkToggle,
+                        v => Save(_settings.Data with { PushToTalkToggle = v })),
                 },
             }),
 

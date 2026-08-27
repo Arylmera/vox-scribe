@@ -112,9 +112,23 @@ public sealed class DictationEngine : IAsyncDisposable
         else if (State == DictationState.Recording) _ = EndAsync();
     }
 
-    private void OnPressed(object? sender, EventArgs e) => _ = BeginAsync();
+    /// <summary>
+    /// When true the shortcut toggles: one press starts, the next stops, releases are
+    /// ignored. When false (the default) it is hold-to-talk. Safe to flip live.
+    /// </summary>
+    public bool ToggleMode { get; set; }
 
-    private void OnReleased(object? sender, EventArgs e) => _ = EndAsync();
+    private void OnPressed(object? sender, EventArgs e)
+    {
+        if (ToggleMode) TogglePushToTalk();
+        else _ = BeginAsync();
+    }
+
+    private void OnReleased(object? sender, EventArgs e)
+    {
+        // In toggle mode the release of the starting press must not stop the recording.
+        if (!ToggleMode) _ = EndAsync();
+    }
 
     private async Task BeginAsync()
     {

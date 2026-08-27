@@ -96,6 +96,22 @@ jobs:
           if-no-files-found: error
           compression-level: 0
 
+      # Inno Setup is preinstalled on the windows-latest image. The installer wraps the
+      # same published exe the smoke test just ran, so a green gate covers what ships.
+      - name: Build installer
+        shell: pwsh
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer\murmur.iss /DPublishDir=..\artifacts\publish
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-win-x64
+          path: windows/installer/Output/*.exe
+          if-no-files-found: error
+          compression-level: 0
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4

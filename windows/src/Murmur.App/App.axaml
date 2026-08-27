@@ -13,7 +13,7 @@
        notification area and needs no extra package. -->
   <TrayIcon.Icons>
     <TrayIcons>
-      <TrayIcon Icon="/Assets/tray.ico" ToolTipText="Murmur — hold the push-to-talk key to dictate">
+      <TrayIcon Icon="/Assets/tray.ico" ToolTipText="Vox-Scribe — hold the push-to-talk key to dictate">
         <TrayIcon.Menu>
           <NativeMenu>
             <NativeMenuItem Header="Show Murmur" Click="OnTrayShow" />

@@ -22,3 +22,7 @@ artifacts/
 models/
 *.onnx
 *.nemo
+
+# Local publish output and compiled installers.
+windows/publish/
+windows/installer/Output/

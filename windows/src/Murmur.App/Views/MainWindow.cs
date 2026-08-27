@@ -48,12 +48,14 @@ public sealed class MainWindow : Window
     {
         _composition = composition;
 
-        Title = "Murmur";
+        Title = "Vox-Scribe";
         MinWidth = 720;
         MinHeight = 520;
         Width = 880;
         Height = 640;
         Background = Tokens.Brushes.Chassis;
+        Icon = new WindowIcon(Avalonia.Platform.AssetLoader.Open(
+            new Uri("avares://Murmur.App/Assets/app.ico")));
 
         _recordKey = new TransportKey { Content = "RECORD" };
         _recordKey.Click += (_, _) => ToggleRecording();

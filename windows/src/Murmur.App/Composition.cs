@@ -90,11 +90,17 @@ public sealed class Composition : IAsyncDisposable
                 capture!, hotkey!, transcriber, injector!,
                 () => dictionary.Entries);
 
+            engine.ToggleMode = settings.Data.PushToTalkToggle;
+
             // A freshly recorded shortcut must work right away — "restart to apply" reads
             // as "recording is broken". The hook reads Keys per event, so swapping the
-            // array reference live is safe.
+            // array reference live is safe; so is flipping the toggle behaviour.
+            var live = engine;
             settings.Changed += (_, _) =>
+            {
                 PlatformFactory.UpdateHotkeyChord(hotkey!, settings.Data.ResolvedPushToTalkKeys);
+                live.ToggleMode = settings.Data.PushToTalkToggle;
+            };
 
             engine.Completed += (_, result) =>
             {
