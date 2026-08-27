@@ -24,6 +24,10 @@ public partial class App : Application
             _main = new MainWindow(_composition);
             desktop.MainWindow = _main;
 
+            // The dictation pill manages its own visibility from the engine state; it only
+            // needs to exist. Never becomes MainWindow — it must never own focus.
+            if (_composition.Engine is not null) _ = new HudWindow(_composition.Engine);
+
             // Closing the window leaves Murmur running in the tray — the hotkey still works,
             // which is the whole point of a dictation app. Quit is explicit, from the tray
             // menu or the app menu.
