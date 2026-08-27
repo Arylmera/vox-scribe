@@ -164,6 +164,8 @@ public sealed class SettingsWindow : Window
 
             Section("MODEL", BuildModelSection()),
 
+            Section("REMOTE SERVER", BuildRemoteSection()),
+
             Section("BEHAVIOUR", new StackPanel
             {
                 Spacing = Tokens.Space.Snug,
@@ -218,6 +220,60 @@ public sealed class SettingsWindow : Window
             },
         };
     }
+
+    private StackPanel BuildRemoteSection()
+    {
+        var endpoint = Field("http://192.168.1.100:4000/v1  (empty = transcribe locally)",
+            _settings.Data.SttEndpoint,
+            v => Save(_settings.Data with { SttEndpoint = v }));
+        var model = Field("Model name the gateway routes on",
+            _settings.Data.SttModel,
+            v => Save(_settings.Data with { SttModel = v ?? "stt-mac" }));
+        var apiKey = Field("API key (empty = unauthenticated)",
+            _settings.Data.SttApiKey,
+            v => Save(_settings.Data with { SttApiKey = v }));
+        apiKey.PasswordChar = '•';
+
+        return new StackPanel
+        {
+            Spacing = Tokens.Space.Snug,
+            Children =
+            {
+                Note("OpenAI-compatible transcription endpoint (e.g. a LiteLLM gateway). "
+                   + "When set, it is used instead of the local model."),
+                Labeled("ENDPOINT", endpoint),
+                Labeled("MODEL", model),
+                Labeled("API KEY", apiKey),
+                Note("Takes effect the next time Vox-Scribe starts."),
+            },
+        };
+    }
+
+    /// <summary>A settings text box that persists on focus loss; empty saves as null.</summary>
+    private static TextBox Field(string hint, string? value, Action<string?> onCommit)
+    {
+        var box = new TextBox
+        {
+            Text = value ?? string.Empty,
+            Watermark = hint,
+            FontFamily = Tokens.Fonts.Grotesque,
+            FontSize = Tokens.Fonts.Body,
+        };
+
+        box.LostFocus += (_, _) =>
+        {
+            var text = box.Text?.Trim();
+            onCommit(string.IsNullOrEmpty(text) ? null : text);
+        };
+
+        return box;
+    }
+
+    private static StackPanel Labeled(string label, Control field) => new()
+    {
+        Spacing = Tokens.Space.Hair,
+        Children = { new Silkscreen { Text = label }, field },
+    };
 
     private static StackPanel BuildModelSection()
     {
