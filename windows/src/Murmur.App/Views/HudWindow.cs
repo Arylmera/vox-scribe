@@ -50,9 +50,10 @@ public sealed class HudWindow : Window
 
         Content = new Border
         {
-            CornerRadius = new CornerRadius(18),
-            Background = new SolidColorBrush(Color.FromArgb(0xE8, 0x12, 0x11, 0x10)),
-            BorderBrush = new SolidColorBrush(Tokens.Colors.SelectionEdge, 0.4),
+            // A full pill on the Void Glass ground.
+            CornerRadius = new CornerRadius(32),
+            Background = new SolidColorBrush(Color.FromArgb(0xE6, 0x0C, 0x10, 0x16)),
+            BorderBrush = new SolidColorBrush(Avalonia.Media.Colors.White, 0.10),
             BorderThickness = new Thickness(1),
             Child = _bars,
         };

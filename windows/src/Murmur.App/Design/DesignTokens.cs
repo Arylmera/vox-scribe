@@ -5,99 +5,85 @@ using Avalonia.Styling;
 namespace Murmur.App.Design;
 
 /// <summary>
-/// The design system, in one place.
+/// The design system, in one place — the <b>Void Glass</b> direction.
 /// </summary>
 /// <remarks>
 /// <para>
-/// A direct port of <c>DesignSystem.swift</c> — same names, same values, so the two platforms
-/// stay recognisably one product. Direction: 1980s portable field recorders and cassette
-/// decks. Equipment, not theme.
+/// Cool near-black ground, translucent glass cards, generous radii, and one user-selected
+/// accent that tints every highlight. Modern and quiet; depth comes from layered
+/// translucency and hairline borders, never bevels or grain.
 /// </para>
 /// <para>
 /// <b>Views must not contain literal values.</b> If a control needs a number that isn't here,
 /// add the token rather than inlining it.
 /// </para>
-/// <para>Two rules that are not negotiable:</para>
-/// <list type="bullet">
-/// <item><b>Red means recording.</b> Nothing else in the app is red.</item>
-/// <item><b>Amber and green are instrumentation only</b> — level meters, never UI chrome.</item>
-/// </list>
-/// <para>
-/// Explicitly ruled out: neon, vaporwave, synthwave, purple/pink gradients, glowing text,
-/// chrome lettering, grid horizons. There are <b>no gradients anywhere</b>; depth comes from
-/// flat panels, hairline bevels and procedurally-drawn brushed grain.
-/// </para>
+/// <para>One rule that is not negotiable: <b>red means recording.</b> Nothing else is red.</para>
 /// </remarks>
 public static class Tokens
 {
     /// <summary>
-    /// Whether the black-face palette is in use.
+    /// Void Glass is a single dark finish; kept for call sites that still branch on it.
     /// </summary>
-    /// <remarks>
-    /// Decks shipped in two finishes, so the app does too: <b>silver face</b> (brushed
-    /// aluminium, the Sony TC-D5) in light, <b>black face</b> (matte, the Marantz PMD) in dark.
-    /// </remarks>
-    public static bool IsBlackFace =>
-        Application.Current?.ActualThemeVariant == ThemeVariant.Dark;
+    public static bool IsBlackFace => true;
 
     // ---- Colour ----
 
-    /// <summary>Surfaces, from the outer body inward.</summary>
+    /// <summary>Surfaces, from the window ground inward.</summary>
     public static class Colors
     {
-        /// <summary>The outer body of the unit. Darkest surface; frames everything.</summary>
-        public static Color Chassis => Face(0x2A2825, 0x121110);
+        /// <summary>The window ground. Cool near-black; frames everything.</summary>
+        public static Color Chassis => Rgb(0x0A0D12);
 
-        /// <summary>The main working surface.</summary>
-        public static Color Panel => Face(0xB8B4AD, 0x2E2C29);
+        /// <summary>A glass card resting on the ground.</summary>
+        public static Color Panel => Rgb(0x12161D);
 
-        /// <summary>Top bevel highlight on a raised element.</summary>
-        public static Color PanelHighlight => Face(0xC9C5BE, 0x3C3936);
+        /// <summary>Lifted edge of a glass card (hover, subtle emphasis).</summary>
+        public static Color PanelHighlight => Rgb(0x1D232C);
 
-        /// <summary>Bottom bevel shade on a raised element.</summary>
-        public static Color PanelShade => Face(0x9E9A93, 0x211F1D);
+        /// <summary>Recess behind a card.</summary>
+        public static Color PanelShade => Rgb(0x0D1015);
 
-        /// <summary>Recessed wells, set into the panel.</summary>
-        public static Color Well => Face(0x6E6A64, 0x1A1917);
+        /// <summary>Recessed wells, set into the ground.</summary>
+        public static Color Well => Rgb(0x0E1218);
 
-        /// <summary>The dark readout window of a tape deck.</summary>
-        public static Color Deck => Face(0x38352F, 0x151412);
+        /// <summary>The darkest readout surface (counters, inputs).</summary>
+        public static Color Deck => Rgb(0x0B0F14);
 
-        /// <summary>Button caps and other moulded plastic.</summary>
-        public static Color Cap => Face(0xE8E3D8, 0x35322E);
+        /// <summary>Buttons and interactive chips.</summary>
+        public static Color Cap => Rgb(0x1A212B);
 
-        /// <summary>The hard line where two panels meet.</summary>
-        public static Color Seam => Face(0x6B6862, 0x000000);
+        /// <summary>Hairline border between surfaces.</summary>
+        public static Color Seam => Rgb(0x232A35);
 
         /// <summary>Primary readable text.</summary>
-        public static Color Ink => Face(0x1C1A17, 0xE4DED0);
+        public static Color Ink => Rgb(0xE9EDF2);
 
         /// <summary>Supporting text.</summary>
-        public static Color InkSecondary => Face(0x514D47, 0x9A948A);
+        public static Color InkSecondary => Rgb(0x8B96A5);
 
-        /// <summary>Silkscreened labels printed onto the panel.</summary>
-        public static Color Silkscreen => Face(0x3A3630, 0xB0AA9E);
+        /// <summary>Section labels and captions.</summary>
+        public static Color Silkscreen => Rgb(0x8B96A5);
 
-        /// <summary>Text on a dark readout well, regardless of face.</summary>
-        public static Color InkOnDeck => Rgb(0xD8D2C4);
+        /// <summary>Text on the darkest readout surface.</summary>
+        public static Color InkOnDeck => Rgb(0xE9EDF2);
 
-        /// <summary>The record lamp. Lacquered, not fluorescent. The only red in the app.</summary>
-        public static Color Record => Rgb(0xC8342A);
+        /// <summary>The record indicator. The only red in the app.</summary>
+        public static Color Record => Rgb(0xE85656);
 
-        /// <summary>The record lamp unlit — a dark lens, not an absence.</summary>
-        public static Color RecordIdle => Face(0x7A4A45, 0x4A2724);
+        /// <summary>The record indicator unlit — a dark lens, not an absence.</summary>
+        public static Color RecordIdle => Rgb(0x3D2426);
 
-        /// <summary>A selected row. The panel lifts rather than tints.</summary>
-        public static Color Selection => Face(0xCDC8C0, 0x3A3733);
+        /// <summary>A selected row.</summary>
+        public static Color Selection => Rgb(0x1A212B);
 
         /// <summary>Edge on a selected or focused element.</summary>
-        public static Color SelectionEdge => Face(0x8A857D, 0x585349);
+        public static Color SelectionEdge => Rgb(0x2C3542);
 
         /// <summary>Keyboard focus ring. Reads without relying on colour.</summary>
-        public static Color FocusRing => Face(0x6B665E, 0x726C61);
+        public static Color FocusRing => Rgb(0x3A4656);
 
         /// <summary>Row under the pointer, before selection.</summary>
-        public static Color Hover => Face(0xC2BDB6, 0x343130);
+        public static Color Hover => Rgb(0x171D26);
 
         /// <summary>
         /// The user's accent, from settings (Void Glass redesign). Mutable on purpose:
@@ -106,30 +92,28 @@ public static class Tokens
         /// </summary>
         public static Color Accent { get; set; } = Color.FromRgb(0x4F, 0xD8, 0xE8);
 
-        // Instrumentation only. Never use these for UI chrome.
+        // Status colours: green = healthy, amber = attention, red = over/error.
 
-        /// <summary>Classic cream VU face.</summary>
-        public static Color MeterFace => Rgb(0xD8CFB4);
+        /// <summary>The level strip's dark backing.</summary>
+        public static Color MeterFace => Rgb(0x0B0F14);
 
-        /// <summary>The amber lamp behind a VU face.</summary>
-        public static Color MeterLamp => Rgb(0xE8B860);
+        /// <summary>Unlit level segment.</summary>
+        public static Color MeterLamp => Rgb(0x1D232C);
 
-        /// <summary>Needle and scale printing.</summary>
-        public static Color MeterNeedle => Rgb(0x1C1A17);
+        /// <summary>Level strip tick printing.</summary>
+        public static Color MeterNeedle => Rgb(0x3A4656);
 
-        /// <summary>Nominal level.</summary>
-        public static Color MeterGreen => Rgb(0x6F9E45);
+        /// <summary>Healthy / nominal.</summary>
+        public static Color MeterGreen => Rgb(0x4FE8A0);
 
-        /// <summary>Approaching peak.</summary>
-        public static Color MeterAmber => Rgb(0xD39A2E);
+        /// <summary>Attention / approaching peak.</summary>
+        public static Color MeterAmber => Rgb(0xE8B44F);
 
-        /// <summary>Over.</summary>
-        public static Color MeterRed => Rgb(0xC0392B);
+        /// <summary>Over / error.</summary>
+        public static Color MeterRed => Rgb(0xE85656);
 
         private static Color Rgb(uint hex) => Color.FromRgb(
             (byte)((hex >> 16) & 0xFF), (byte)((hex >> 8) & 0xFF), (byte)(hex & 0xFF));
-
-        private static Color Face(uint light, uint dark) => Rgb(IsBlackFace ? dark : light);
     }
 
     /// <summary>Brushes for the colours above, allocated per call.</summary>
@@ -169,21 +153,21 @@ public static class Tokens
     // ---- Type ----
 
     /// <summary>
-    /// A neutral grotesque, the way equipment was labelled.
+    /// A modern grotesque for the glass surfaces.
     /// </summary>
     /// <remarks>
-    /// Helvetica on macOS, Arial on Windows — the closest widely-installed grotesques. A
-    /// humanist UI font has rounded terminals that fight the silkscreen look.
+    /// Segoe UI Variable is the closest widely-installed face to the mockups' Space Grotesk;
+    /// Cascadia Mono echoes IBM Plex Mono for readouts.
     /// </remarks>
     public static class Fonts
     {
-        /// <summary>The panel typeface.</summary>
+        /// <summary>The interface typeface.</summary>
         public static FontFamily Grotesque { get; } =
-            new("Helvetica Neue, Helvetica, Arial, sans-serif");
+            new("Segoe UI Variable Display, Segoe UI, Helvetica Neue, Arial, sans-serif");
 
         /// <summary>Readouts and timings. Monospaced so digits don't shift as they tick.</summary>
         public static FontFamily Mono { get; } =
-            new("Consolas, Menlo, SF Mono, monospace");
+            new("Cascadia Mono, Consolas, Menlo, SF Mono, monospace");
 
         /// <summary>Panel labels: small, uppercase, tightly tracked.</summary>
         public const double Silkscreen = 9;
@@ -238,7 +222,7 @@ public static class Tokens
     }
 
     /// <summary>
-    /// Small by design. Equipment has hard edges; anything soft reads as software.
+    /// Generous by design — Void Glass surfaces are soft-cornered cards.
     /// </summary>
     public static class Radius
     {
@@ -246,16 +230,16 @@ public static class Tokens
         public const double None = 0;
 
         /// <summary>Indicator chips, small lamps.</summary>
-        public const double Chip = 2;
+        public const double Chip = 8;
 
-        /// <summary>Button caps and controls.</summary>
-        public const double Control = 3;
+        /// <summary>Buttons and controls — full pill at control heights.</summary>
+        public const double Control = 17;
 
-        /// <summary>Recessed wells and grouped panels.</summary>
-        public const double Panel = 5;
+        /// <summary>Glass cards and recessed wells.</summary>
+        public const double Panel = 14;
 
         /// <summary>The window itself.</summary>
-        public const double Window = 8;
+        public const double Window = 18;
     }
 
     /// <summary>Line weights. All 1 — a machined edge reads the same at any density.</summary>

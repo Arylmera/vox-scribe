@@ -148,22 +148,25 @@ public sealed class EquipmentTests
 public sealed class DesignSystemTests
 {
     [AvaloniaFact]
-    public void Record_red_is_the_lacquered_value_not_a_bright_one()
+    public void Record_red_is_the_void_glass_value()
     {
+        // Red still means recording and nothing else; this is the Void Glass red.
         var red = Tokens.Colors.Record;
-        red.R.ShouldBe((byte)0xC8);
-        red.G.ShouldBe((byte)0x34);
-        red.B.ShouldBe((byte)0x2A);
+        red.R.ShouldBe((byte)0xE8);
+        red.G.ShouldBe((byte)0x56);
+        red.B.ShouldBe((byte)0x56);
     }
 
     [AvaloniaFact]
-    public void Radii_stay_small_enough_to_read_as_equipment()
+    public void Radii_stay_generous_enough_to_read_as_void_glass()
     {
-        // Anything softer starts reading as software rather than a machined object.
-        Tokens.Radius.Chip.ShouldBeLessThanOrEqualTo(2);
-        Tokens.Radius.Control.ShouldBeLessThanOrEqualTo(3);
-        Tokens.Radius.Panel.ShouldBeLessThanOrEqualTo(5);
-        Tokens.Radius.Window.ShouldBeLessThanOrEqualTo(8);
+        // Void Glass is soft-cornered cards; anything under this reads as the old
+        // equipment look creeping back.
+        Tokens.Radius.Chip.ShouldBeGreaterThanOrEqualTo(6);
+        Tokens.Radius.Panel.ShouldBeGreaterThanOrEqualTo(12);
+        Tokens.Radius.Window.ShouldBeGreaterThanOrEqualTo(14);
+        // Controls are full pills: half the standard key height.
+        Tokens.Radius.Control.ShouldBe(Tokens.Material.KeyHeight / 2);
     }
 
     [AvaloniaFact]

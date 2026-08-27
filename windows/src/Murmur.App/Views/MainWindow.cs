@@ -84,8 +84,14 @@ public sealed class MainWindow : Window
             Foreground = Tokens.Brushes.InkOnDeck,
         };
 
-        _transcriptionsKey = new TransportKey { Content = "TRANSCRIPTIONS", IsEngaged = true };
-        _dictionaryKey = new TransportKey { Content = "DICTIONARY" };
+        _transcriptionsKey = new TransportKey
+        {
+            Content = "TRANSCRIPTIONS", IsEngaged = true, EngagedColor = Tokens.Colors.Accent,
+        };
+        _dictionaryKey = new TransportKey
+        {
+            Content = "DICTIONARY", EngagedColor = Tokens.Colors.Accent,
+        };
         _transcriptionsKey.Click += (_, _) => ShowSection(transcriptions: true);
         _dictionaryKey.Click += (_, _) => ShowSection(transcriptions: false);
 
@@ -161,7 +167,7 @@ public sealed class MainWindow : Window
             Orientation = Orientation.Horizontal,
             Spacing = Tokens.Space.Base,
             VerticalAlignment = VerticalAlignment.Bottom,
-            Children = { settings, new Vents { Count = 8, VerticalAlignment = VerticalAlignment.Center } },
+            Children = { settings },
         });
 
         return new BrushedPanel { Child = row, Margin = new Thickness(0, 0, 0, Tokens.Space.Base) };

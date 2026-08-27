@@ -8,15 +8,15 @@ using Murmur.App.Design;
 namespace Murmur.App.Controls;
 
 /// <summary>
-/// A brushed-metal panel.
+/// A glass card: flat translucent surface, soft corners, hairline border.
 /// </summary>
 /// <remarks>
-/// The grain is drawn, not an image: it stays sharp at any scale, follows the silver/black
-/// face automatically, and adds nothing to the download.
+/// The Void Glass building block — depth comes from the layered surface and its border,
+/// never from bevels or texture.
 /// </remarks>
 public sealed class BrushedPanel : Decorator
 {
-    /// <summary>Corner radius of the panel.</summary>
+    /// <summary>Corner radius of the card.</summary>
     public static readonly StyledProperty<double> CornerRadiusProperty =
         AvaloniaProperty.Register<BrushedPanel, double>(nameof(CornerRadius), Tokens.Radius.Panel);
 
@@ -38,27 +38,7 @@ public sealed class BrushedPanel : Decorator
         var shape = new RoundedRect(bounds, CornerRadius);
         context.DrawRectangle(Tokens.Brushes.Panel, null, shape);
 
-        using (context.PushClip(bounds))
-        {
-            // Fine horizontal striations — the direction a rolled aluminium sheet is brushed.
-            var light = new SolidColorBrush(Avalonia.Media.Colors.White, Tokens.Material.GrainLight);
-            var dark = new SolidColorBrush(Avalonia.Media.Colors.Black, Tokens.Material.GrainDark);
-            var alternate = false;
-
-            for (var y = 0.0; y < bounds.Height; y += Tokens.Material.GrainPitch)
-            {
-                context.FillRectangle(
-                    alternate ? dark : light,
-                    new Rect(0, y, bounds.Width, Tokens.Material.GrainPitch / 2));
-                alternate = !alternate;
-            }
-        }
-
-        // Top bevel catches the light; the whole edge carries a seam.
-        var bevel = new Pen(new SolidColorBrush(Tokens.Colors.PanelHighlight, 0.5), Tokens.Border.Bevel);
-        context.DrawLine(bevel, bounds.TopLeft, bounds.TopRight);
-
-        var seam = new Pen(new SolidColorBrush(Tokens.Colors.Seam, 0.35), Tokens.Border.Seam);
+        var seam = new Pen(new SolidColorBrush(Tokens.Colors.Seam), Tokens.Border.Seam);
         context.DrawRectangle(null, seam, shape);
     }
 }
@@ -177,11 +157,11 @@ public sealed class Lamp : Control
 }
 
 /// <summary>
-/// A transport key: rectangular, chunky, with real travel.
+/// A transport key: a rounded pill button.
 /// </summary>
 /// <remarks>
-/// Pressed means <i>pressed</i> — the cap sinks and its bevel inverts — rather than merely
-/// tinted. That distinction is most of what separates equipment from software.
+/// Engaged tints the pill with the engaged colour; pressed darkens it. Flat and quiet,
+/// the Void Glass way.
 /// </remarks>
 public sealed class TransportKey : Button
 {
@@ -231,20 +211,18 @@ public sealed class TransportKey : Button
         var bounds = new Rect(Bounds.Size);
         if (bounds.Width <= 0 || bounds.Height <= 0) return;
 
-        // The cap sinks by the travel distance while held.
-        var sunk = IsPressed
-            ? bounds.Translate(new Vector(0, Tokens.Material.KeyTravel))
-            : bounds;
-        var shape = new RoundedRect(sunk, Tokens.Radius.Control);
+        // A full pill: the radius is half the height, whatever the height is.
+        var shape = new RoundedRect(bounds, bounds.Height / 2);
 
-        context.DrawRectangle(Tokens.Brushes.Cap, null, shape);
+        var fill = IsEngaged
+            ? new SolidColorBrush(EngagedColor, 0.16)
+            : new SolidColorBrush(Tokens.Colors.Cap, IsPressed ? 0.6 : 1.0);
+        context.DrawRectangle(fill, null, shape);
 
-        // Bevel: highlight on top when proud, shade on top when pressed.
-        var bevelColor = IsPressed ? Tokens.Colors.PanelShade : Tokens.Colors.PanelHighlight;
-        context.DrawRectangle(null, new Pen(new SolidColorBrush(bevelColor), Tokens.Border.Bevel), shape);
-
-        var seam = new Pen(new SolidColorBrush(Tokens.Colors.Seam, 0.5), Tokens.Border.Hairline);
-        context.DrawRectangle(null, seam, shape);
+        var edge = IsEngaged
+            ? new SolidColorBrush(EngagedColor, 0.55)
+            : new SolidColorBrush(Tokens.Colors.Seam);
+        context.DrawRectangle(null, new Pen(edge, Tokens.Border.Hairline), shape);
     }
 
     /// <inheritdoc />
@@ -344,53 +322,44 @@ public sealed class VuMeter : Control
         _needle = Math.Clamp(_needle + _velocity, 0, 1 + Tokens.Motion.NeedleOvershoot);
     }
 
+    /// <summary>Number of segments in the strip.</summary>
+    private const int Segments = 16;
+
     /// <inheritdoc />
     public override void Render(DrawingContext context)
     {
         var bounds = new Rect(Bounds.Size);
         if (bounds.Width <= 0 || bounds.Height <= 0) return;
 
-        context.DrawRectangle(
-            Tokens.Brushes.MeterFace, null, new RoundedRect(bounds, Tokens.Radius.Chip));
+        // Dark glass backing.
+        var shape = new RoundedRect(bounds, Tokens.Radius.Chip);
+        context.DrawRectangle(Tokens.Brushes.MeterFace, null, shape);
 
-        if (IsActive)
+        // Rounded segments rise with the damped level; the top two are the red zone.
+        var accent = Tokens.Colors.Accent;
+        var inset = 8.0;
+        var slot = (bounds.Width - inset * 2) / Segments;
+        var barWidth = Math.Max(2.0, slot * 0.5);
+        var lit = _needle * Segments;
+
+        for (var i = 0; i < Segments; i++)
         {
-            var lamp = new SolidColorBrush(Tokens.Colors.MeterLamp, 0.14);
-            context.DrawRectangle(lamp, null, new RoundedRect(bounds, Tokens.Radius.Chip));
+            var over = i >= Segments - 2;
+            var on = i < lit;
+            var color = over ? Tokens.Colors.MeterRed : accent;
+
+            var height = bounds.Height * (0.28 + (0.5 * (i + 1) / Segments));
+            var x = inset + (i * slot) + ((slot - barWidth) / 2);
+            var y = (bounds.Height - height) / 2;
+
+            context.DrawRectangle(
+                new SolidColorBrush(color, on ? 1.0 : (IsActive ? 0.18 : 0.10)), null,
+                new RoundedRect(new Rect(x, y, barWidth, height), barWidth / 2));
         }
-
-        // The pivot sits just below the face, so the needle sweeps across it like a real
-        // moving-coil movement rather than rotating about its centre.
-        var pivot = new Point(bounds.Width / 2, bounds.Height * 1.05);
-        var radius = Math.Min(bounds.Width * 0.46, bounds.Height * 0.92);
-        var sweep = Tokens.Material.NeedleSweepDegrees * Math.PI / 180;
-
-        var scalePen = new Pen(new SolidColorBrush(Tokens.Colors.MeterNeedle), Tokens.Border.Hairline);
-        var overPen = new Pen(new SolidColorBrush(Tokens.Colors.MeterRed), Tokens.Border.Hairline);
-
-        for (var tick = 0.0; tick <= 1.0001; tick += 0.1)
-        {
-            var angle = -sweep / 2 + (sweep * tick);
-            var major = tick % 0.2 < 0.01;
-            var inner = radius * (major ? 0.78 : 0.86);
-
-            context.DrawLine(
-                tick >= Tokens.Material.MeterZeroPoint ? overPen : scalePen,
-                Polar(pivot, angle, inner),
-                Polar(pivot, angle, radius));
-        }
-
-        var needleAngle = -sweep / 2 + (sweep * _needle);
-        var needlePen = new Pen(
-            new SolidColorBrush(Tokens.Colors.MeterNeedle), Tokens.Material.NeedleWidth);
-        context.DrawLine(needlePen, pivot, Polar(pivot, needleAngle, radius * 0.98));
 
         var frame = new Pen(new SolidColorBrush(Tokens.Colors.Seam), Tokens.Border.Hairline);
-        context.DrawRectangle(null, frame, new RoundedRect(bounds, Tokens.Radius.Chip));
+        context.DrawRectangle(null, frame, shape);
     }
-
-    private static Point Polar(Point origin, double angle, double distance) =>
-        new(origin.X + (Math.Sin(angle) * distance), origin.Y - (Math.Cos(angle) * distance));
 }
 
 /// <summary>A run of ventilation slots.</summary>
