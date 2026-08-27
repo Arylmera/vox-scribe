@@ -207,7 +207,7 @@ public sealed class MainWindow : Window
                 },
                 new TextBlock
                 {
-                    Text = "Speech model not installed — Murmur cannot transcribe yet. "
+                    Text = "Speech model not installed — Vox-Scribe cannot transcribe yet. "
                          + "See Settings, or docs/PARAKEET-WINDOWS.md.",
                     FontFamily = Tokens.Fonts.Grotesque,
                     FontSize = Tokens.Fonts.Label,
