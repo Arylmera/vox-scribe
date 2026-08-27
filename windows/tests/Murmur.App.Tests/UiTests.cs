@@ -179,12 +179,14 @@ public sealed class DesignSystemTests
     }
 
     [AvaloniaFact]
-    public void Needle_ballistics_match_a_real_vu_movement()
+    public void Needle_ballistics_keep_the_vu_character_but_track_live_speech()
     {
-        // ~300 ms to reach a step, a slower fall, and a slight overshoot. Without these the
-        // needle reads as a progress bar with a stick on it.
-        Tokens.Motion.NeedleAttackSeconds.ShouldBe(0.30);
+        // A fast attack so the needle answers the voice, a slower fall and a slight
+        // overshoot so it still moves like an instrument and not a progress bar. The
+        // display gain lifts speech RMS (~0.02–0.15) into the visible range.
+        Tokens.Motion.NeedleAttackSeconds.ShouldBeInRange(0.08, 0.20);
         Tokens.Motion.NeedleReleaseSeconds.ShouldBeGreaterThan(Tokens.Motion.NeedleAttackSeconds);
         Tokens.Motion.NeedleOvershoot.ShouldBeGreaterThan(0);
+        Tokens.Motion.LevelGain.ShouldBeGreaterThan(1);
     }
 }

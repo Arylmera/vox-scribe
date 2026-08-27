@@ -332,7 +332,9 @@ public sealed class VuMeter : Control
     /// <summary>Steps the movement one frame toward the current level.</summary>
     private void AdvanceNeedle()
     {
-        var target = Math.Clamp(Level, 0, 1);
+        // Same perceptual lift as the HUD bars: gain then sqrt, so quiet speech visibly
+        // swings the needle instead of trembling at the pin.
+        var target = Math.Sqrt(Math.Clamp(Level * Tokens.Motion.LevelGain, 0, 1));
         var rising = target > _needle;
         var time = rising ? Tokens.Motion.NeedleAttackSeconds : Tokens.Motion.NeedleReleaseSeconds;
 

@@ -121,9 +121,9 @@ internal sealed class HudBars : Control
         if (state == DictationState.Recording)
         {
             Array.Copy(_history, 1, _history, 0, BarCount - 1);
-            // Perceptual lift: RMS of speech sits low in [0,1]; sqrt makes quiet speech
-            // visibly move the bars instead of flickering the bottom pixel.
-            _history[BarCount - 1] = Math.Sqrt(Math.Clamp(level, 0f, 1f));
+            // Perceptual lift: RMS of speech sits low in [0,1]; gain then sqrt makes quiet
+            // speech visibly move the bars instead of flickering the bottom pixel.
+            _history[BarCount - 1] = Math.Sqrt(Math.Clamp(level * Tokens.Motion.LevelGain, 0, 1));
         }
         else
         {
@@ -139,7 +139,7 @@ internal sealed class HudBars : Control
     public override void Render(DrawingContext context)
     {
         var recording = _state == DictationState.Recording;
-        var brush = new SolidColorBrush(recording ? Tokens.Colors.MeterGreen : Tokens.Colors.MeterAmber);
+        var color = recording ? Tokens.Colors.MeterGreen : Tokens.Colors.MeterAmber;
 
         var slot = Bounds.Width / BarCount;
         var barWidth = Math.Max(2.0, slot * 0.55);
@@ -151,6 +151,9 @@ internal sealed class HudBars : Control
                 ? _history[i]
                 : 0.25 + (0.20 * Math.Sin(_phase + (i * 0.45)));
 
+            // Loud bars are solid, quiet ones translucent — the strip breathes with the
+            // voice instead of only changing height.
+            var brush = new SolidColorBrush(color, recording ? 0.35 + (0.65 * intensity) : 1.0);
             var barHeight = Math.Max(3.0, maxBar * intensity);
             var x = (i * slot) + ((slot - barWidth) / 2);
             var y = (Bounds.Height - barHeight) / 2;

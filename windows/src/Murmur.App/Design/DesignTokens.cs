@@ -342,16 +342,23 @@ public static class Tokens
         /// VU ballistics: seconds to reach a step going up.
         /// </summary>
         /// <remarks>
-        /// A real VU movement reaches 99% of a step in ~300 ms and overshoots slightly. That
-        /// lag <i>is</i> the instrument's character — a needle that tracks the signal exactly
-        /// reads as a progress bar with a stick on it.
+        /// A real VU movement takes ~300 ms, but that read as sluggish against live speech —
+        /// the needle is deliberately snappier than the instrument it imitates, while the
+        /// slower release below keeps the ballistic fall that gives it character.
         /// </remarks>
-        public const double NeedleAttackSeconds = 0.30;
+        public const double NeedleAttackSeconds = 0.14;
 
         /// <summary>Seconds for the needle to fall back.</summary>
         public const double NeedleReleaseSeconds = 0.42;
 
         /// <summary>Peak overshoot as a fraction of the step, before settling.</summary>
         public const double NeedleOvershoot = 0.06;
+
+        /// <summary>
+        /// Display gain applied to the raw RMS before the perceptual sqrt. Speech RMS lives
+        /// around 0.02–0.15, so without this the meter and HUD bars barely leave the floor.
+        /// Display-only — the audio itself is untouched.
+        /// </summary>
+        public const double LevelGain = 2.5;
     }
 }
