@@ -1,17 +1,32 @@
 {
+  "pages": [
+    { "id": "page-1", "name": "Void Glass" },
+    { "id": "page-2", "name": "Explorations" }
+  ],
   "artboards": [
-    { "file": "Main.dc.html", "title": "Direction A — Aquila", "x": 0, "y": 0, "w": 880, "h": 720 },
-    { "file": "VoidGlass.dc.html", "title": "Direction B — Void Glass", "x": 980, "y": 0, "w": 880, "h": 720 },
-    { "file": "Cogitator.dc.html", "title": "Direction C — Cogitator", "x": 1960, "y": 0, "w": 880, "h": 720 }
+    { "file": "Main.dc.html", "title": "Main window + pill", "x": 0, "y": 0, "w": 880, "h": 720, "page": "page-1" },
+    { "file": "Settings.dc.html", "title": "Settings", "x": 980, "y": 0, "w": 560, "h": 860, "page": "page-1" },
+    { "file": "Aquila.dc.html", "title": "Direction A — Aquila", "x": 0, "y": 0, "w": 880, "h": 720, "page": "page-2" },
+    { "file": "Cogitator.dc.html", "title": "Direction C — Cogitator", "x": 980, "y": 0, "w": 880, "h": 720, "page": "page-2" }
   ],
   "annotations": [
     {
+      "id": "voidglass-brief",
+      "x": 0,
+      "y": -170,
+      "w": 560,
+      "page": "page-1",
+      "text": "Void Glass — the chosen direction, built out.\nThe accent color is a user setting: cyan, blue, green, pink, gold, or a custom pick — see the Appearance section in Settings. Try the Accent tweak above each frame to preview any color across the whole UI.\nSample transcript copy; LiteLLM status reflects the real config.",
+      "kind": "note"
+    },
+    {
       "id": "directions-brief",
       "x": 0,
-      "y": -190,
+      "y": -170,
       "w": 560,
-      "text": "Vox-Scribe redesign — three directions, same screens (main window + dictation pill).\nA · Aquila: imperial-modern. Chamfered panels, gold on warm black, Cinzel display. Grandeur without steampunk.\nB · Void Glass: the most modern. Cool dark glass, cyan signal color, rounded and soft. Least Warhammer.\nC · Cogitator: machine-cult brutalism. Hard edges, signal red + amber on carbon, corner ticks, dense data. Most Warhammer.\nPick one and Main becomes the full build-out."
+      "page": "page-2",
+      "text": "Earlier explorations, kept for reference.\nA · Aquila: imperial-modern gold on warm black.\nC · Cogitator: machine-cult brutalism, signal red + amber.\nDirection B (Void Glass) was chosen and lives on the first page."
     }
   ],
-  "launch": { "view": "canvas" }
+  "launch": { "view": "canvas", "page": "page-1" }
 }

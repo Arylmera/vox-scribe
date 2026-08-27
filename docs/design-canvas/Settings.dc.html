@@ -1,0 +1,126 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap">
+  <style>
+    body { margin: 0; font-family: 'Space Grotesk', 'Segoe UI', sans-serif; background: #0a0d12; }
+    a { color: #4fd8e8; } a:hover { color: #8ce8f2; }
+  </style>
+</helmet>
+<div style="width: 560px; background: radial-gradient(ellipse at 30% -10%, #101722 0%, #0a0d12 55%); padding: 24px; display: flex; justify-content: center;">
+  <div style="width: 512px; background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.09); border-radius: 18px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 24px 60px rgba(0,0,0,0.45);">
+
+    <!-- Title bar -->
+    <div style="display: flex; align-items: center; gap: 12px; padding: 16px 22px; border-bottom: 1px solid rgba(255,255,255,0.06);">
+      <div style="font-size: 15px; font-weight: 600; color: #e9edf2;">Settings</div>
+      <div style="flex-grow: 1;"></div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b96a5" stroke-width="1.8" stroke-linecap="round">
+        <path d="M6 6 L18 18 M18 6 L6 18"></path>
+      </svg>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 22px; padding: 22px;">
+
+      <!-- APPEARANCE -->
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 2px; color: #8b96a5;">APPEARANCE</div>
+        <div style="border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+          <div style="font-size: 13px; font-weight: 500; color: #e9edf2;">Accent color</div>
+          <div style="display: flex; gap: 12px; align-items: center;">
+            <div style="width: 34px; height: 34px; border-radius: 50%; background: {{accent}}; border: 2px solid #e9edf2; box-shadow: 0 0 12px {{a60}};"></div>
+            <div style="width: 34px; height: 34px; border-radius: 50%; background: #5a8cf5; border: 2px solid transparent;"></div>
+            <div style="width: 34px; height: 34px; border-radius: 50%; background: #4fe8a0; border: 2px solid transparent;"></div>
+            <div style="width: 34px; height: 34px; border-radius: 50%; background: #f06ad8; border: 2px solid transparent;"></div>
+            <div style="width: 34px; height: 34px; border-radius: 50%; background: #e8b44f; border: 2px solid transparent;"></div>
+            <div style="width: 34px; height: 34px; border-radius: 50%; border: 1px dashed rgba(255,255,255,0.25); display: flex; align-items: center; justify-content: center;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b96a5" stroke-width="1.8" stroke-linecap="round"><path d="M12 5 v14 M5 12 h14"></path></svg>
+            </div>
+          </div>
+          <div style="font-size: 11px; color: #8b96a5; line-height: 1.5;">Tints the meter, the dictation pill and every highlight. Applies immediately.</div>
+        </div>
+      </div>
+
+      <!-- PUSH TO TALK -->
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 2px; color: #8b96a5;">PUSH TO TALK</div>
+        <div style="border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #e9edf2; background: rgba(255,255,255,0.06); border: 1px solid {{a45}}; border-radius: 8px; padding: 8px 18px;">Right Ctrl</div>
+            <div style="font-size: 12px; color: {{accent}};">Change…</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 34px; height: 20px; border-radius: 999px; background: rgba(255,255,255,0.1); position: relative;">
+              <div style="position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #8b96a5;"></div>
+            </div>
+            <div style="font-size: 13px; color: #c3cad4;">Toggle mode — press once to start, again to stop</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- REMOTE SERVER -->
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 2px; color: #8b96a5;">REMOTE SERVER</div>
+        <div style="border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 9px; letter-spacing: 1px; color: #8b96a5;">ENDPOINT</div>
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #e9edf2; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 9px 12px;">http://192.168.1.100:4000/v1</div>
+          </div>
+          <div style="display: flex; gap: 12px;">
+            <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 6px;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 9px; letter-spacing: 1px; color: #8b96a5;">MODEL</div>
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #e9edf2; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 9px 12px;">stt-mac</div>
+            </div>
+            <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 6px;">
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 9px; letter-spacing: 1px; color: #8b96a5;">API KEY</div>
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8b96a5; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 9px 12px;">••••••••••••</div>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px; padding-top: 2px;">
+            <div style="font-size: 12px; font-weight: 600; color: #0a0d12; background: {{accent}}; border-radius: 999px; padding: 8px 18px;">Test connection</div>
+            <div style="display: flex; align-items: center; gap: 7px;">
+              <div style="width: 7px; height: 7px; border-radius: 50%; background: #4fe8a0; box-shadow: 0 0 8px rgba(79,232,160,0.8);"></div>
+              <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #c3cad4;">Connected — “stt-mac” available (42 ms)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BEHAVIOUR -->
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 2px; color: #8b96a5;">BEHAVIOUR</div>
+        <div style="border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 34px; height: 20px; border-radius: 999px; background: {{a70}}; position: relative;">
+              <div style="position: absolute; top: 2px; right: 2px; width: 16px; height: 16px; border-radius: 50%; background: #e9edf2;"></div>
+            </div>
+            <div style="font-size: 13px; color: #c3cad4;">Type transcripts into the focused app</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 34px; height: 20px; border-radius: 999px; background: {{a70}}; position: relative;">
+              <div style="position: absolute; top: 2px; right: 2px; width: 16px; height: 16px; border-radius: 50%; background: #e9edf2;"></div>
+            </div>
+            <div style="font-size: 13px; color: #c3cad4;">Keep a transcript history</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"accent":{"editor":"color","default":"#4fd8e8","options":["#4fd8e8","#5a8cf5","#4fe8a0","#f06ad8"],"section":"Theme"},"$preview":{"width":560,"height":860}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const a = this.props.accent ?? '#4fd8e8';
+    return { accent: a, a45: a + '73', a60: a + '99', a70: a + 'b3' };
+  }
+}
+</script>
+</body>
+</html>
