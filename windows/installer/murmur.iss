@@ -11,7 +11,7 @@
 ; The product is Vox-Scribe; the executable and the %LOCALAPPDATA%\Murmur data directory
 ; keep their upstream names so settings, transcripts and the model survive the rebrand.
 #define MyAppName "Vox-Scribe"
-#define MyAppVersion "0.1.0"
+#define MyAppVersion "1.0.0"
 #define MyAppExeName "Murmur.App.exe"
 
 ; Where the published build lives, relative to this script. CI overrides it:
