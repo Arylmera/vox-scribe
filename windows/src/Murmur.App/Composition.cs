@@ -104,6 +104,7 @@ public sealed class Composition : IAsyncDisposable
                 () => dictionary.Entries);
 
             engine.ToggleMode = settings.Data.PushToTalkToggle;
+            engine.IncrementalInjection = settings.Data.IncrementalInjection;
 
             // A freshly recorded shortcut must work right away — "restart to apply" reads
             // as "recording is broken". The hook reads Keys per event, so swapping the
@@ -113,6 +114,7 @@ public sealed class Composition : IAsyncDisposable
             {
                 PlatformFactory.UpdateHotkeyChord(hotkey!, settings.Data.ResolvedPushToTalkKeys);
                 live.ToggleMode = settings.Data.PushToTalkToggle;
+                live.IncrementalInjection = settings.Data.IncrementalInjection;
             };
 
             engine.Completed += (_, result) =>

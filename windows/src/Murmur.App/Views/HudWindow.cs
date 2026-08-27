@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Murmur.App.Design;
@@ -9,7 +10,8 @@ namespace Murmur.App.Views;
 
 /// <summary>
 /// The dictation pill: a small overlay at the bottom of the screen showing live level bars
-/// while recording and a shimmer while transcribing. Hidden when idle.
+/// while recording, the text as it is transcribed, and a shimmer while the tail finishes.
+/// Hidden when idle.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -22,11 +24,25 @@ namespace Murmur.App.Views;
 /// Polled, not pushed: the engine raises Changed at buffer rate on a worker thread, and a
 /// display only needs ~30 fps. Same pattern as the main window's meter.
 /// </para>
+/// <para>
+/// The preview is what makes streaming visible: phrases land here while the user is still
+/// talking, whether or not they are also being typed into the focused app. Only the tail of
+/// the text is shown — a pill that grows with a long dictation would end up covering the
+/// window being dictated into.
+/// </para>
 /// </remarks>
 public sealed class HudWindow : Window
 {
+    /// <summary>Height with bars only, and with the preview line showing.</summary>
+    private const double CompactHeight = 64;
+    private const double PreviewHeight = 104;
+
+    /// <summary>Characters of transcript kept on screen; older text scrolls off the left.</summary>
+    private const int PreviewCharacters = 110;
+
     private readonly DictationEngine _engine;
     private readonly HudBars _bars;
+    private readonly TextBlock _preview;
     private readonly DispatcherTimer _timer;
 
     /// <summary>Builds the pill over <paramref name="engine"/> and starts watching it.</summary>
@@ -34,8 +50,8 @@ public sealed class HudWindow : Window
     {
         _engine = engine;
 
-        Width = 320;
-        Height = 64;
+        Width = 420;
+        Height = CompactHeight;
         SystemDecorations = SystemDecorations.None;
         TransparencyLevelHint = [WindowTransparencyLevel.Transparent];
         Background = Brushes.Transparent;
@@ -46,7 +62,19 @@ public sealed class HudWindow : Window
         Focusable = false;
         IsHitTestVisible = false;
 
-        _bars = new HudBars { Margin = new Thickness(18, 12) };
+        _bars = new HudBars { Height = 32, Margin = new Thickness(18, 12, 18, 0) };
+
+        _preview = new TextBlock
+        {
+            Margin = new Thickness(18, 2, 18, 12),
+            FontFamily = Tokens.Fonts.Grotesque,
+            FontSize = 13,
+            Foreground = Tokens.Brushes.InkOnDeck,
+            TextAlignment = TextAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            TextWrapping = TextWrapping.NoWrap,
+            IsVisible = false,
+        };
 
         Content = new Border
         {
@@ -55,7 +83,11 @@ public sealed class HudWindow : Window
             Background = new SolidColorBrush(Color.FromArgb(0xE6, 0x0C, 0x10, 0x16)),
             BorderBrush = new SolidColorBrush(Avalonia.Media.Colors.White, 0.10),
             BorderThickness = new Thickness(1),
-            Child = _bars,
+            Child = new StackPanel
+            {
+                VerticalAlignment = VerticalAlignment.Center,
+                Children = { _bars, _preview },
+            },
         };
 
         _timer = new DispatcherTimer(DispatcherPriority.Background)
@@ -77,12 +109,35 @@ public sealed class HudWindow : Window
         }
 
         _bars.Push(state, _engine.Level);
+        ShowPreview(_engine.PartialText);
 
         if (!IsVisible)
         {
             PositionBottomCenter();
             Show();
         }
+    }
+
+    /// <summary>Puts the tail of <paramref name="text"/> on the preview line.</summary>
+    private void ShowPreview(string text)
+    {
+        var wanted = text.Length > PreviewCharacters
+            ? "…" + text[^PreviewCharacters..]
+            : text;
+
+        if (_preview.Text == wanted) return;
+
+        _preview.Text = wanted;
+        _preview.IsVisible = wanted.Length > 0;
+
+        var height = _preview.IsVisible ? PreviewHeight : CompactHeight;
+        if (Math.Abs(Height - height) < 0.5) return;
+
+        Height = height;
+
+        // The pill is anchored to the bottom of the screen, so a taller one has to move up
+        // to keep its lower edge where it was — otherwise it grows off the screen.
+        if (IsVisible) PositionBottomCenter();
     }
 
     private void PositionBottomCenter()

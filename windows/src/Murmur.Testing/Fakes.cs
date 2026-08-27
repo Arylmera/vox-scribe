@@ -37,6 +37,37 @@ public sealed class FakeAudioCapture : IAudioCapture
         return new FakeAudioCapture(samples);
     }
 
+    /// <summary>
+    /// Generates speech separated by pauses: <paramref name="phrases"/> bursts of tone of
+    /// <paramref name="phraseSeconds"/> each, with <paramref name="pauseSeconds"/> of silence
+    /// between them.
+    /// </summary>
+    /// <remarks>
+    /// This is what exercises <c>StreamingSegmenter</c>: a single tone never has a pause to
+    /// cut at, so it can only ever produce one segment.
+    /// </remarks>
+    public static FakeAudioCapture Phrases(
+        int phrases,
+        double phraseSeconds = 2.0,
+        double pauseSeconds = 1.0,
+        float amplitude = 0.5f)
+    {
+        var phraseCount = (int)(phraseSeconds * AudioChunk.SampleRate);
+        var pauseCount = (int)(pauseSeconds * AudioChunk.SampleRate);
+
+        var samples = new List<float>();
+        for (var phrase = 0; phrase < phrases; phrase++)
+        {
+            if (phrase > 0) samples.AddRange(new float[pauseCount]);
+            for (var i = 0; i < phraseCount; i++)
+            {
+                samples.Add(amplitude * MathF.Sin(2 * MathF.PI * 440 * i / AudioChunk.SampleRate));
+            }
+        }
+
+        return new FakeAudioCapture([.. samples]);
+    }
+
     /// <summary>Generates <paramref name="seconds"/> of digital silence.</summary>
     public static FakeAudioCapture Silence(double seconds) =>
         new(new float[(int)(seconds * AudioChunk.SampleRate)]);

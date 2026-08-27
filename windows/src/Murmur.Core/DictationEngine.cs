@@ -1,4 +1,3 @@
-using System.Buffers;
 using Murmur.Abstractions;
 using Murmur.Dictionary;
 
@@ -26,7 +25,7 @@ public sealed record DictationResult(
     IReadOnlyList<AppliedCorrection> Corrections);
 
 /// <summary>
-/// The whole dictation flow: hotkey down, capture, hotkey up, transcribe, correct, inject.
+/// The whole dictation flow: hotkey down, capture, transcribe as you speak, correct, inject.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -36,8 +35,14 @@ public sealed record DictationResult(
 /// </para>
 /// <para>
 /// That is what makes the interesting behaviour testable without Windows: hand it fakes and
-/// the entire path — including chunking, the correction pass and the "nothing was said"
+/// the entire path — including segmentation, the correction pass and the "nothing was said"
 /// case — runs on any machine, in milliseconds.
+/// </para>
+/// <para>
+/// <b>Transcription overlaps with speech.</b> <see cref="StreamingSegmenter"/> closes a
+/// segment at every pause and it goes to the engine immediately, while the user keeps
+/// talking. What is left at key release is one tail, so the wait after the key comes up is
+/// roughly constant instead of growing with the length of the dictation.
 /// </para>
 /// </remarks>
 public sealed class DictationEngine : IAsyncDisposable
@@ -50,9 +55,21 @@ public sealed class DictationEngine : IAsyncDisposable
     private readonly Func<IReadOnlyList<DictionaryEntry>> _dictionary;
 
     private readonly SemaphoreSlim _gate = new(1, 1);
+
+    /// <summary>
+    /// Guards the segmenter and the segment chain. Held for microseconds at buffer rate; the
+    /// alternative — taking <see cref="_gate"/> per chunk — would put the capture loop behind
+    /// the state machine.
+    /// </summary>
+    private readonly Lock _segments = new();
+
     private CancellationTokenSource? _recording;
-    private List<float>? _buffer;
-    private DateTimeOffset _startedAt;
+    private StreamingSegmenter? _segmenter;
+    private List<Task<Segment>> _queued = [];
+    private Task _chain = Task.CompletedTask;
+    private DictionaryCorrector? _corrector;
+    private IReadOnlyList<string> _bias = [];
+    private int _capturedSamples;
 
     /// <summary>Current state.</summary>
     public DictationState State { get; private set; } = DictationState.Idle;
@@ -60,10 +77,19 @@ public sealed class DictationEngine : IAsyncDisposable
     /// <summary>Most recent input level, 0…1. Drives the meter.</summary>
     public float Level { get; private set; }
 
+    /// <summary>
+    /// Everything transcribed so far in the utterance in progress, corrected. Empty when
+    /// idle. Drives the HUD's live preview.
+    /// </summary>
+    public string PartialText { get; private set; } = string.Empty;
+
     /// <summary>Raised when a dictation completes and produced text.</summary>
     public event EventHandler<DictationResult>? Completed;
 
-    /// <summary>Raised whenever <see cref="State"/> or <see cref="Level"/> changes.</summary>
+    /// <summary>
+    /// Raised whenever <see cref="State"/>, <see cref="Level"/> or <see cref="PartialText"/>
+    /// changes.
+    /// </summary>
     public event EventHandler? Changed;
 
     /// <summary>Wires the engine to its platform implementations.</summary>
@@ -118,6 +144,19 @@ public sealed class DictationEngine : IAsyncDisposable
     /// </summary>
     public bool ToggleMode { get; set; }
 
+    /// <summary>
+    /// When true each segment is typed the moment it is transcribed, so text appears while
+    /// the user is still speaking. When false (the default) the whole utterance is typed once
+    /// at the end.
+    /// </summary>
+    /// <remarks>
+    /// Off by default because incremental typing follows the caret: move it mid-sentence and
+    /// the rest of the dictation lands at the new spot. The live preview in the HUD shows the
+    /// same text either way, so the wait disappears in both modes — this only chooses where
+    /// the text goes while it is being spoken.
+    /// </remarks>
+    public bool IncrementalInjection { get; set; }
+
     private void OnPressed(object? sender, EventArgs e)
     {
         if (ToggleMode) TogglePushToTalk();
@@ -137,8 +176,19 @@ public sealed class DictationEngine : IAsyncDisposable
         {
             if (State != DictationState.Idle) return;
 
-            _buffer = [];
-            _startedAt = _clock.Now;
+            var entries = _dictionary();
+            _corrector = new DictionaryCorrector(entries);
+            _bias = DictionaryCorrector.BiasPhrases(entries);
+
+            lock (_segments)
+            {
+                _segmenter = new StreamingSegmenter();
+                _queued = [];
+                _chain = Task.CompletedTask;
+            }
+
+            _capturedSamples = 0;
+            PartialText = string.Empty;
             _recording = new CancellationTokenSource();
             SetState(DictationState.Recording);
         }
@@ -157,9 +207,15 @@ public sealed class DictationEngine : IAsyncDisposable
                 // already been zeroed.
                 if (State != DictationState.Recording) break;
 
-                // Copied, not referenced: capture implementations are entitled to reuse
-                // their buffer the moment this returns.
-                _buffer?.AddRange(chunk.Samples.Span);
+                _capturedSamples += chunk.Samples.Length;
+
+                // Copied by the segmenter, not referenced: capture implementations are
+                // entitled to reuse their buffer the moment this returns.
+                lock (_segments)
+                {
+                    if (_segmenter?.Accept(chunk) is { Length: > 0 } closed) Queue(closed);
+                }
+
                 Level = chunk.Rms();
                 Changed?.Invoke(this, EventArgs.Empty);
             }
@@ -179,16 +235,12 @@ public sealed class DictationEngine : IAsyncDisposable
 
     private async Task EndAsync()
     {
-        List<float>? samples;
-
         await _gate.WaitAsync().ConfigureAwait(false);
         try
         {
             if (State != DictationState.Recording) return;
 
             await _recording!.CancelAsync().ConfigureAwait(false);
-            samples = _buffer;
-            _buffer = null;
             Level = 0;
             SetState(DictationState.Transcribing);
         }
@@ -199,7 +251,7 @@ public sealed class DictationEngine : IAsyncDisposable
 
         try
         {
-            await ProcessAsync(samples).ConfigureAwait(false);
+            await ProcessAsync().ConfigureAwait(false);
         }
         finally
         {
@@ -209,46 +261,99 @@ public sealed class DictationEngine : IAsyncDisposable
         }
     }
 
-    private async Task ProcessAsync(List<float>? samples)
+    /// <summary>Flushes the tail, waits for every segment, then reports and injects.</summary>
+    private async Task ProcessAsync()
     {
-        if (samples is null || samples.Count == 0) return;
-
         // Measured from key release, because that is the wait the user actually feels — and
-        // it is the only figure on which a streaming and a batch engine compare honestly.
+        // with segments already in flight it is now roughly the length of the tail, not of
+        // the whole recording.
         var releasedAt = _clock.Now;
-        var audio = new ReadOnlyMemory<float>(samples.ToArray());
 
-        var entries = _dictionary();
-        var bias = DictionaryCorrector.BiasPhrases(entries);
-
-        var pieces = AudioSegmenter.Split(audio);
-        var transcripts = new List<string>(pieces.Count);
-
-        foreach (var piece in pieces)
+        Task<Segment>[] pending;
+        lock (_segments)
         {
-            var text = await _transcriber
-                .TranscribeAsync(piece, bias, CancellationToken.None)
-                .ConfigureAwait(false);
-
-            if (!string.IsNullOrWhiteSpace(text)) transcripts.Add(text.Trim());
+            if (_segmenter?.Flush() is { Length: > 0 } tail) Queue(tail);
+            _segmenter = null;
+            pending = [.. _queued];
+            _queued = [];
         }
 
-        var raw = string.Join(' ', transcripts);
-        if (string.IsNullOrWhiteSpace(raw)) return;
+        // Never faults: every segment task swallows its own failure.
+        var segments = await Task.WhenAll(pending).ConfigureAwait(false);
 
-        // The dictionary runs last and unconditionally. Biasing only raises the odds of the
-        // right word; this is the pass that guarantees it.
-        var (corrected, applied) = new DictionaryCorrector(entries).Apply(raw);
+        var spoken = segments.Where(s => s.Text.Length > 0).ToArray();
+        if (spoken.Length == 0) return;
+
+        var text = string.Join(' ', spoken.Select(s => s.Text));
 
         var result = new DictationResult(
             At: releasedAt,
-            AudioDuration: TimeSpan.FromSeconds((double)audio.Length / AudioChunk.SampleRate),
+            AudioDuration: TimeSpan.FromSeconds((double)_capturedSamples / AudioChunk.SampleRate),
             ProcessingTime: _clock.Now - releasedAt,
-            Text: corrected,
-            Corrections: applied);
+            Text: text,
+            Corrections: [.. spoken.SelectMany(s => s.Corrections)]);
 
         Completed?.Invoke(this, result);
-        await _injector.InjectAsync(corrected, CancellationToken.None).ConfigureAwait(false);
+
+        // In incremental mode every segment was typed as it landed, so there is nothing left
+        // to type — injecting here would double the whole utterance.
+        if (!IncrementalInjection)
+            await _injector.InjectAsync(text, CancellationToken.None).ConfigureAwait(false);
+    }
+
+    /// <summary>Adds a closed segment to the ordered transcription chain.</summary>
+    /// <remarks>Callers must hold <see cref="_segments"/>.</remarks>
+    private void Queue(ReadOnlyMemory<float> piece)
+    {
+        var task = TranscribeSegmentAsync(_chain, piece);
+        _chain = task;
+        _queued.Add(task);
+    }
+
+    private async Task<Segment> TranscribeSegmentAsync(Task previous, ReadOnlyMemory<float> piece)
+    {
+        // Strictly one at a time and strictly in order: the segments have to be joined in the
+        // order they were spoken, and the local engine already uses every core it wants — two
+        // inferences at once make both of them slower.
+        // This never faults — see the catch below — so awaiting it cannot cascade a failure
+        // down the chain.
+        await previous.ConfigureAwait(false);
+
+        try
+        {
+            var raw = await _transcriber
+                .TranscribeAsync(piece, _bias, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            var trimmed = raw?.Trim() ?? string.Empty;
+            if (trimmed.Length == 0) return Segment.Empty;
+
+            // The dictionary runs on every segment and unconditionally. Biasing only raises
+            // the odds of the right word; this is the pass that guarantees it.
+            // ponytail: a correction phrase straddling a segment boundary is missed —
+            // boundaries sit in pauses, so that is a phrase said with a pause through it.
+            var (corrected, applied) = _corrector!.Apply(trimmed);
+
+            var separator = PartialText.Length == 0 ? string.Empty : " ";
+            PartialText += separator + corrected;
+            Changed?.Invoke(this, EventArgs.Empty);
+
+            if (IncrementalInjection)
+            {
+                await _injector
+                    .InjectAsync(separator + corrected, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+
+            return new Segment(corrected, applied);
+        }
+        catch (Exception)
+        {
+            // ponytail: one bad segment loses one segment, not the sentence around it — and
+            // the chain stays intact for the ones behind it. There is no logger down here in
+            // Core; if this needs diagnosing, add one to the transcriber, which knows why.
+            return Segment.Empty;
+        }
     }
 
     private void SetState(DictationState state)
@@ -273,5 +378,11 @@ public sealed class DictationEngine : IAsyncDisposable
         await _capture.DisposeAsync().ConfigureAwait(false);
         await _transcriber.DisposeAsync().ConfigureAwait(false);
         _gate.Dispose();
+    }
+
+    /// <summary>One transcribed segment and the corrections it took.</summary>
+    private readonly record struct Segment(string Text, IReadOnlyList<AppliedCorrection> Corrections)
+    {
+        public static Segment Empty { get; } = new(string.Empty, []);
     }
 }

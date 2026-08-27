@@ -55,6 +55,25 @@ worse failure: if the key-down is swallowed but the key-up escapes — a hook th
 mid-gesture, or focus crossing into an elevated window — the target app believes Ctrl is
 held down forever.
 
+**Transcription runs while you speak, not after you stop.** The old flow buffered the whole
+utterance and only started the engine on key release, so the wait grew with the length of the
+dictation. `StreamingSegmenter` now closes a segment at every pause and sends it immediately,
+in order, one inference at a time; on release only the tail is left. Cuts land in pauses and
+only in pauses — the length cap is a backstop for someone who never breathes. The silence
+threshold calibrates to the loudest moment of the utterance, because a fixed one is wrong on
+every microphone but the one it was tuned on.
+
+**Streaming is a segmentation change, not a model change.** A true word-by-word engine means
+sherpa-onnx's `OnlineRecognizer` and a second, less accurate streaming model, and partial
+hypotheses that *revise* — which cannot be typed into a foreign app without backspacing over
+text the user may have moved the caret away from. Pausing at pauses gets the latency without
+any of that, and works identically on the local and the remote engine.
+
+**Incremental typing is off by default.** The HUD previews each phrase as it lands either
+way; the setting only chooses whether the text also goes into the focused app as you speak.
+Typing follows the caret, so moving it mid-sentence sends the rest of the dictation
+somewhere else — worth having, not worth defaulting to.
+
 **CPU-only inference.** sherpa-onnx ships no GPU package; DirectML is five versions behind
 and forbids the variable tensor shapes this model requires; CUDA would force every user to
 install a toolkit. On CPU with int8 weights, transcription runs ~40× faster than real time.
@@ -132,13 +151,13 @@ incremental build, so `-warnaserror` would pass on cached results and prove noth
 
 ## <a id="honesty"></a>Honesty about what is verified
 
-**Verified, on Windows, every push:** 63 tests pass — 24 dictionary (the shared vectors),
-26 core (dictation state machine, audio chunking, all three storage formats), 13 headless
-Avalonia UI. CI then publishes a self-contained ~116 MB executable, **runs it**, and the
+**Verified, on Windows, every push:** 68 tests pass — 24 dictionary (the shared vectors),
+31 core (dictation state machine, streaming segmentation, audio chunking, all three storage
+formats), 13 headless Avalonia UI. CI then publishes a self-contained ~116 MB executable, **runs it**, and the
 binary reports back that the dictionary works, the source-generated JSON round-trips, and
 the Windows platform layer loads and constructs out of the bundle.
 
-**Verified on macOS, in ~0.5s:** the same 63 tests. The UI genuinely runs headless here,
+**Verified on macOS, in ~0.5s:** the same 68 tests. The UI genuinely runs headless here,
 which is why bugs like a `Render` method mutating a property get caught while writing them
 rather than three CI round-trips later.
 
@@ -156,6 +175,10 @@ that are *not* fixable are simply avoided: ICU folds `ß` to `ss` and .NET does 
   mid-capture.
 - The low-level keyboard hook actually firing on a physical keypress.
 - Parakeet transcribing real speech, and whether the ~2 GB working set is tolerable.
+- Whether the silence threshold reads a real pause as a pause on a real microphone. The
+  segmentation logic is tested against synthesised speech and silence; the calibration
+  constants in `StreamingSegmenter` are the knob to turn if it cuts too eagerly or not at
+  all.
 
 Everything those depend on is behind an interface and exercised with fakes, so the logic
 around them is tested. The bindings themselves are not.

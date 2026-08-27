@@ -21,7 +21,7 @@ public sealed class DictationEngineTests
     private static DictationEngine Build(
         IAudioCapture capture,
         FakeHotkeySource hotkey,
-        FakeTranscriber transcriber,
+        ITranscriber transcriber,
         RecordingTextInjector injector,
         params DictionaryEntry[] dictionary) =>
         new(capture, hotkey, transcriber, injector, () => dictionary, new FakeClock());
@@ -124,6 +124,136 @@ public sealed class DictationEngineTests
         await DictateAsync(hotkey, engine);
         engine.State.ShouldBe(DictationState.Idle);
         engine.Level.ShouldBe(0);
+    }
+
+    /// <summary>Presses, lets every chunk be captured, then releases.</summary>
+    /// <remarks>
+    /// Distinct from <see cref="DictateAsync"/>, which releases as soon as any audio has been
+    /// heard. Anything that asserts on segmentation needs the whole recording to have gone in
+    /// first, or it is asserting on a truncated one.
+    /// </remarks>
+    private static async Task DictateFullyAsync(
+        FakeHotkeySource hotkey, FakeAudioCapture capture, DictationEngine engine)
+    {
+        hotkey.Press();
+        for (var i = 0; i < 2000 && engine.State != DictationState.Recording; i++) await Task.Yield();
+        for (var i = 0; i < 200000 && !capture.IsCapturing; i++) await Task.Yield();
+        for (var i = 0; i < 200000 && capture.IsCapturing; i++) await Task.Yield();
+
+        hotkey.Release();
+        for (var i = 0; i < 200000 && engine.State != DictationState.Idle; i++) await Task.Yield();
+    }
+
+    [Fact]
+    public async Task Phrases_are_transcribed_at_the_pauses_not_all_at_the_end()
+    {
+        var hotkey = new FakeHotkeySource();
+        var capture = FakeAudioCapture.Phrases(3);
+        var transcriber = new FakeTranscriber("one", "two", "three");
+        var injector = new RecordingTextInjector();
+
+        await using var engine = Build(capture, hotkey, transcriber, injector);
+        await DictateFullyAsync(hotkey, capture, engine);
+
+        // Three phrases, two pauses between them: the first two segments were transcribed
+        // while the user was still speaking, only the third was left at key release.
+        transcriber.SegmentLengths.Count.ShouldBe(3);
+        injector.Injected.ShouldHaveSingleItem();
+        injector.Injected[0].ShouldBe("one two three");
+    }
+
+    [Fact]
+    public async Task A_pauseless_phrase_is_still_a_single_segment()
+    {
+        var hotkey = new FakeHotkeySource();
+        var capture = FakeAudioCapture.Tone(6);
+        var transcriber = new FakeTranscriber("unbroken");
+
+        await using var engine = Build(capture, hotkey, transcriber, new RecordingTextInjector());
+        await DictateFullyAsync(hotkey, capture, engine);
+
+        transcriber.SegmentLengths.ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task Incremental_injection_types_each_phrase_as_it_lands()
+    {
+        var hotkey = new FakeHotkeySource();
+        var capture = FakeAudioCapture.Phrases(3);
+        var injector = new RecordingTextInjector();
+
+        await using var engine = Build(
+            capture, hotkey, new FakeTranscriber("one", "two", "three"), injector);
+        engine.IncrementalInjection = true;
+
+        await DictateFullyAsync(hotkey, capture, engine);
+
+        // Typed phrase by phrase, and exactly once in total — the end-of-utterance injection
+        // must not repeat what was already typed.
+        injector.Injected.ShouldBe(["one", " two", " three"]);
+        string.Concat(injector.Injected).ShouldBe("one two three");
+    }
+
+    [Fact]
+    public async Task The_live_preview_carries_the_text_so_far()
+    {
+        var hotkey = new FakeHotkeySource();
+        var capture = FakeAudioCapture.Phrases(2);
+        var seen = new List<string>();
+
+        await using var engine = Build(
+            capture, hotkey, new FakeTranscriber("hello", "world"), new RecordingTextInjector());
+        engine.Changed += (s, _) =>
+        {
+            var partial = ((DictationEngine)s!).PartialText;
+            if (partial.Length > 0 && (seen.Count == 0 || seen[^1] != partial)) seen.Add(partial);
+        };
+
+        await DictateFullyAsync(hotkey, capture, engine);
+
+        seen.ShouldBe(["hello", "hello world"]);
+    }
+
+    [Fact]
+    public async Task A_failing_segment_loses_only_itself()
+    {
+        var hotkey = new FakeHotkeySource();
+        var capture = FakeAudioCapture.Phrases(3);
+        var injector = new RecordingTextInjector();
+
+        // Throws on the second of three segments.
+        var transcriber = new ThrowingOnceTranscriber(2, "one", "two", "three");
+
+        await using var engine = Build(capture, hotkey, transcriber, injector);
+        await DictateFullyAsync(hotkey, capture, engine);
+
+        injector.Injected.ShouldHaveSingleItem();
+        injector.Injected[0].ShouldBe("one three");
+    }
+
+    /// <summary>A transcriber that fails on one nominated call and works on the rest.</summary>
+    private sealed class ThrowingOnceTranscriber(int failOnCall, params string[] responses)
+        : ITranscriber
+    {
+        private readonly Queue<string> _responses = new(responses);
+        private int _calls;
+
+        public bool IsReady => true;
+
+        public ValueTask<bool> LoadAsync(CancellationToken cancellationToken) =>
+            ValueTask.FromResult(true);
+
+        public ValueTask<string> TranscribeAsync(
+            ReadOnlyMemory<float> samples,
+            IReadOnlyList<string> biasPhrases,
+            CancellationToken cancellationToken)
+        {
+            var text = _responses.Count > 1 ? _responses.Dequeue() : _responses.Peek();
+            if (++_calls == failOnCall) throw new InvalidOperationException("engine fell over");
+            return ValueTask.FromResult(text);
+        }
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
     /// <summary>

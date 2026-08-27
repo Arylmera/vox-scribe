@@ -40,6 +40,17 @@ public sealed record SettingsData
     /// <summary>Whether to type the transcript into the focused app.</summary>
     public bool InjectText { get; init; } = true;
 
+    /// <summary>
+    /// Whether each phrase is typed as soon as it is transcribed, rather than the whole
+    /// utterance at the end.
+    /// </summary>
+    /// <remarks>
+    /// Off by default: incremental typing follows the caret, so moving it mid-sentence sends
+    /// the rest of the dictation to the new spot. The HUD's live preview shows the text as it
+    /// arrives either way — this only chooses where it lands while you are still speaking.
+    /// </remarks>
+    public bool IncrementalInjection { get; init; }
+
     /// <summary>Whether to keep a transcript history.</summary>
     public bool KeepHistory { get; init; } = true;
 
