@@ -230,7 +230,7 @@ public sealed class SettingsWindow : Window
                 {
                     Toggle("Type transcripts into the focused app", _settings.Data.InjectText,
                         v => Save(_settings.Data with { InjectText = v })),
-                    Toggle("Type each phrase as you speak it, not all at the end",
+                    Toggle("Type each phrase as you speak it, not all at the end (raw only)",
                         _settings.Data.IncrementalInjection,
                         v => Save(_settings.Data with { IncrementalInjection = v })),
                     Toggle("Keep a transcript history", _settings.Data.KeepHistory,
@@ -393,8 +393,9 @@ public sealed class SettingsWindow : Window
                     _settings.Data.CleanupEndpoint,
                     _settings.Data.CleanupModel,
                     _settings.Data.CleanupApiKey)),
-                Note("Skipped while \"type each phrase as you speak it\" is on — those "
-                   + "phrases are already typed. Takes effect the next time Vox-Scribe starts."),
+                Note("Overrides \"type each phrase as you speak it\": a tidied dictation is "
+                   + "always typed once, at the end, because text already in the target "
+                   + "window cannot be repaired. Takes effect the next time VoxScribe starts."),
             },
         };
     }

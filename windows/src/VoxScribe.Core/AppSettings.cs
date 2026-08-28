@@ -49,6 +49,10 @@ public sealed record SettingsData
     /// Off by default: incremental typing follows the caret, so moving it mid-sentence sends
     /// the rest of the dictation to the new spot. The HUD's live preview shows the text as it
     /// arrives either way — this only chooses where it lands while you are still speaking.
+    /// <para>
+    /// Raw dictation only. The cleanup shortcut overrides it and always types once, at the
+    /// end, because text already in the target window cannot be repaired.
+    /// </para>
     /// </remarks>
     public bool IncrementalInjection { get; init; }
 

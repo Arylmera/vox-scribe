@@ -53,9 +53,11 @@ public sealed class CleaningIndicatorTests
         engine.CleaningThisUtterance.ShouldBeFalse();
     }
 
-    /// <summary>Incremental mode types each phrase as it lands, so nothing is ever cleaned.</summary>
+    /// <summary>
+    /// The cleanup shortcut overrides incremental typing rather than being disabled by it.
+    /// </summary>
     [Fact]
-    public async Task Incremental_injection_stays_dark()
+    public async Task Incremental_injection_does_not_dim_the_badge()
     {
         var cleanup = new FakeHotkeySource();
         await using var engine = Build(new FakeHotkeySource(), cleanup);
@@ -64,6 +66,6 @@ public sealed class CleaningIndicatorTests
 
         cleanup.Press();
 
-        engine.CleaningThisUtterance.ShouldBeFalse();
+        engine.CleaningThisUtterance.ShouldBeTrue();
     }
 }

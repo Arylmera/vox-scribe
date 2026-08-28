@@ -174,8 +174,24 @@ public sealed class DictationEngine : IAsyncDisposable
     /// the rest of the dictation lands at the new spot. The live preview in the HUD shows the
     /// same text either way, so the wait disappears in both modes — this only chooses where
     /// the text goes while it is being spoken.
+    /// <para>
+    /// Applies to raw dictation only. The cleanup shortcut always types once, at the end —
+    /// see <see cref="InjectIncrementally"/>.
+    /// </para>
     /// </remarks>
     public bool IncrementalInjection { get; set; }
+
+    /// <summary>
+    /// Whether the utterance in progress is being typed phrase by phrase.
+    /// </summary>
+    /// <remarks>
+    /// The cleanup shortcut overrides the setting rather than being disabled by it. Asking
+    /// for a tidied dictation is a per-utterance instruction; incremental typing is a
+    /// standing preference, and the two cannot both be honoured — text already in the target
+    /// window cannot be repaired. The specific request wins, and the setting keeps its full
+    /// effect on every raw dictation.
+    /// </remarks>
+    private bool InjectIncrementally => IncrementalInjection && !_cleanThisUtterance;
 
     /// <summary>
     /// Optional repair pass applied to the finished utterance before it is reported and
@@ -209,17 +225,24 @@ public sealed class DictationEngine : IAsyncDisposable
     /// looking at it.
     /// </remarks>
     public bool CleaningThisUtterance =>
-        _cleanThisUtterance && Cleanup is not null && !IncrementalInjection;
+        _cleanThisUtterance && Cleanup is not null;
 
-    private void OnPlainPressed(object? sender, EventArgs e)
-    {
-        _cleanThisUtterance = false;
-        OnPressed(sender, e);
-    }
+    private void OnPlainPressed(object? sender, EventArgs e) => Pressed(false, sender, e);
 
-    private void OnCleanupPressed(object? sender, EventArgs e)
+    private void OnCleanupPressed(object? sender, EventArgs e) => Pressed(true, sender, e);
+
+    /// <summary>
+    /// Chooses the mode, then runs the shared press path.
+    /// </summary>
+    /// <remarks>
+    /// Only an idle engine takes a new mode. In toggle mode the second press is a stop, not a
+    /// re-choice, and with two chords that share a key both hooks can fire for one gesture —
+    /// letting either flip the mode mid-utterance would mean phrases already typed
+    /// incrementally and then typed again, whole, at the end.
+    /// </remarks>
+    private void Pressed(bool cleanup, object? sender, EventArgs e)
     {
-        _cleanThisUtterance = true;
+        if (State == DictationState.Idle) _cleanThisUtterance = cleanup;
         OnPressed(sender, e);
     }
 
@@ -355,7 +378,7 @@ public sealed class DictationEngine : IAsyncDisposable
         // Before Completed, so the history keeps what was actually typed. Skipped in
         // incremental mode, where the phrases are already in the target window and there is
         // nothing left to improve.
-        if (_cleanThisUtterance && Cleanup is { } cleanup && !IncrementalInjection)
+        if (_cleanThisUtterance && Cleanup is { } cleanup)
             text = await cleanup(text, CancellationToken.None).ConfigureAwait(false);
 
         var result = new DictationResult(
@@ -369,7 +392,7 @@ public sealed class DictationEngine : IAsyncDisposable
 
         // In incremental mode every segment was typed as it landed, so there is nothing left
         // to type — injecting here would double the whole utterance.
-        if (!IncrementalInjection)
+        if (!InjectIncrementally)
             await _injector.InjectAsync(text, CancellationToken.None).ConfigureAwait(false);
     }
 
@@ -410,7 +433,7 @@ public sealed class DictationEngine : IAsyncDisposable
             PartialText += separator + corrected;
             Changed?.Invoke(this, EventArgs.Empty);
 
-            if (IncrementalInjection)
+            if (InjectIncrementally)
             {
                 await _injector
                     .InjectAsync(separator + corrected, CancellationToken.None)

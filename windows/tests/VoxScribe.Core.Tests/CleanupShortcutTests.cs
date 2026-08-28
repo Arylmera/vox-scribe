@@ -103,6 +103,45 @@ public sealed class CleanupShortcutTests
         injector.Injected.ShouldBe(["[le build passe]", "le build passe"]);
     }
 
+    /// <summary>
+    /// Incremental typing is a standing preference; asking for a tidied dictation is a
+    /// per-utterance instruction, and it wins. The phrases must not be typed as they land,
+    /// or there would be nothing left to repair — and the whole utterance would arrive
+    /// twice.
+    /// </summary>
+    [Fact]
+    public async Task Cleanup_overrides_incremental_injection()
+    {
+        var plain = new FakeHotkeySource();
+        var cleanup = new FakeHotkeySource();
+        var injector = new RecordingTextInjector();
+
+        await using var engine = Build(plain, cleanup, injector,
+            (text, _) => Task.FromResult($"[{text}]"));
+        engine.IncrementalInjection = true;
+
+        await DictateAsync(cleanup, engine);
+
+        injector.Injected.ShouldBe(["[le build passe]"]);
+    }
+
+    /// <summary>And the setting keeps its full effect on the raw shortcut.</summary>
+    [Fact]
+    public async Task Raw_dictation_still_types_each_phrase()
+    {
+        var plain = new FakeHotkeySource();
+        var cleanup = new FakeHotkeySource();
+        var injector = new RecordingTextInjector();
+
+        await using var engine = Build(plain, cleanup, injector,
+            (text, _) => Task.FromResult($"[{text}]"));
+        engine.IncrementalInjection = true;
+
+        await DictateAsync(plain, engine);
+
+        injector.Injected.ShouldBe(["le build passe"]);
+    }
+
     /// <summary>A second shortcut that is never armed is a shortcut that silently does nothing.</summary>
     [Fact]
     public async Task Both_hooks_are_armed_by_Start()
