@@ -161,6 +161,35 @@ internal static class PlatformFactory
         }
     }
 
+    /// <summary>Whether Vox-Scribe is registered to start at login; false off Windows.</summary>
+    public static bool IsLaunchAtLoginEnabled() => StartupCall("IsEnabled", null) as bool? ?? false;
+
+    /// <summary>Registers or unregisters the login entry. No-op off Windows.</summary>
+    public static void SetLaunchAtLogin(bool enabled) => StartupCall("Set", [enabled]);
+
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2075:DynamicallyAccessedMembers",
+        Justification = "Murmur.Platform.Windows is published whole and never trimmed.")]
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2026:RequiresUnreferencedCode",
+        Justification = "Murmur.Platform.Windows is published whole and never trimmed.")]
+    private static object? StartupCall(string method, object?[]? arguments)
+    {
+        var target = Load()?.GetType($"{Namespace}.StartupRegistration")?.GetMethod(method);
+        try
+        {
+            return target?.Invoke(null, arguments);
+        }
+        catch (TargetInvocationException)
+        {
+            // A locked-down machine can deny the Run key. Reporting "off" and doing nothing
+            // is better than a crash from a settings checkbox.
+            return null;
+        }
+    }
+
     /// <summary>Creates the SendInput injector, or null off Windows.</summary>
     public static ITextInjector? CreateTextInjector() =>
         Create<ITextInjector>("SendInputTextInjector", []);

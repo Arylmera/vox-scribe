@@ -22,7 +22,14 @@ public partial class App : Application
         {
             _composition = Composition.Create();
             _main = new MainWindow(_composition);
-            desktop.MainWindow = _main;
+
+            // The lifetime shows whatever MainWindow is set to. Started from the login entry
+            // (--tray) we leave it unset: the app lives in the tray, the hotkey works, and
+            // the window appears the first time it is asked for.
+            if (!desktop.Args?.Contains("--tray", StringComparer.OrdinalIgnoreCase) ?? true)
+            {
+                desktop.MainWindow = _main;
+            }
 
             // The dictation pill manages its own visibility from the engine state; it only
             // needs to exist. Never becomes MainWindow — it must never own focus.
