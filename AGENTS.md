@@ -26,9 +26,9 @@ you speak, dictation HUD, tray, start-at-login, installer, and the Void Glass th
 user-selectable accent. Local Parakeet (sherpa-onnx) and a remote OpenAI-compatible STT
 gateway are both wired and both exercised by hand.
 
-The name is Vox-Scribe on the Windows side; the code namespaces are still `Murmur.*`.
-That is deliberate — renaming assemblies buys nothing and breaks the installer upgrade
-path.
+The Windows side is VoxScribe throughout — namespaces, assemblies, executable, installer.
+The macOS side is still `MurmurYouTube` and stays that way for now: TCC keys Accessibility
+and Microphone grants to the bundle ID, so renaming it means re-granting both by hand.
 
 ---
 
@@ -43,7 +43,7 @@ of them can be exercised by hand.
 
 ```bash
 swift test --filter VectorTests                    # macOS side
-cd windows && dotnet test Murmur.CrossPlatform.slnf # Windows side, runs anywhere
+cd windows && dotnet test VoxScribe.CrossPlatform.slnf # Windows side, runs anywhere
 ```
 
 The Swift copy at `Tests/MurmurDictionaryTests/dictionary-test-vectors.json` is a copy, and
@@ -57,8 +57,8 @@ cp shared/dictionary-test-vectors.json Tests/MurmurDictionaryTests/
 
 ## Things that look like bugs and are not
 
-**`dotnet build Murmur.sln` fails on macOS** with `NETSDK1073`. Expected —
-`Murmur.Platform.Windows` targets `net10.0-windows`. Use `Murmur.CrossPlatform.slnf`, which
+**`dotnet build VoxScribe.sln` fails on macOS** with `NETSDK1073`. Expected —
+`VoxScribe.Platform.Windows` targets `net10.0-windows`. Use `VoxScribe.CrossPlatform.slnf`, which
 omits it; everything else, including the whole UI suite, builds and tests on macOS in about
 half a second.
 
@@ -151,7 +151,7 @@ key-down is swallowed and the key-up escapes, the target app believes Ctrl is he
 `ValuePattern` replaces a whole field rather than inserting at the caret. `SendInput` is the
 primary path, not a fallback.
 
-**`Murmur.App` loads the platform layer by reflection, not by reference.** A direct
+**`VoxScribe.App` loads the platform layer by reflection, not by reference.** A direct
 reference would force the UI onto `net10.0-windows` and you would lose the ability to run it
 on your own machine. Two consequences that have already bitten once: the assembly is
 invisible to `PublishSingleFile`, so it is published as a loose file beside the exe *and*
@@ -159,7 +159,7 @@ resolved by an explicit `AssemblyLoadContext` handler; and the published self-te
 this, because when it breaks the app starts perfectly and then does nothing at all when the
 key is pressed.
 
-**Keep `Murmur.Platform.Windows` logic-free.** Anything living there is code CI cannot
+**Keep `VoxScribe.Platform.Windows` logic-free.** Anything living there is code CI cannot
 exercise. Retries, debouncing and device-change handling belong in the platform-neutral
 projects behind an interface — those target plain `net10.0`, so `CA1416` turns any accidental
 Win32 call into a build error.
