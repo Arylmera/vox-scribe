@@ -8,27 +8,24 @@ fine and will bite you.
 
 ## What this is
 
-Push-to-talk dictation. Hold a key, talk, release, and cleaned-up text is typed into
-whatever had focus. Two independent implementations:
+**VoxScribe** — push-to-talk dictation for Windows. Hold a key, talk, release, and
+cleaned-up text is typed into whatever had focus. C# on .NET 10, Avalonia for the UI,
+Parakeet through sherpa-onnx for speech, all under `windows/`.
 
-| | macOS | Windows |
-|---|---|---|
-| Language | Swift 6 | C# / .NET 10 |
-| UI | SwiftUI | Avalonia |
-| Speech | Apple `SpeechAnalyzer`, or Parakeet via FluidAudio | Parakeet via sherpa-onnx |
-| Location | repo root | `windows/` |
+It works and is in daily use, shipped as 1.0.0: push-to-talk with a recordable chord,
+streaming transcription while you speak, a dictation pill, tray, start-at-login, an
+installer, and the Void Glass theme with a user-selectable accent. Local Parakeet and a
+remote OpenAI-compatible STT gateway are both wired and both exercised by hand.
 
-**The macOS app works and is in daily use.**
+**There was a macOS build in Swift, and it was deleted on 2026-08-28** at the owner's
+request, to leave one app in the tree while the Windows side is the one being worked on. It
+is not gone — `git log -- Sources/` still has all of it, and it will come back when it is
+wanted. Two things it left behind on purpose:
 
-**The Windows app works and is in daily use**, shipped as Vox-Scribe 1.0.0. It has been
-run on real hardware: push-to-talk with a recordable chord, streaming transcription while
-you speak, dictation HUD, tray, start-at-login, installer, and the Void Glass theme with a
-user-selectable accent. Local Parakeet (sherpa-onnx) and a remote OpenAI-compatible STT
-gateway are both wired and both exercised by hand.
-
-The Windows side is VoxScribe throughout — namespaces, assemblies, executable, installer.
-The macOS side is still `MurmurYouTube` and stays that way for now: TCC keys Accessibility
-and Microphone grants to the bundle ID, so renaming it means re-granting both by hand.
+- `shared/dictionary-test-vectors.json`, still the specification for correction behaviour
+  and still linked into the Windows test project. It is a contract with a second
+  implementation that does not currently exist; keep it honest anyway.
+- The regex safe subset below, which exists because the two engines disagreed.
 
 ---
 
@@ -36,96 +33,56 @@ and Microphone grants to the bundle ID, so renaming it means re-granting both by
 
 **`shared/dictionary-test-vectors.json` is the specification for correction behaviour.**
 
-Both implementations run it in CI. If you change how corrections work, change the vectors
-first, watch both sides go red, then make them green. Changing one implementation to "fix"
-a failing vector without changing the other is how the two silently diverge — and only one
-of them can be exercised by hand.
+Change the vectors first, watch the tests go red, then make them green. Never edit the
+implementation to satisfy a failing vector — the vector is the spec, the code is not.
 
 ```bash
-swift test --filter VectorTests                    # macOS side
-cd windows && dotnet test VoxScribe.CrossPlatform.slnf # Windows side, runs anywhere
+cd windows && dotnet test VoxScribe.CrossPlatform.slnf
 ```
 
-The Swift copy at `Tests/MurmurDictionaryTests/dictionary-test-vectors.json` is a copy, and
-CI fails if it drifts from `shared/`. After editing the shared file:
-
-```bash
-cp shared/dictionary-test-vectors.json Tests/MurmurDictionaryTests/
-```
+The file is referenced by link from `windows/tests/VoxScribe.Dictionary.Tests`, not copied,
+so there is no second copy to drift.
 
 ---
 
 ## Things that look like bugs and are not
 
 **`dotnet build VoxScribe.sln` fails on macOS** with `NETSDK1073`. Expected —
-`VoxScribe.Platform.Windows` targets `net10.0-windows`. Use `VoxScribe.CrossPlatform.slnf`, which
-omits it; everything else, including the whole UI suite, builds and tests on macOS in about
-half a second.
+`VoxScribe.Platform.Windows` targets `net10.0-windows`. Use `VoxScribe.CrossPlatform.slnf`,
+which omits it; everything else, including the whole UI suite, builds and tests on macOS in
+about half a second.
 
-**`swift build` fails with "input file was modified during the build."** The repo lives in an
-iCloud-synced folder and the sync engine touches files mid-compile. **Always build with
-`make`**, which uses `--scratch-path` outside the synced tree. A bare `swift build` also
-writes a `.build/` directory into iCloud, which makes every subsequent build minutes slower.
-If you see this error, wait a few seconds and retry.
+**The cleanup pass does nothing while incremental injection is on.** By design: in that mode
+every phrase is typed the moment it is transcribed, so by the end of the utterance there is
+nothing left to improve. The pill's badge reads RAW rather than CLEAN, because it reports
+what will actually happen and not which key was pressed.
 
-**Compare mode doesn't type anything.** By design — `Settings.compareMode` runs every engine
-on one recording and shows them side by side. If both injected, two transcripts would fight
-over one text field. This is the single most confusing behaviour in the app.
+**Two shortcuts, and the longer one wins.** Binding Right Shift for raw and Left Shift +
+Right Shift for cleanup means both chords are satisfied by the second gesture. The plain
+hook is given the keys that belong only to the cleanup chord and stands aside while any of
+them is held. Remove that and the raw shortcut silently eats every cleanup dictation.
 
-**The timing column isn't comparing like with like.** Apple and Parakeet are timed on local
-compute with the clock started *after* model load. Wispr Flow's number is its own
-`e2eLatency`, which includes a network round trip and its cleanup pass. Don't present them
-as one ranking.
-
-**`MainActor.assumeIsolated` will crash the process.** It does not check the claim, it
-asserts it. Use `await MainActor.run` from any non-main-actor context. This took the app
-down once already.
-
-**Mutating `@State` inside a `Canvas` draw closure floods the log and corrupts state.** The
-VU meter keeps its needle physics in a plain reference type the view merely holds, which is
-invisible to SwiftUI's state graph. Don't "clean that up" into `@State`.
+**`PushToTalkHook` must never hold per-instance state in a static.** It did — a callback and
+a "current instance" — which made it a singleton: a second hook overwrote the first, and the
+loser reported a successful install and then never saw a keystroke. There are two hooks now.
 
 ---
 
 ## Design system
 
-`Sources/MurmurYouTube/UI/DesignSystem.swift` defines every colour, size, radius, duration
-and material token. **Views must not contain literal values.** If a component needs a number
-that isn't a token, add the token rather than inlining it.
+`windows/src/VoxScribe.App/Design/DesignTokens.cs` defines every colour, size, radius and
+duration token. **Views must not contain literal values.** If a component needs a number that
+isn't a token, add the token rather than inlining it.
 
-The direction is 1980s field recorders — Sony TC-D5, Marantz PMD, Nakamichi, Braun. Silver
-face in light appearance, black face in dark. Two rules that are not negotiable:
+The direction is **Void Glass**: a cool near-black ground (`#0A0D12`), flat glass cards with
+hairline borders, generous radii, pill buttons, Segoe UI Variable and Cascadia Mono. The
+accent is a user setting — `Tokens.Colors.Accent` is mutable and applied live — so nothing
+may hard-code it.
+
+Two rules that are not negotiable, and `VoxScribe.App.Tests/UiTests.cs` pins them:
 
 - **Red means recording.** Nothing else in the app is red.
 - **Amber and green are instrumentation only** — level meters, never UI chrome.
-
-Explicitly ruled out: neon, vaporwave, synthwave, purple/pink gradients, glowing text, chrome
-lettering, grid horizons. There are **no gradients anywhere**; depth comes from flat panels,
-hairline bevels and procedurally-drawn brushed grain.
-
----
-
-## macOS specifics
-
-**Code signing is load-bearing, not cosmetic.** TCC stores a code-signing *requirement* per
-entry, not just a path. An ad-hoc signature changes every build, so the rebuilt binary stops
-satisfying the stored requirement — and the symptom lies: the Accessibility toggle still
-shows as **on** while the app is untrusted. The `Makefile` auto-detects a Developer ID via
-`security find-identity`. Don't replace that with `--sign -`.
-
-If a grant does get wedged, reset that one row — never toggle, and never omit the bundle ID:
-
-```bash
-tccutil reset Accessibility ai.pivotstudio.murmur-youtube
-```
-
-A bare `tccutil reset Accessibility` wipes every app on the machine. Then quit System
-Settings entirely (⌘Q) before reopening; the Privacy pane caches its list.
-
-**`log` may be shadowed in the user's shell.** Use `/usr/bin/log` explicitly.
-
-**Don't run the `.app` from the repo folder.** It's iCloud-synced and the sync engine can
-corrupt the signature. `make install` puts the running copy in `/Applications`.
 
 ---
 
@@ -153,33 +110,39 @@ primary path, not a fallback.
 
 **`VoxScribe.App` loads the platform layer by reflection, not by reference.** A direct
 reference would force the UI onto `net10.0-windows` and you would lose the ability to run it
-on your own machine. Two consequences that have already bitten once: the assembly is
-invisible to `PublishSingleFile`, so it is published as a loose file beside the exe *and*
-resolved by an explicit `AssemblyLoadContext` handler; and the published self-test checks
-this, because when it breaks the app starts perfectly and then does nothing at all when the
-key is pressed.
+on your own machine. Three consequences that have each bitten once: the assembly is invisible
+to `PublishSingleFile`, so it is published as a loose file beside the exe *and* resolved by an
+explicit `AssemblyLoadContext` handler; the published self-test checks this, because when it
+breaks the app starts perfectly and then does nothing at all when the key is pressed; and the
+`PublishWindowsPlatformLayer` target must strip `RuntimeIdentifier` from the inner build, or
+it lands in `net10.0-windows/win-x64/` while the copy reads the RID-less path — invisible for
+as long as a stale DLL sits there, and a hard failure in a clean tree.
 
 **Keep `VoxScribe.Platform.Windows` logic-free.** Anything living there is code CI cannot
 exercise. Retries, debouncing and device-change handling belong in the platform-neutral
 projects behind an interface — those target plain `net10.0`, so `CA1416` turns any accidental
 Win32 call into a build error.
 
-**CI is the only place the Windows code is compiled.** Warnings are errors and the analyzers
-are strict on purpose. `--no-incremental` is mandatory: Roslyn does not re-emit analyzer
-warnings on a cached build, so without it the gate proves nothing.
+**CI compiles with warnings as errors** and the analyzers are strict on purpose.
+`--no-incremental` is mandatory: Roslyn does not re-emit analyzer warnings on a cached build,
+so without it the gate proves nothing.
+
+**Data lives in `%LOCALAPPDATA%\VoxScribe`** — settings, transcripts, dictionary, and the
+Parakeet model. `DataDirectory` migrates the old `Murmur` folder into it once, and only into
+an absent destination.
 
 ---
 
 ## Regex, if you touch the dictionary
 
-The two engines are not identical. Measured across 30 cases, **9 diverged**. Two affect this
-code and are handled — don't remove either:
+The dictionary's regexes were written to run identically under ICU and .NET, because they
+once had to. Two rules survive from that and should not be removed:
 
-- `RegexOptions.CultureInvariant` on the C# side, or Turkish `İ` matches `i`.
-- **NFC normalization on both sides.** macOS returns decomposed strings, so without it an
-  accented trigger silently never fires.
+- `RegexOptions.CultureInvariant`, or Turkish `İ` matches `i`.
+- **NFC normalization.** Decomposed input otherwise means an accented trigger silently never
+  fires.
 
-Two more are unfixable and simply avoided: ICU folds `ß` to `ss` and .NET doesn't; .NET's `.`
+Two known divergences are simply avoided: ICU folds `ß` to `ss` and .NET doesn't; .NET's `.`
 splits surrogate pairs. Stay inside the safe subset — `\b`, `\d`, `\w`, `\s`, character
 classes, greedy/lazy quantifiers, alternation, `(?<name>…)`, fixed-length lookbehind,
 lookahead, `\p{L}`, and `$1`–`$9` in replacements. Nothing else.
@@ -188,23 +151,20 @@ lookahead, `\p{L}`, and `$1`–`$9` in replacements. Nothing else.
 
 ## What isn't built
 
-1. **Command Mode** — select text, hold a second key, "make this more formal."
-2. **Onboarding** — a first-run window walking through the macOS permissions.
-3. **Notarization** (macOS) and **code signing** (Windows). Both apps are unsigned for
-   distribution, so Windows users will meet SmartScreen.
-4. **An installer** for Windows, and model download from inside the app rather than by
-   following `docs/PARAKEET-WINDOWS.md` by hand.
+1. **Command Mode** — dictate at a Claude Code session instead of at a text field.
+2. **Onboarding** — a first-run window, and model download from inside the app rather than
+   by following `docs/PARAKEET-WINDOWS.md` by hand.
+3. **Code signing.** The installer is unsigned, so users meet SmartScreen.
 
 ## What no amount of CI can verify
 
-On Windows, nobody has yet held the key and spoken. Specifically unverified:
+The cleanup pass has never run against a reachable gateway. Its guard is covered by tests;
+its network path is one `catch` whose entire contract is "return the original text on any
+failure", and the latency it adds between the key release and the text appearing has never
+been measured on real hardware.
 
-- Text injection landing in a foreground app — runners have an interactive desktop but
-  cannot take the foreground.
-- A real microphone: format negotiation, the OS privacy block, unplugging mid-capture.
-- The keyboard hook firing on a physical keypress.
-- Parakeet transcribing real speech, and whether ~2 GB resident is tolerable.
-
-Everything those feed into is behind an interface and tested with fakes. The bindings
-themselves are not. **First real-hardware run should start with `--selftest`, then a single
-short dictation into Notepad.**
+Everything the platform layer touches is behind an interface and tested with fakes. The
+bindings themselves are not, and two real bugs — the hook singleton and the chord overlap —
+lived happily behind green tests because those tests drive the engine through
+`FakeHotkeySource` and never install a real hook. **Anything touching `PushToTalkHook` has to
+be tried by hand.**

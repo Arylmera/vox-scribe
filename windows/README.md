@@ -2,16 +2,18 @@
 
 The Windows port of VoxScribe — push-to-talk dictation, on-device.
 
-> **Status: feature-complete, never run on real hardware.** Every layer exists and CI
-> builds, tests and publishes a working single-file executable that starts and passes its
-> own self-test on Windows. What has *not* happened is a human holding the key and speaking
-> into a real microphone — see [Honesty](#honesty).
+> **Status: shipped as 1.0.0 and in daily use.** Push-to-talk with a recordable chord,
+> streaming transcription while you speak, a dictation pill, tray, start-at-login, an
+> installer, and the Void Glass theme. Local Parakeet and a remote OpenAI-compatible STT
+> gateway are both wired and both used. What is still unverified is listed under
+> [Honesty](#honesty).
 
 ---
 
 ## Why this is a rewrite, not a port
 
-Almost every layer of the macOS app is Apple-specific:
+There was a macOS build in Swift, deleted on 2026-08-28 and recoverable from git history.
+Almost none of it could have been carried across — every layer was Apple-specific:
 
 | Layer | macOS | Windows |
 |---|---|---|
@@ -151,21 +153,30 @@ incremental build, so `-warnaserror` would pass on cached results and prove noth
 
 ## <a id="honesty"></a>Honesty about what is verified
 
-**Verified, on Windows, every push:** 68 tests pass — 24 dictionary (the shared vectors),
-31 core (dictation state machine, streaming segmentation, audio chunking, all three storage
-formats), 13 headless Avalonia UI. CI then publishes a self-contained ~116 MB executable, **runs it**, and the
-binary reports back that the dictionary works, the source-generated JSON round-trips, and
-the Windows platform layer loads and constructs out of the bundle.
+**Verified, every push:** 98 tests pass — 24 dictionary (the shared vectors), 55 core
+(dictation state machine, streaming segmentation, audio chunking, the two shortcuts, the
+cleanup guard, all three storage formats), 19 headless Avalonia UI and composition. CI then
+publishes a self-contained ~117 MB executable, **runs it**, and the binary reports back that
+the dictionary works, the source-generated JSON round-trips, and the Windows platform layer
+loads and constructs out of the bundle. The whole suite also runs on macOS in about half a
+second, which is why bugs like a `Render` method mutating a property get caught while
+writing them rather than three CI round-trips later.
 
-**Verified on macOS, in ~0.5s:** the same 68 tests. The UI genuinely runs headless here,
-which is why bugs like a `Render` method mutating a property get caught while writing them
-rather than three CI round-trips later.
+**Regex divergences**, measured across 30 cases when a second implementation still existed —
+9 differed. The two that affect this code are both handled: culture-sensitive
+case-insensitive matching (fixed by `CultureInvariant`) and NFC/NFD mismatch (fixed by
+normalizing). Two that are *not* fixable are simply avoided: ICU folds `ß` to `ss` and .NET
+does not, and .NET's `.` splits surrogate pairs.
 
-**Known divergences between the two regex engines**, measured across 30 cases — 9 differed.
-The two that affect this code are both handled: culture-sensitive case-insensitive matching
-(fixed by `CultureInvariant`) and NFC/NFD mismatch (fixed by normalizing both sides). Two
-that are *not* fixable are simply avoided: ICU folds `ß` to `ss` and .NET does not, and
-.NET's `.` splits surrogate pairs. Neither is reachable from the patterns this code builds.
+**The tests have a known blind spot.** They drive the engine through `FakeHotkeySource` and
+never install a real hook, which is exactly how two real bugs shipped green: `PushToTalkHook`
+holding per-instance state in a static, so a second hook silently never received a key; and
+two chords overlapping, so the shorter one ate every dictation meant for the longer. Anything
+touching that class has to be tried by hand.
+
+**The cleanup pass has never reached a live gateway.** Its guard is covered; its network path
+is one `catch`, and the latency it adds between the key release and the text appearing is
+unmeasured.
 
 **Cannot be verified anywhere but a real machine:**
 
@@ -173,7 +184,6 @@ that are *not* fixable are simply avoided: ICU folds `ß` to `ss` and .NET does 
   the foreground.
 - A real microphone: device format negotiation, the OS microphone-privacy block, unplugging
   mid-capture.
-- The low-level keyboard hook actually firing on a physical keypress.
 - Parakeet transcribing real speech, and whether the ~2 GB working set is tolerable.
 - Whether the silence threshold reads a real pause as a pause on a real microphone. The
   segmentation logic is tested against synthesised speech and silence; the calibration
