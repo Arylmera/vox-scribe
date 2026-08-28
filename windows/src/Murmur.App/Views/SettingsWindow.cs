@@ -172,6 +172,8 @@ public sealed class SettingsWindow : Window
 
             Section("REMOTE SERVER", BuildRemoteSection()),
 
+            Section("CLEANUP", BuildCleanupSection()),
+
             Section("BEHAVIOUR", new StackPanel
             {
                 Spacing = Tokens.Space.Snug,
@@ -297,6 +299,63 @@ public sealed class SettingsWindow : Window
             v => Save(_settings.Data with { SttApiKey = v }));
         apiKey.PasswordChar = '•';
 
+        return new StackPanel
+        {
+            Spacing = Tokens.Space.Snug,
+            Children =
+            {
+                Note("OpenAI-compatible transcription endpoint (e.g. a LiteLLM gateway). "
+                   + "When set, it is used instead of the local model."),
+                Labeled("ENDPOINT", endpoint),
+                Labeled("MODEL", model),
+                Labeled("API KEY", apiKey),
+                ConnectionTester(() => (
+                    _settings.Data.SttEndpoint, _settings.Data.SttModel, _settings.Data.SttApiKey)),
+                Note("Takes effect the next time Vox-Scribe starts."),
+            },
+        };
+    }
+
+    private StackPanel BuildCleanupSection()
+    {
+        var endpoint = Field("http://192.168.1.100:4000/v1  (empty = type it as transcribed)",
+            _settings.Data.CleanupEndpoint,
+            v => Save(_settings.Data with { CleanupEndpoint = v }));
+        var model = Field("Alias the gateway routes on",
+            _settings.Data.CleanupModel,
+            v => Save(_settings.Data with { CleanupModel = v ?? "local-light" }));
+        var apiKey = Field("API key (empty = unauthenticated)",
+            _settings.Data.CleanupApiKey,
+            v => Save(_settings.Data with { CleanupApiKey = v }));
+        apiKey.PasswordChar = '•';
+
+        return new StackPanel
+        {
+            Spacing = Tokens.Space.Snug,
+            Children =
+            {
+                Note("Sends the finished transcript to a small language model to fix "
+                   + "punctuation, capitalisation and filler words before it is typed. "
+                   + "Costs one LAN round trip; an unreachable model types the raw text."),
+                Labeled("ENDPOINT", endpoint),
+                Labeled("MODEL", model),
+                Labeled("API KEY", apiKey),
+                ConnectionTester(() => (
+                    _settings.Data.CleanupEndpoint,
+                    _settings.Data.CleanupModel,
+                    _settings.Data.CleanupApiKey)),
+                Note("Skipped while \"type each phrase as you speak it\" is on — those "
+                   + "phrases are already typed. Takes effect the next time Vox-Scribe starts."),
+            },
+        };
+    }
+
+    /// <summary>
+    /// The TEST CONNECTION row: button, lamp and verdict, reading its endpoint fresh on each
+    /// click so both the transcription and cleanup sections can share one implementation.
+    /// </summary>
+    private static StackPanel ConnectionTester(Func<(string? Endpoint, string Model, string? Key)> read)
+    {
         var lamp = new Lamp { VerticalAlignment = VerticalAlignment.Center };
         var status = Note("Not tested yet.");
         status.VerticalAlignment = VerticalAlignment.Center;
@@ -309,8 +368,8 @@ public sealed class SettingsWindow : Window
             test.IsEnabled = false;
             lamp.IsLit = false;
             status.Text = "Testing…";
-            var (ok, message) = await TestConnectionAsync(
-                _settings.Data.SttEndpoint, _settings.Data.SttModel, _settings.Data.SttApiKey);
+            var (endpoint, model, key) = read();
+            var (ok, message) = await TestConnectionAsync(endpoint, model, key);
             lamp.IsLit = true;
             lamp.LampColor = ok ? Tokens.Colors.MeterGreen : Tokens.Colors.MeterRed;
             status.Text = message;
@@ -319,22 +378,9 @@ public sealed class SettingsWindow : Window
 
         return new StackPanel
         {
+            Orientation = Orientation.Horizontal,
             Spacing = Tokens.Space.Snug,
-            Children =
-            {
-                Note("OpenAI-compatible transcription endpoint (e.g. a LiteLLM gateway). "
-                   + "When set, it is used instead of the local model."),
-                Labeled("ENDPOINT", endpoint),
-                Labeled("MODEL", model),
-                Labeled("API KEY", apiKey),
-                new StackPanel
-                {
-                    Orientation = Orientation.Horizontal,
-                    Spacing = Tokens.Space.Snug,
-                    Children = { test, lamp, status },
-                },
-                Note("Takes effect the next time Vox-Scribe starts."),
-            },
+            Children = { test, lamp, status },
         };
     }
 

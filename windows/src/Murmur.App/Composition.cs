@@ -106,6 +106,13 @@ public sealed class Composition : IAsyncDisposable
             engine.ToggleMode = settings.Data.PushToTalkToggle;
             engine.IncrementalInjection = settings.Data.IncrementalInjection;
 
+            if (settings.Data.CleanupEndpoint is { Length: > 0 } cleanupEndpoint)
+            {
+                var cleaner = new TextCleaner(
+                    cleanupEndpoint, settings.Data.CleanupModel, settings.Data.CleanupApiKey);
+                engine.Cleanup = cleaner.CleanAsync;
+            }
+
             // A freshly recorded shortcut must work right away — "restart to apply" reads
             // as "recording is broken". The hook reads Keys per event, so swapping the
             // array reference live is safe; so is flipping the toggle behaviour.

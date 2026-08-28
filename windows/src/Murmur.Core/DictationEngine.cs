@@ -157,6 +157,18 @@ public sealed class DictationEngine : IAsyncDisposable
     /// </remarks>
     public bool IncrementalInjection { get; set; }
 
+    /// <summary>
+    /// Optional repair pass applied to the finished utterance before it is reported and
+    /// typed. Null leaves the transcript exactly as the engine produced it.
+    /// </summary>
+    /// <remarks>
+    /// A delegate rather than an interface: there is one implementation
+    /// (<see cref="TextCleaner"/>), and the dictionary is already passed in as a
+    /// <see cref="Func{TResult}"/> for the same reason. It must never throw — the whole point
+    /// of the pass is that a dead gateway costs nothing.
+    /// </remarks>
+    public Func<string, CancellationToken, Task<string>>? Cleanup { get; set; }
+
     private void OnPressed(object? sender, EventArgs e)
     {
         if (ToggleMode) TogglePushToTalk();
@@ -285,6 +297,12 @@ public sealed class DictationEngine : IAsyncDisposable
         if (spoken.Length == 0) return;
 
         var text = string.Join(' ', spoken.Select(s => s.Text));
+
+        // Before Completed, so the history keeps what was actually typed. Skipped in
+        // incremental mode, where the phrases are already in the target window and there is
+        // nothing left to improve.
+        if (Cleanup is { } cleanup && !IncrementalInjection)
+            text = await cleanup(text, CancellationToken.None).ConfigureAwait(false);
 
         var result = new DictationResult(
             At: releasedAt,

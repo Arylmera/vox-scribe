@@ -67,6 +67,27 @@ public sealed record SettingsData
     public string? SttApiKey { get; init; }
 
     /// <summary>
+    /// OpenAI-compatible chat API base used to tidy the transcript before it is typed, or
+    /// null to type it as transcribed.
+    /// </summary>
+    /// <remarks>
+    /// Off by default. The pass costs a LAN round trip between the key release and the text
+    /// appearing, and it is skipped entirely in incremental mode — by the time the utterance
+    /// ends there, every phrase has already been typed.
+    /// </remarks>
+    public string? CleanupEndpoint { get; init; }
+
+    /// <summary>Alias the gateway routes the cleanup call on.</summary>
+    /// <remarks>
+    /// <c>local-light</c> deliberately: non-thinking, and with no <c>free-*</c> fallback
+    /// chain, so dictated text never leaves the LAN when the Mac is asleep.
+    /// </remarks>
+    public string CleanupModel { get; init; } = "local-light";
+
+    /// <summary>Bearer key for the cleanup endpoint, or null when unauthenticated.</summary>
+    public string? CleanupApiKey { get; init; }
+
+    /// <summary>
     /// WASAPI capture device ID (<c>MMDevice.ID</c>), or null for the system default
     /// communications device. Applied at startup.
     /// </summary>
