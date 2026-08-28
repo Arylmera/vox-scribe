@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- The ONLY project in the repo allowed to call Win32. Keep it thin: anything with
+         logic in it is code CI cannot exercise. -->
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>VoxScribe.Platform.Windows</RootNamespace>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <!-- VoxScribe.App copies this project's output (including NAudio*.dll) beside its own
+         executable and resolves it at run time. A library build does not copy package
+         assemblies by default, so without this the NAudio DLLs never reach the app and
+         capture dies with FileNotFoundException at first use. -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NAudio" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\VoxScribe.Abstractions\VoxScribe.Abstractions.csproj" />
+  </ItemGroup>
+</Project>

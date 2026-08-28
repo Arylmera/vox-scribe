@@ -1,0 +1,16 @@
+{
+  "solution": {
+    "path": "VoxScribe.sln",
+    "projects": [
+      "src\\VoxScribe.Abstractions\\VoxScribe.Abstractions.csproj",
+      "src\\VoxScribe.App\\VoxScribe.App.csproj",
+      "src\\VoxScribe.Core\\VoxScribe.Core.csproj",
+      "src\\VoxScribe.Dictionary\\VoxScribe.Dictionary.csproj",
+      "src\\VoxScribe.Speech\\VoxScribe.Speech.csproj",
+      "src\\VoxScribe.Testing\\VoxScribe.Testing.csproj",
+      "tests\\VoxScribe.App.Tests\\VoxScribe.App.Tests.csproj",
+      "tests\\VoxScribe.Core.Tests\\VoxScribe.Core.Tests.csproj",
+      "tests\\VoxScribe.Dictionary.Tests\\VoxScribe.Dictionary.Tests.csproj"
+    ]
+  }
+}
