@@ -169,8 +169,24 @@ public sealed class PushToTalkHook : IHotkeySource
     /// </summary>
     public int[] Keys { get; set; } = [(int)PushToTalkKey.RightControl];
 
+    /// <summary>
+    /// Keys that suppress this chord while any of them is held.
+    /// </summary>
+    /// <remarks>
+    /// This is how two overlapping shortcuts coexist. Bind Right Shift for raw dictation and
+    /// Left Shift + Right Shift for the cleanup pass, and the raw chord is satisfied by both
+    /// gestures — it would fire on every cleanup dictation, and whichever hook the system
+    /// happened to call last would decide what the utterance was. Naming the extra key here
+    /// makes the more specific chord win, which is what every shortcut system does and what a
+    /// user pressing two keys obviously means.
+    /// </remarks>
+    public int[] Blockers { get; set; } = [];
+
     /// <summary>Keys of the chord currently held. Touched only on the hook thread.</summary>
     private readonly HashSet<int> _chordDown = [];
+
+    /// <summary>Blockers currently held. Touched only on the hook thread.</summary>
+    private readonly HashSet<int> _blockersDown = [];
 
     /// <inheritdoc />
     public event EventHandler? Pressed;
@@ -241,6 +257,7 @@ public sealed class PushToTalkHook : IHotkeySource
         _threadId = 0;
         _isDown = false;
         _chordDown.Clear();
+        _blockersDown.Clear();
 
         if (ReferenceEquals(s_instance, this))
         {
@@ -289,8 +306,19 @@ public sealed class PushToTalkHook : IHotkeySource
         // The chord can be swapped live while keys from the old one are still down; purge
         // strays here, on the hook thread, so the all-members-down count stays honest.
         _chordDown.RemoveWhere(k => Array.IndexOf(Keys, k) < 0);
+        _blockersDown.RemoveWhere(k => Array.IndexOf(Blockers, k) < 0);
 
         var key = Normalize(e);
+
+        if (Array.IndexOf(Blockers, key) >= 0)
+        {
+            if (isDown) _blockersDown.Add(key);
+            else _blockersDown.Remove(key);
+
+            // Deliberately no release here: a blocker pressed mid-hold must not cut an
+            // utterance already being spoken. It only decides whether the next one starts.
+        }
+
         if (Array.IndexOf(Keys, key) < 0) return;
 
         if (isDown)
@@ -298,7 +326,7 @@ public sealed class PushToTalkHook : IHotkeySource
             // The OS re-fires key-down while a key is held; Add returns false on repeats.
             if (!_chordDown.Add(key)) return;
 
-            if (_chordDown.Count == Keys.Length && !_isDown)
+            if (_chordDown.Count == Keys.Length && !_isDown && _blockersDown.Count == 0)
             {
                 _isDown = true;
                 Pressed?.Invoke(this, EventArgs.Empty);

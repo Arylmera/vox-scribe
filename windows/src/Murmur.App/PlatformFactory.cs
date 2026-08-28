@@ -121,6 +121,17 @@ internal static class PlatformFactory
         hotkey.GetType().GetProperty("Keys")?.SetValue(hotkey, virtualKeys);
 
     /// <summary>
+    /// Names the keys that suppress <paramref name="hotkey"/> while held, so a longer chord
+    /// sharing its keys wins instead of both firing.
+    /// </summary>
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2075:DynamicallyAccessedMembers",
+        Justification = "Murmur.Platform.Windows is published whole and never trimmed.")]
+    public static void UpdateHotkeyBlockers(IHotkeySource hotkey, int[] virtualKeys) =>
+        hotkey.GetType().GetProperty("Blockers")?.SetValue(hotkey, virtualKeys);
+
+    /// <summary>
     /// Starts the global key recorder, or returns null off Windows. Dispose to stop.
     /// </summary>
     /// <param name="onKey">(normalized virtual key, isDown) — called on the hook thread.</param>

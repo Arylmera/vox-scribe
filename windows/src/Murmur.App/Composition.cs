@@ -62,6 +62,18 @@ public sealed class Composition : IAsyncDisposable
         ParakeetTranscriber.Locate() is not null
         || new AppSettings(AppSettings.DefaultPath).Data.SttEndpoint is { Length: > 0 };
 
+    /// <summary>
+    /// Keys held by the cleanup chord and not by the plain one — empty unless the cleanup
+    /// chord is a strict superset, which is the only case where the two collide.
+    /// </summary>
+    public static int[] Blockers(int[] plain, int[]? cleanup)
+    {
+        if (cleanup is not { Length: > 0 }) return [];
+        if (!plain.All(cleanup.Contains)) return [];
+
+        return [.. cleanup.Where(k => !plain.Contains(k))];
+    }
+
     /// <summary>Parses and installs the accent, keeping the default on a bad value.</summary>
     private static void ApplyAccent(string hex)
     {
@@ -105,6 +117,12 @@ public sealed class Composition : IAsyncDisposable
                 ? PlatformFactory.CreateHotkeySource(cleanupKeys)
                 : null;
 
+            // Right Shift and Left Shift + Right Shift both satisfy the plain chord. Tell the
+            // plain hook about the keys that are only in the cleanup chord, and it stands
+            // aside for the longer gesture.
+            PlatformFactory.UpdateHotkeyBlockers(
+                hotkey!, Blockers(settings.Data.ResolvedPushToTalkKeys, cleanupKeys));
+
             engine = new DictationEngine(
                 capture!, hotkey!, transcriber, injector!,
                 () => dictionary.Entries,
@@ -132,6 +150,10 @@ public sealed class Composition : IAsyncDisposable
                 // because the hook does not exist yet.
                 if (cleanupHotkey is not null && settings.Data.CleanupPushToTalkKeys is { Length: > 0 } chord)
                     PlatformFactory.UpdateHotkeyChord(cleanupHotkey, chord);
+
+                PlatformFactory.UpdateHotkeyBlockers(
+                    hotkey!,
+                    Blockers(settings.Data.ResolvedPushToTalkKeys, settings.Data.CleanupPushToTalkKeys));
                 live.ToggleMode = settings.Data.PushToTalkToggle;
                 live.IncrementalInjection = settings.Data.IncrementalInjection;
             };
