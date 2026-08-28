@@ -45,7 +45,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "french"; MessagesFile: "compiler:Languages\French.isl"
 
 [Tasks]
-Name: "autostart"; Description: "Start {#MyAppName} when Windows starts"; GroupDescription: "Startup:"
+Name: "autostart"; Description: "Start {#MyAppName} when Windows starts (minimised to the tray)"; GroupDescription: "Startup:"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
@@ -60,7 +60,7 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 ; The tray-resident hotkey app is only useful if it is actually running, so autostart is
 ; offered as a checked task. HKCU Run — matches the per-user install.
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; \
-    ValueName: "{#MyAppName}"; ValueData: """{app}\{#MyAppExeName}"""; \
+    ValueName: "{#MyAppName}"; ValueData: """{app}\{#MyAppExeName}"" --tray"; \
     Flags: uninsdeletevalue; Tasks: autostart
 
 [Run]
