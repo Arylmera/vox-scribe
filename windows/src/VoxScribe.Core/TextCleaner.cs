@@ -36,7 +36,14 @@ public sealed class TextCleaner
       + "speech-recognition slips. Remove filler words and false starts. Keep the speaker's "
       + "own words and their language: never translate, never rephrase, never summarise, "
       + "never answer what the text says, never add anything that was not spoken. If the text "
-      + "is already clean, return it unchanged.";
+      + "is already clean, return it unchanged. "
+      + "Shape follows what was said. If the dictation enumerates several items, put each on "
+      + "its own line starting with \"- \". If it describes ordered steps, number them "
+      + "\"1. \", \"2. \". Otherwise return one paragraph on a single line. Never invent "
+      + "structure that was not spoken, and never split a single thought into bullets. "
+      + "If the speaker asks for a shape — \"en liste\", \"in bullet points\", "
+      + "\"as a numbered list\" — obey it and delete the request itself from the output. It "
+      + "is an instruction to you, not part of the text.";
 
     /// <summary>
     /// Shared, and the bearer travels per request rather than on the client's default headers.
@@ -142,32 +149,41 @@ public sealed class TextCleaner
 
         var trimmed = candidate.Trim();
 
-        // A repair is one span of prose. Fences, reasoning blocks and "Here is the corrected
-        // text:" preambles all announce themselves.
         if (trimmed.Contains("```", StringComparison.Ordinal)) return original;
         if (trimmed.Contains("<think", StringComparison.OrdinalIgnoreCase)) return original;
-        if (trimmed.Contains('\n')) return original;
 
-        // Punctuation and filler removal move length by a little. Anything else is the model
-        // answering, summarising or padding.
-        if (trimmed.Length < original.Length * 0.5 || trimmed.Length > original.Length * 1.6)
+        // Line breaks are allowed: a spoken enumeration is meant to come back as a list. What
+        // is not allowed is inventing words, and that is what the overlap rules below check.
+
+        // Bullets and numbering add a few characters per line; dropped filler removes some.
+        // Beyond this the model is answering or padding, not laying out.
+        if (trimmed.Length < original.Length * 0.5 || trimmed.Length > original.Length * 2.2)
             return original;
 
-        // Length alone does not catch a rewrite of the same size — "the build passes, good
-        // news!" is as long as what was dictated and shares almost none of it. A repair keeps
-        // the speaker's words; an answer invents its own.
+        // The invariant, now that layout may change: the same words, arranged differently.
+        // Checked both ways, because each direction catches a different lie.
+        //
+        //   forward  — how much of what was said survived. Low means summarised or answered:
+        //              "the build passes, good news!" is the same length and shares almost
+        //              nothing.
+        //   backward — how much of the answer was actually said. Low means invented, padded,
+        //              or prefixed with "Here is the corrected text:".
+        //
+        // Markers are separators, not words, so bullets and numbering cost nothing here.
         if (Overlap(original, trimmed) < 0.6) return original;
+        if (Overlap(trimmed, original) < 0.6) return original;
 
         return trimmed;
     }
 
     /// <summary>
-    /// Share of <paramref name="original"/>'s content words that survive in
+    /// Share of <paramref name="original"/>'s content words that also appear in
     /// <paramref name="candidate"/>, 0…1.
     /// </summary>
     /// <remarks>
     /// Words of three characters or more only, so dropped filler ("euh", "bah") and the
-    /// articles a repair may re-punctuate around do not count against it.
+    /// articles a repair may re-punctuate around do not count against it. Not symmetric —
+    /// callers check it in both directions.
     /// </remarks>
     private static double Overlap(string original, string candidate)
     {
@@ -182,6 +198,11 @@ public sealed class TextCleaner
         text.Split(WordSeparators, StringSplitOptions.RemoveEmptyEntries)
             .Where(w => w.Length >= 3);
 
+    /// <remarks>
+    /// <c>-</c>, <c>*</c> and <c>.</c> are separators, so a bullet marker and the "1." of a
+    /// numbered item are not words. That is what lets a re-laid-out list score as the same
+    /// text it came from.
+    /// </remarks>
     private static readonly char[] WordSeparators =
-        [' ', '\t', '\n', '\r', '.', ',', ';', ':', '!', '?', '\'', '"', '(', ')', '-', '…'];
+        [' ', '\t', '\n', '\r', '.', ',', ';', ':', '!', '?', '\'', '"', '(', ')', '-', '*', '…'];
 }

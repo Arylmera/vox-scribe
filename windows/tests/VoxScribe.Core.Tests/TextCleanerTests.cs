@@ -68,7 +68,44 @@ public class TextCleanerTests
 
     [Fact]
     public void Padding_is_too_long_to_be_a_repair() =>
-        TextCleaner.Accept(Original, Original + " " + Original).ShouldBe(Original);
+        TextCleaner.Accept(Original, Original + " " + Original + " " + Original)
+            .ShouldBe(Original);
+
+    /// <summary>
+    /// A spoken enumeration comes back as a list. The markers are not words, so this is the
+    /// same text with a different layout.
+    /// </summary>
+    [Fact]
+    public void A_spoken_enumeration_may_come_back_as_bullets()
+    {
+        const string spoken = "il faut relancer le build vérifier les tests et publier la version";
+        const string laidOut = "- Relancer le build\n- Vérifier les tests\n- Publier la version";
+
+        TextCleaner.Accept(spoken, laidOut).ShouldBe(laidOut);
+    }
+
+    [Fact]
+    public void Numbered_steps_are_accepted_too()
+    {
+        const string spoken = "d'abord relancer le build ensuite vérifier les tests";
+        const string laidOut = "1. Relancer le build\n2. Vérifier les tests";
+
+        TextCleaner.Accept(spoken, laidOut).ShouldBe(laidOut);
+    }
+
+    /// <summary>
+    /// Layout does not license invention: a list whose items were never spoken is still the
+    /// model answering.
+    /// </summary>
+    [Fact]
+    public void An_invented_list_is_refused()
+    {
+        const string spoken = "il faut relancer le build vérifier les tests et publier la version";
+        const string invented =
+            "- Installer les dépendances\n- Configurer le serveur\n- Ouvrir le port";
+
+        TextCleaner.Accept(spoken, invented).ShouldBe(spoken);
+    }
 
     [Fact]
     public void The_content_field_is_read_out_of_an_openai_body() =>
