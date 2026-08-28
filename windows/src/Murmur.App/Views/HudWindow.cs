@@ -42,7 +42,11 @@ public sealed class HudWindow : Window
 
     private readonly DictationEngine _engine;
     private readonly HudBars _bars;
+    private readonly TextBlock _mode;
     private readonly TextBlock _preview;
+
+    /// <summary>Last mode rendered, so the brushes are rebuilt only when it flips.</summary>
+    private bool? _shownCleaning;
     private readonly DispatcherTimer _timer;
 
     /// <summary>Builds the pill over <paramref name="engine"/> and starts watching it.</summary>
@@ -62,7 +66,18 @@ public sealed class HudWindow : Window
         Focusable = false;
         IsHitTestVisible = false;
 
-        _bars = new HudBars { Height = 32, Margin = new Thickness(18, 12, 18, 0) };
+        _bars = new HudBars { Height = 32, Margin = new Thickness(10, 12, 18, 0) };
+
+        // Which of the two shortcuts is running. Placed beside the bars rather than over
+        // them: the pill is 420 px wide and the bars are the thing being watched.
+        _mode = new TextBlock
+        {
+            FontFamily = Tokens.Fonts.Grotesque,
+            FontSize = 10,
+            FontWeight = FontWeight.SemiBold,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(18, 12, 0, 0),
+        };
 
         _preview = new TextBlock
         {
@@ -86,7 +101,7 @@ public sealed class HudWindow : Window
             Child = new StackPanel
             {
                 VerticalAlignment = VerticalAlignment.Center,
-                Children = { _bars, _preview },
+                Children = { BuildTopRow(), _preview },
             },
         };
 
@@ -98,6 +113,35 @@ public sealed class HudWindow : Window
         _timer.Start();
     }
 
+    /// <summary>Badge on the left, level bars taking the rest.</summary>
+    private Grid BuildTopRow()
+    {
+        var row = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*") };
+
+        Grid.SetColumn(_mode, 0);
+        Grid.SetColumn(_bars, 1);
+        row.Children.Add(_mode);
+        row.Children.Add(_bars);
+
+        return row;
+    }
+
+    /// <summary>
+    /// Paints the badge. Accent for the cleanup shortcut, muted for the raw one — the accent
+    /// is the app's "something extra is happening" colour, and red stays reserved for
+    /// recording.
+    /// </summary>
+    private void ShowMode(bool cleaning)
+    {
+        if (_shownCleaning == cleaning) return;
+        _shownCleaning = cleaning;
+
+        _mode.Text = cleaning ? "CLEAN" : "RAW";
+        _mode.Foreground = cleaning
+            ? new SolidColorBrush(Tokens.Colors.Accent)
+            : new SolidColorBrush(Avalonia.Media.Colors.White, 0.35);
+    }
+
     private void Sync()
     {
         var state = _engine.State;
@@ -105,9 +149,14 @@ public sealed class HudWindow : Window
         if (state == DictationState.Idle)
         {
             if (IsVisible) Hide();
+
+            // Forget the painted mode: the accent can change while the pill is hidden, and
+            // the next utterance must repaint rather than keep a stale brush.
+            _shownCleaning = null;
             return;
         }
 
+        ShowMode(_engine.CleaningThisUtterance);
         _bars.Push(state, _engine.Level);
         ShowPreview(_engine.PartialText);
 

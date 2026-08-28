@@ -199,6 +199,18 @@ public sealed class DictationEngine : IAsyncDisposable
     /// </remarks>
     private bool _cleanThisUtterance;
 
+    /// <summary>
+    /// Whether the utterance in progress will actually be tidied before it is typed.
+    /// </summary>
+    /// <remarks>
+    /// Reports the outcome, not the intention: pressing the cleanup shortcut with no endpoint
+    /// configured, or while typing each phrase as it is spoken, changes nothing about the text
+    /// — and a badge that promised otherwise would be lying at the one moment the user is
+    /// looking at it.
+    /// </remarks>
+    public bool CleaningThisUtterance =>
+        _cleanThisUtterance && Cleanup is not null && !IncrementalInjection;
+
     private void OnPlainPressed(object? sender, EventArgs e)
     {
         _cleanThisUtterance = false;
