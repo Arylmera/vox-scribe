@@ -20,11 +20,15 @@ whatever had focus. Two independent implementations:
 
 **The macOS app works and is in daily use.**
 
-**The Windows app is complete but has never run on real hardware.** Every layer exists;
-CI builds it, runs 63 tests, publishes a single-file executable, launches it on Windows and
-confirms the platform layer loads and constructs. What has never happened is a person
-holding the key and speaking into a microphone. Describe it that way — not as "working",
-not as "unfinished".
+**The Windows app works and is in daily use**, shipped as Vox-Scribe 1.0.0. It has been
+run on real hardware: push-to-talk with a recordable chord, streaming transcription while
+you speak, dictation HUD, tray, start-at-login, installer, and the Void Glass theme with a
+user-selectable accent. Local Parakeet (sherpa-onnx) and a remote OpenAI-compatible STT
+gateway are both wired and both exercised by hand.
+
+The name is Vox-Scribe on the Windows side; the code namespaces are still `Murmur.*`.
+That is deliberate — renaming assemblies buys nothing and breaks the installer upgrade
+path.
 
 ---
 
