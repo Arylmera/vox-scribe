@@ -53,6 +53,7 @@ public sealed class DictationEngine : IAsyncDisposable
     private readonly ITextInjector _injector;
     private readonly IClock _clock;
     private readonly Func<IReadOnlyList<DictionaryEntry>> _dictionary;
+    private readonly IHotkeySource? _cleanupHotkey;
 
     private readonly SemaphoreSlim _gate = new(1, 1);
 
@@ -102,13 +103,19 @@ public sealed class DictationEngine : IAsyncDisposable
     /// a restart.
     /// </param>
     /// <param name="clock">Time source; defaults to the system clock.</param>
+    /// <param name="cleanupHotkey">
+    /// Optional second shortcut. It records exactly like the first, but its utterance goes
+    /// through <see cref="Cleanup"/> before it is typed — one key for raw and fast, one for
+    /// tidied. Null leaves a single shortcut, and then nothing is ever cleaned.
+    /// </param>
     public DictationEngine(
         IAudioCapture capture,
         IHotkeySource hotkey,
         ITranscriber transcriber,
         ITextInjector injector,
         Func<IReadOnlyList<DictionaryEntry>> dictionary,
-        IClock? clock = null)
+        IClock? clock = null,
+        IHotkeySource? cleanupHotkey = null)
     {
         _capture = capture;
         _hotkey = hotkey;
@@ -117,13 +124,26 @@ public sealed class DictationEngine : IAsyncDisposable
         _dictionary = dictionary;
         _clock = clock ?? SystemClock.Instance;
 
-        _hotkey.Pressed += OnPressed;
+        _hotkey.Pressed += OnPlainPressed;
         _hotkey.Released += OnReleased;
+
+        if (cleanupHotkey is not null)
+        {
+            _cleanupHotkey = cleanupHotkey;
+            cleanupHotkey.Pressed += OnCleanupPressed;
+            cleanupHotkey.Released += OnReleased;
+        }
     }
 
     /// <summary>Arms the hotkey.</summary>
     /// <returns>False if the hook could not be installed.</returns>
-    public bool Start() => _hotkey.Start();
+    public bool Start()
+    {
+        // The second shortcut is a convenience: if its hook fails to install, dictation must
+        // still work from the first.
+        _cleanupHotkey?.Start();
+        return _hotkey.Start();
+    }
 
     /// <summary>
     /// Starts or stops recording from a button rather than the hotkey.
@@ -168,6 +188,28 @@ public sealed class DictationEngine : IAsyncDisposable
     /// of the pass is that a dead gateway costs nothing.
     /// </remarks>
     public Func<string, CancellationToken, Task<string>>? Cleanup { get; set; }
+
+    /// <summary>
+    /// True when the utterance being recorded was started by the cleanup shortcut, and must
+    /// therefore go through <see cref="Cleanup"/> before it is typed.
+    /// </summary>
+    /// <remarks>
+    /// Set on press rather than read on release: the choice belongs to the key the user
+    /// actually held, and rebinding or reconfiguring mid-utterance must not change it.
+    /// </remarks>
+    private bool _cleanThisUtterance;
+
+    private void OnPlainPressed(object? sender, EventArgs e)
+    {
+        _cleanThisUtterance = false;
+        OnPressed(sender, e);
+    }
+
+    private void OnCleanupPressed(object? sender, EventArgs e)
+    {
+        _cleanThisUtterance = true;
+        OnPressed(sender, e);
+    }
 
     private void OnPressed(object? sender, EventArgs e)
     {
@@ -301,7 +343,7 @@ public sealed class DictationEngine : IAsyncDisposable
         // Before Completed, so the history keeps what was actually typed. Skipped in
         // incremental mode, where the phrases are already in the target window and there is
         // nothing left to improve.
-        if (Cleanup is { } cleanup && !IncrementalInjection)
+        if (_cleanThisUtterance && Cleanup is { } cleanup && !IncrementalInjection)
             text = await cleanup(text, CancellationToken.None).ConfigureAwait(false);
 
         var result = new DictationResult(
@@ -383,9 +425,16 @@ public sealed class DictationEngine : IAsyncDisposable
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
-        _hotkey.Pressed -= OnPressed;
+        _hotkey.Pressed -= OnPlainPressed;
         _hotkey.Released -= OnReleased;
         _hotkey.Dispose();
+
+        if (_cleanupHotkey is not null)
+        {
+            _cleanupHotkey.Pressed -= OnCleanupPressed;
+            _cleanupHotkey.Released -= OnReleased;
+            _cleanupHotkey.Dispose();
+        }
 
         if (_recording is not null)
         {

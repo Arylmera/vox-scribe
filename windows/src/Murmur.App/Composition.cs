@@ -99,9 +99,16 @@ public sealed class Composition : IAsyncDisposable
                     ? new ParakeetTranscriber(modelDirectory)
                     : new UnavailableTranscriber();
 
+            // Null unless a second chord is bound; the engine then has a single shortcut.
+            var cleanupKeys = settings.Data.CleanupPushToTalkKeys;
+            var cleanupHotkey = cleanupKeys is { Length: > 0 }
+                ? PlatformFactory.CreateHotkeySource(cleanupKeys)
+                : null;
+
             engine = new DictationEngine(
                 capture!, hotkey!, transcriber, injector!,
-                () => dictionary.Entries);
+                () => dictionary.Entries,
+                cleanupHotkey: cleanupHotkey);
 
             engine.ToggleMode = settings.Data.PushToTalkToggle;
             engine.IncrementalInjection = settings.Data.IncrementalInjection;
@@ -120,6 +127,11 @@ public sealed class Composition : IAsyncDisposable
             settings.Changed += (_, _) =>
             {
                 PlatformFactory.UpdateHotkeyChord(hotkey!, settings.Data.ResolvedPushToTalkKeys);
+
+                // Rebinding is live; binding one for the first time still needs a restart,
+                // because the hook does not exist yet.
+                if (cleanupHotkey is not null && settings.Data.CleanupPushToTalkKeys is { Length: > 0 } chord)
+                    PlatformFactory.UpdateHotkeyChord(cleanupHotkey, chord);
                 live.ToggleMode = settings.Data.PushToTalkToggle;
                 live.IncrementalInjection = settings.Data.IncrementalInjection;
             };

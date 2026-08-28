@@ -24,7 +24,11 @@ public sealed class SettingsWindow : Window
 
     private readonly AppSettings _settings;
     private readonly TransportKey _hotkeyButton;
+    private readonly TransportKey _cleanupHotkeyButton;
     private readonly TextBlock _keyWarning;
+
+    /// <summary>Which shortcut the live recorder is binding.</summary>
+    private bool _recordingCleanupChord;
 
     /// <summary>The live recorder hook, non-null only while recording.</summary>
     private IDisposable? _recorder;
@@ -48,7 +52,16 @@ public sealed class SettingsWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
 
         _hotkeyButton = new TransportKey { EngagedColor = Tokens.Colors.Ink };
-        _hotkeyButton.Click += (_, _) => { if (_recorder is null) StartRecording(); else CancelRecording(); };
+        _hotkeyButton.Click += (_, _) =>
+        {
+            if (_recorder is null) StartRecording(cleanup: false); else CancelRecording();
+        };
+
+        _cleanupHotkeyButton = new TransportKey { EngagedColor = Tokens.Colors.Ink };
+        _cleanupHotkeyButton.Click += (_, _) =>
+        {
+            if (_recorder is null) StartRecording(cleanup: true); else CancelRecording();
+        };
 
         _keyWarning = new TextBlock
         {
@@ -61,6 +74,7 @@ public sealed class SettingsWindow : Window
 
         Content = BuildContent();
         ShowChord(_settings.Data.ResolvedPushToTalkKeys);
+        ShowCleanupChord(_settings.Data.CleanupPushToTalkKeys);
     }
 
     /// <inheritdoc />
@@ -70,8 +84,9 @@ public sealed class SettingsWindow : Window
         base.OnClosed(e);
     }
 
-    private void StartRecording()
+    private void StartRecording(bool cleanup)
     {
+        _recordingCleanupChord = cleanup;
         _captured.Clear();
         _held.Clear();
 
@@ -82,8 +97,8 @@ public sealed class SettingsWindow : Window
 
         if (_recorder is null) return; // off Windows, or the hook failed to install
 
-        _hotkeyButton.IsEngaged = true;
-        _hotkeyButton.Content = "PRESS YOUR KEY(S)…";
+        Recording.IsEngaged = true;
+        Recording.Content = "PRESS YOUR KEY(S)…";
     }
 
     private void OnRecordedKey(int key, bool isDown)
@@ -94,13 +109,24 @@ public sealed class SettingsWindow : Window
         {
             if (key == VkEscape && _captured.Count == 0)
             {
+                // On the cleanup slot Escape means "unbind" rather than "cancel": with no
+                // other gesture available, there would otherwise be no way back to a single
+                // shortcut once one is recorded.
+                if (_recordingCleanupChord)
+                {
+                    CancelRecording();
+                    Save(_settings.Data with { CleanupPushToTalkKeys = null });
+                    ShowCleanupChord(null);
+                    return;
+                }
+
                 CancelRecording();
                 return;
             }
 
             if (!_captured.Contains(key)) _captured.Add(key);
             _held.Add(key);
-            _hotkeyButton.Content = ChordLabel(_captured);
+            Recording.Content = ChordLabel(_captured);
             return;
         }
 
@@ -110,10 +136,21 @@ public sealed class SettingsWindow : Window
         if (_captured.Count > 0 && _held.Count == 0) CommitRecording();
     }
 
+    /// <summary>The button the live recording is writing into.</summary>
+    private TransportKey Recording => _recordingCleanupChord ? _cleanupHotkeyButton : _hotkeyButton;
+
     private void CommitRecording()
     {
         var chord = _captured.ToArray();
+        var cleanup = _recordingCleanupChord;
         CancelRecording();
+
+        if (cleanup)
+        {
+            Save(_settings.Data with { CleanupPushToTalkKeys = chord });
+            ShowCleanupChord(chord);
+            return;
+        }
 
         Save(_settings.Data with { PushToTalkKeys = chord, PushToTalkKey = chord[0] });
         ShowChord(chord);
@@ -124,8 +161,15 @@ public sealed class SettingsWindow : Window
         _recorder?.Dispose();
         _recorder = null;
         _hotkeyButton.IsEngaged = false;
+        _cleanupHotkeyButton.IsEngaged = false;
         ShowChord(_settings.Data.ResolvedPushToTalkKeys);
+        ShowCleanupChord(_settings.Data.CleanupPushToTalkKeys);
     }
+
+    private void ShowCleanupChord(int[]? chord) =>
+        _cleanupHotkeyButton.Content = chord is { Length: > 0 }
+            ? ChordLabel(chord)
+            : "NOT BOUND";
 
     private void ShowChord(int[] chord)
     {
@@ -158,6 +202,11 @@ public sealed class SettingsWindow : Window
                     Note("Click, then press the key — or hold several keys together for a "
                        + "combination; releasing them records it. Escape cancels. The new "
                        + "shortcut works immediately: hold it anywhere to dictate."),
+                    _cleanupHotkeyButton,
+                    Note("Second shortcut. It records the same way, but sends the "
+                       + "transcript through the cleanup model before typing it. The first "
+                       + "shortcut stays raw and fast. Escape on this one unbinds it. "
+                       + "Binding it for the first time needs a restart."),
                     Toggle("Toggle mode — press once to start, press again to stop",
                         _settings.Data.PushToTalkToggle,
                         v => Save(_settings.Data with { PushToTalkToggle = v })),

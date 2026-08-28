@@ -67,6 +67,17 @@ public sealed record SettingsData
     public string? SttApiKey { get; init; }
 
     /// <summary>
+    /// Second push-to-talk chord, whose utterances go through the cleanup pass. Null or empty
+    /// leaves a single shortcut, and then nothing is ever cleaned.
+    /// </summary>
+    /// <remarks>
+    /// The two shortcuts are the whole cleanup switch: the main one types what was heard, this
+    /// one types what was tidied. That is a choice made per utterance, at the moment of
+    /// speaking, which is when you actually know whether you want the round trip.
+    /// </remarks>
+    public int[]? CleanupPushToTalkKeys { get; init; }
+
+    /// <summary>
     /// OpenAI-compatible chat API base used to tidy the transcript before it is typed, or
     /// null to type it as transcribed.
     /// </summary>
