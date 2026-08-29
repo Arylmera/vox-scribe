@@ -107,6 +107,20 @@ public class TextCleanerTests
         TextCleaner.Accept(spoken, invented).ShouldBe(spoken);
     }
 
+    /// <summary>
+    /// A request for format ("as a list" / "in bullet points") followed by an enumeration
+    /// must format as a list and drop the request. This tests that the prompt clarifies to
+    /// treat the entire input as dictated text, not as a command to the model.
+    /// </summary>
+    [Fact]
+    public void A_request_for_formatting_with_enumeration_is_formatted()
+    {
+        const string spoken = "in bullet points first install dependencies then configure the server finally open the port";
+        const string formatted = "- Install dependencies\n- Configure the server\n- Open the port";
+
+        TextCleaner.Accept(spoken, formatted).ShouldBe(formatted);
+    }
+
     [Fact]
     public void The_content_field_is_read_out_of_an_openai_body() =>
         TextCleaner.Content("""
