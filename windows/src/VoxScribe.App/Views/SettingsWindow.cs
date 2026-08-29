@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using Avalonia;
+using Avalonia.Animation;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -561,15 +562,33 @@ public sealed class SettingsWindow : Window
 
     private void Save(SettingsData data) => _settings.Update(data);
 
-    private static BrushedPanel Section(string label, Control content) => new BrushedPanel
+    private static BrushedPanel Section(string label, Control content)
     {
-        Child = new StackPanel
+        var section = new BrushedPanel
         {
-            Margin = new Thickness(Tokens.Space.Roomy),
-            Spacing = Tokens.Space.Base,
-            Children = { new Silkscreen { Text = label, IsLarge = true }, content },
-        },
-    };
+            Opacity = 0.8, // Start slightly faded
+            Child = new StackPanel
+            {
+                Margin = new Thickness(Tokens.Space.Roomy),
+                Spacing = Tokens.Space.Base,
+                Children = { new Silkscreen { Text = label, IsLarge = true }, content },
+            },
+        };
+
+        // Add fade-in transition
+        var transitions = new Transitions();
+        transitions.Add(new DoubleTransition
+        {
+            Property = Visual.OpacityProperty,
+            Duration = Tokens.Motion.FadeIn,
+        });
+        section.Transitions = transitions;
+
+        // Animate in on load
+        section.Loaded += (_, _) => section.Opacity = 1;
+
+        return section;
+    }
 
     private static TextBlock Note(string text) => new()
     {
