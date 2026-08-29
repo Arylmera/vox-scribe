@@ -1,5 +1,6 @@
 using System.Globalization;
 using Avalonia;
+using Avalonia.Animation;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -109,6 +110,17 @@ public sealed class MainWindow : Window
 
         Content = BuildLayout();
         ShowSection(transcriptions: true);
+
+        // Fade-in animation on window load
+        Opacity = 0.9;
+        var transitions = new Transitions();
+        transitions.Add(new DoubleTransition
+        {
+            Property = Visual.OpacityProperty,
+            Duration = Tokens.Motion.FadeIn,
+        });
+        Transitions = transitions;
+        Loaded += (_, _) => Opacity = 1;
 
         if (_composition?.Engine is not null) _composition.Engine.Start();
     }
