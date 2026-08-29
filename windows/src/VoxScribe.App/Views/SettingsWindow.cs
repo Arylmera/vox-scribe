@@ -426,11 +426,19 @@ public sealed class SettingsWindow : Window
             test.IsEnabled = true;
         };
 
+        var save = new TransportKey { Content = "SAVE", EngagedColor = Tokens.Colors.Ink };
+        save.Click += (_, _) =>
+        {
+            // Force LostFocus on any active field to trigger its onCommit handler
+            save.Focus();
+            status.Text = "Saved.";
+        };
+
         return new StackPanel
         {
             Orientation = Orientation.Horizontal,
             Spacing = Tokens.Space.Snug,
-            Children = { test, lamp, status },
+            Children = { test, save, lamp, status },
         };
     }
 
