@@ -427,11 +427,18 @@ public sealed class SettingsWindow : Window
         };
 
         var save = new TransportKey { Content = "SAVE", EngagedColor = Tokens.Colors.Ink };
-        save.Click += (_, _) =>
+        save.Click += async (_, _) =>
         {
             // Force LostFocus on any active field to trigger its onCommit handler
             save.Focus();
+
+            // Feedback: brief status, then clear after 2s
             status.Text = "Saved.";
+            status.Foreground = new SolidColorBrush(Tokens.Colors.MeterGreen);
+
+            await Task.Delay((int)Tokens.Motion.Feedback.TotalMilliseconds * 4);
+            status.Text = "Not tested yet.";
+            status.Foreground = new SolidColorBrush(Tokens.Colors.InkSecondary);
         };
 
         return new StackPanel

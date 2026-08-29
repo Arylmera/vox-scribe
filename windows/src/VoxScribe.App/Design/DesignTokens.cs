@@ -329,6 +329,12 @@ public static class Tokens
         /// <summary>The record lamp coming on — instant, like a filament.</summary>
         public static TimeSpan Lamp { get; } = TimeSpan.FromMilliseconds(80);
 
+        /// <summary>Subtle feedback (button pulse, status update).</summary>
+        public static TimeSpan Feedback { get; } = TimeSpan.FromMilliseconds(200);
+
+        /// <summary>View entrance fade-in.</summary>
+        public static TimeSpan FadeIn { get; } = TimeSpan.FromMilliseconds(300);
+
         /// <summary>
         /// VU ballistics: seconds to reach a step going up.
         /// </summary>
