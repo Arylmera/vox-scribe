@@ -1,0 +1,58 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap">
+  <style>
+    body { margin: 0; font-family: 'Space Grotesk', 'Segoe UI', sans-serif; background: #0a0d12; }
+    a { color: #4fd8e8; } a:hover { color: #8ce8f2; }
+  </style>
+</helmet>
+<div style="width: 500px; display: flex; flex-direction: column; gap: 20px; align-items: center; background: radial-gradient(ellipse at 50% -10%, #101722 0%, #0a0d12 60%); padding: 28px 0 32px 0;">
+
+  <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 1.5px; color: #8b96a5;">ENREGISTREMENT — le texte est la star</div>
+
+  <!-- State 1: readout card, red lamp (red = recording), thin level line, live mono text -->
+  <div style="width: 440px; background: rgba(12,16,22,0.92); border: 1px solid rgba(255,255,255,0.10); border-radius: 14px; display: flex; flex-direction: column; gap: 8px; padding: 12px 18px 14px 18px; box-shadow: 0 12px 32px rgba(0,0,0,0.5);">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div style="width: 7px; height: 7px; border-radius: 50%; background: #e85656; box-shadow: 0 0 8px rgba(232,86,86,0.7);"></div>
+      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 1.5px; color: #8b96a5;">REC · CLEAN · 0:07</div>
+      <div style="flex-grow: 1;"></div>
+      <div style="width: 120px; height: 3px; border-radius: 99px; background: rgba(255,255,255,0.08); display: flex;">
+        <div style="width: 62%; height: 3px; border-radius: 99px; background: {{accent}};"></div>
+      </div>
+    </div>
+    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.5; color: #e9edf2; white-space: nowrap; overflow: hidden; text-overflow: clip; "><span>…millisecondes, et le trajet distant reste prioritaire</span><span style="color: {{accent}};">▍</span></div>
+  </div>
+
+  <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 1.5px; color: #8b96a5; margin-top: 8px;">TRANSCRIPTION — la lampe s'éteint, ambre en travail</div>
+
+  <!-- State 2: lamp off (dark lens), amber working state -->
+  <div style="width: 440px; background: rgba(12,16,22,0.92); border: 1px solid rgba(255,255,255,0.10); border-radius: 14px; display: flex; flex-direction: column; gap: 8px; padding: 12px 18px 14px 18px; box-shadow: 0 12px 32px rgba(0,0,0,0.5);">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div style="width: 7px; height: 7px; border-radius: 50%; background: #3d2426;"></div>
+      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 1.5px; color: #e8b44f;">TRAITEMENT…</div>
+      <div style="flex-grow: 1;"></div>
+      <div style="width: 120px; height: 3px; border-radius: 99px; background: rgba(255,255,255,0.08); display: flex;">
+        <div style="width: 30%; height: 3px; border-radius: 99px; background: #e8b44f;"></div>
+      </div>
+    </div>
+    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.5; color: #e9edf2; white-space: nowrap; overflow: hidden;">…et le trajet distant reste prioritaire pour cette session.</div>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{"accent":{"editor":"color","default":"#4fd8e8","options":["#4fd8e8","#5a8cf5","#4fe8a0","#f06ad8"],"section":"Theme"},"$preview":{"width":500,"height":420}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { accent: this.props.accent ?? '#4fd8e8' };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,13 +1,18 @@
 {
   "pages": [
     { "id": "page-1", "name": "Void Glass" },
-    { "id": "page-2", "name": "Explorations" }
+    { "id": "page-2", "name": "Explorations" },
+    { "id": "page-3", "name": "Pastille" }
   ],
   "artboards": [
     { "file": "Main.dc.html", "title": "Main window + pill", "x": 0, "y": 0, "w": 880, "h": 720, "page": "page-1" },
     { "file": "Settings.dc.html", "title": "Settings", "x": 980, "y": 0, "w": 560, "h": 860, "page": "page-1" },
     { "file": "Aquila.dc.html", "title": "Direction A — Aquila", "x": 0, "y": 0, "w": 880, "h": 720, "page": "page-2" },
-    { "file": "Cogitator.dc.html", "title": "Direction C — Cogitator", "x": 980, "y": 0, "w": 880, "h": 720, "page": "page-2" }
+    { "file": "Cogitator.dc.html", "title": "Direction C — Cogitator", "x": 980, "y": 0, "w": 880, "h": 720, "page": "page-2" },
+    { "file": "PastilleActuelle.dc.html", "title": "Actuelle — référence", "x": 0, "y": 0, "w": 500, "h": 420, "page": "page-3" },
+    { "file": "PastilleFilament.dc.html", "title": "Option Filament", "x": 600, "y": 0, "w": 500, "h": 420, "page": "page-3" },
+    { "file": "PastilleLentille.dc.html", "title": "Option Lentille", "x": 1200, "y": 0, "w": 500, "h": 420, "page": "page-3" },
+    { "file": "PastilleConsole.dc.html", "title": "Option Console", "x": 1800, "y": 0, "w": 500, "h": 420, "page": "page-3" }
   ],
   "annotations": [
     {
@@ -26,7 +31,16 @@
       "w": 560,
       "page": "page-2",
       "text": "Earlier explorations, kept for reference.\nA · Aquila: imperial-modern gold on warm black.\nC · Cogitator: machine-cult brutalism, signal red + amber.\nDirection B (Void Glass) was chosen and lives on the first page."
+    },
+    {
+      "id": "pastille-brief",
+      "x": 0,
+      "y": -190,
+      "w": 620,
+      "page": "page-3",
+      "text": "Redesign de la pastille de dictée (HUD bas d'écran) — 3 pistes à côté de l'actuelle, chacune dans ses deux états (enregistrement, puis transcription + aperçu).\nFilament : l'onde flotte sans cadre, un ruban fin n'apparaît que pour le texte — occlusion minimale, mais moins lisible sur fond clair.\nLentille : lentille de mode + chrono + bord teinté accent — plus d'info d'un coup d'œil, mais plus présente à l'écran.\nConsole : le texte en direct devient la star (readout mono, lampe rouge = enregistrement, coins 14px) — parfait pour suivre la transcription, moins de feedback de niveau.\nLe tweak Accent au-dessus de chaque cadre suit le réglage utilisateur.",
+      "kind": "note"
     }
   ],
-  "launch": { "view": "canvas", "page": "page-1" }
+  "launch": { "view": "canvas", "page": "page-3" }
 }

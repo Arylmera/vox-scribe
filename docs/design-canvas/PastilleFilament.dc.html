@@ -1,0 +1,60 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap">
+  <style>
+    body { margin: 0; font-family: 'Space Grotesk', 'Segoe UI', sans-serif; background: #0a0d12; }
+    a { color: #4fd8e8; } a:hover { color: #8ce8f2; }
+  </style>
+</helmet>
+<div style="width: 500px; display: flex; flex-direction: column; gap: 20px; align-items: center; background: radial-gradient(ellipse at 50% -10%, #101722 0%, #0a0d12 60%); padding: 28px 0 32px 0;">
+
+  <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 1.5px; color: #8b96a5;">ENREGISTREMENT — aucun cadre, juste l'onde</div>
+
+  <!-- State 1: free-floating waveform, no container. A soft scrim keeps it readable. -->
+  <div style="width: 420px; height: 64px; display: flex; align-items: center; justify-content: center; gap: 5px; background: radial-gradient(ellipse at 50% 50%, rgba(10,13,18,0.75) 0%, rgba(10,13,18,0) 78%);">
+    <div style="width: 6px; height: 6px; border-radius: 50%; background: {{accent}}; box-shadow: 0 0 8px {{a80}}; margin-right: 8px;"></div>
+    <sc-for list="{{recBars}}" as="b" hint-placeholder-count="16">
+      <div style="width: 3px; height: {{b.h}}px; border-radius: 99px; background: {{accent}}; opacity: {{b.o}}; box-shadow: 0 0 6px {{a45}};"></div>
+    </sc-for>
+  </div>
+
+  <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 1.5px; color: #8b96a5; margin-top: 8px;">TRANSCRIPTION · APERÇU — un ruban fin apparaît</div>
+
+  <!-- State 2: slim glass ribbon fades in under the wave, text only -->
+  <div style="width: 420px; display: flex; flex-direction: column; gap: 10px; align-items: center;">
+    <div style="display: flex; align-items: center; justify-content: center; gap: 5px; height: 28px;">
+      <div style="width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.35); margin-right: 8px;"></div>
+      <sc-for list="{{shimmerBars}}" as="b" hint-placeholder-count="16">
+        <div style="width: 3px; height: {{b.h}}px; border-radius: 99px; background: #e8b44f;"></div>
+      </sc-for>
+    </div>
+    <div style="width: 420px; height: 38px; background: rgba(12,16,22,0.88); border: 1px solid rgba(255,255,255,0.09); border-radius: 999px; display: flex; align-items: center; justify-content: center; padding: 0 22px;">
+      <div style="font-size: 13px; color: #e9edf2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">…et le trajet distant reste prioritaire pour cette session.</div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script data-dc-script data-props='{"accent":{"editor":"color","default":"#4fd8e8","options":["#4fd8e8","#5a8cf5","#4fe8a0","#f06ad8"],"section":"Theme"},"$preview":{"width":500,"height":420}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const a = this.props.accent ?? '#4fd8e8';
+    const rec = [], shim = [];
+    for (let i = 0; i < 30; i++) {
+      const v = Math.abs(Math.sin(i * 0.8 + 0.6)) * (0.35 + 0.65 * Math.abs(Math.sin(i * 0.29)));
+      rec.push({ h: Math.round(4 + 34 * v), o: (0.35 + 0.65 * v).toFixed(2) });
+      shim.push({ h: Math.round(7 + 7 * Math.sin(i * 0.45)) });
+    }
+    return { accent: a, a45: a + '73', a80: a + 'cc', recBars: rec, shimmerBars: shim };
+  }
+}
+</script>
+</body>
+</html>
