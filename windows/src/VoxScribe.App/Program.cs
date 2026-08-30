@@ -30,8 +30,19 @@ public static class Program
             return SelfTest.Run();
         }
 
+        // A global keyboard hook per process means a second copy types the same dictation
+        // into the same field, and the two SendInput streams interleave character by
+        // character. Launching again after a rebuild, or from the Start menu while the tray
+        // icon is still there, is the normal way to end up with two.
+        _single = new Mutex(initiallyOwned: true, "VoxScribe.SingleInstance", out var first);
+        if (!first) return 0;
+
         return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }
+
+    /// <summary>Held for the life of the process; released when it exits.</summary>
+    /// <remarks>Static so the GC cannot collect it while the app is still running.</remarks>
+    private static Mutex? _single;
 
     /// <summary>Where an unhandled exception is written before the process dies.</summary>
     /// <remarks>
