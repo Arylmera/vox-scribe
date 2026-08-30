@@ -2,7 +2,8 @@
   "pages": [
     { "id": "page-1", "name": "Void Glass" },
     { "id": "page-2", "name": "Explorations" },
-    { "id": "page-3", "name": "Pastille" }
+    { "id": "page-3", "name": "Pastille" },
+    { "id": "page-4", "name": "Fenêtre native" }
   ],
   "artboards": [
     { "file": "Main.dc.html", "title": "Main window + pill", "x": 0, "y": 0, "w": 880, "h": 720, "page": "page-1" },
@@ -12,7 +13,10 @@
     { "file": "PastilleActuelle.dc.html", "title": "Actuelle — référence", "x": 0, "y": 0, "w": 500, "h": 420, "page": "page-3" },
     { "file": "PastilleFilament.dc.html", "title": "Option Filament", "x": 600, "y": 0, "w": 500, "h": 420, "page": "page-3" },
     { "file": "PastilleLentille.dc.html", "title": "Option Lentille", "x": 1200, "y": 0, "w": 500, "h": 460, "page": "page-3" },
-    { "file": "PastilleConsole.dc.html", "title": "Option Console", "x": 1800, "y": 0, "w": 500, "h": 420, "page": "page-3" }
+    { "file": "PastilleConsole.dc.html", "title": "Option Console", "x": 1800, "y": 0, "w": 500, "h": 420, "page": "page-3" },
+    { "file": "FenetreAffleurante.dc.html", "title": "Option Affleurante", "x": 0, "y": 0, "w": 880, "h": 640, "page": "page-4" },
+    { "file": "FenetreRail.dc.html", "title": "Option Rail", "x": 980, "y": 0, "w": 880, "h": 640, "page": "page-4" },
+    { "file": "FenetreBandeau.dc.html", "title": "Option Bandeau", "x": 1960, "y": 0, "w": 880, "h": 640, "page": "page-4" }
   ],
   "annotations": [
     {
@@ -40,7 +44,16 @@
       "page": "page-3",
       "text": "Redesign de la pastille de dictée (HUD bas d'écran) — 3 pistes à côté de l'actuelle, chacune dans ses deux états (enregistrement, puis transcription + aperçu).\nFilament : l'onde flotte sans cadre, un ruban fin n'apparaît que pour le texte — occlusion minimale, mais moins lisible sur fond clair.\nLentille (retenue, affinée) : 380px de large, verre transparent (fond ~55% + flou), lampe rouge + readout REC · CLEAN à gauche (repris de Console), chrono à droite, bord teinté accent.\nConsole : le texte en direct devient la star (readout mono, lampe rouge = enregistrement, coins 14px) — parfait pour suivre la transcription, moins de feedback de niveau.\nLe tweak Accent au-dessus de chaque cadre suit le réglage utilisateur.",
       "kind": "note"
+    },
+    {
+      "id": "fenetre-native-brief",
+      "x": 0,
+      "y": -210,
+      "w": 640,
+      "page": "page-4",
+      "text": "Fenêtre native — supprimer le bord autour de l'app.\nLe « bord » actuel vient de trois choses : la barre de titre système claire au-dessus de l'UI sombre, la marge de 16 px autour du contenu, et le liseré 1 px du puits. Les trois pistes l'éliminent : chrome client étendu (barre de titre dessinée par l'app, boutons réduire/agrandir/fermer intégrés), contenu bord à bord, coins 8 px natifs Windows 11.\nAffleurante : la mise en page Void Glass actuelle, mais fondue — plus aucun hairline, la profondeur vient du ton. Le moins de changement de code.\nRail : rail de navigation à gauche façon app Windows 11 (Réglages/Explorateur) — la plus « native », mais réorganise la navigation.\nBandeau : tout l'opérationnel (REC, onde, chrono, onglets) dans un seul bandeau qui EST la barre de titre ; le reste n'est que lecture. La plus dense, moins d'air.\nLe tweak Accent suit le réglage utilisateur.",
+      "kind": "note"
     }
   ],
-  "launch": { "view": "canvas", "page": "page-3" }
+  "launch": { "view": "canvas", "page": "page-4" }
 }
