@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
@@ -62,6 +63,9 @@ public sealed class HudWindow : Window
     /// <summary>Last (cleaning, recording) rendered, so brushes are rebuilt only on a flip.</summary>
     private (bool Cleaning, bool Recording)? _shown;
     private readonly DispatcherTimer _timerTick;
+
+    /// <summary>Display frames since the pill appeared, used to pace the topmost re-assert.</summary>
+    private int _frames;
 
     /// <summary>Builds the pill over <paramref name="engine"/> and starts watching it.</summary>
     public HudWindow(DictationEngine engine)
@@ -221,6 +225,14 @@ public sealed class HudWindow : Window
         {
             PositionBottomCenter();
             Show();
+            _frames = 0;
+            Overlay.MakeOverlay(this);
+        }
+        else if (++_frames % 15 == 0)
+        {
+            // Half a second apart: a window going full-screen pushes itself to the front of
+            // the topmost band, and nothing tells us it happened. See Overlay.KeepOnTop.
+            Overlay.KeepOnTop(this);
         }
     }
 
@@ -325,4 +337,75 @@ internal sealed class HudBars : Control
                 new RoundedRect(new Rect(x, y, barWidth, barHeight), barWidth / 2));
         }
     }
+}
+
+/// <summary>
+/// Keeps the pill above everything else on Windows. No-op on other platforms.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Setting <c>Topmost</c> alone is not enough. Topmost is a z-order <i>band</i>, not a
+/// promise: whenever a window goes full-screen the shell puts it at the front of that same
+/// band, and every overlay already sitting there — ours included — ends up behind it. Nothing
+/// notifies us, so the only cure is to claim the front of the band again, which is what every
+/// game/meeting overlay on Windows does.
+/// </para>
+/// <para>
+/// The one case this cannot win is a true exclusive-full-screen Direct3D app, which owns the
+/// scan-out and is composited by nobody. Borderless full-screen — browsers on F11, video
+/// players, Teams, most modern games — is a normal window and is covered here.
+/// </para>
+/// <para>
+/// The extended styles are the other half: NOACTIVATE keeps the pill from ever stealing focus
+/// (the load-bearing rule for text injection), TOOLWINDOW keeps it out of Alt-Tab, and
+/// TRANSPARENT makes clicks fall through at the OS level rather than only inside Avalonia.
+/// </para>
+/// </remarks>
+internal static class Overlay
+{
+    private const int GwlExStyle = -20;
+    private const int WsExTransparent = 0x0000_0020;
+    private const int WsExToolWindow = 0x0000_0080;
+    private const int WsExNoActivate = 0x0800_0000;
+
+    private const uint SwpNoSize = 0x0001;
+    private const uint SwpNoMove = 0x0002;
+    private const uint SwpNoActivate = 0x0010;
+
+    private static readonly IntPtr HwndTopmost = new(-1);
+
+    /// <summary>Stamps the overlay extended styles on. Call once each time the pill is shown.</summary>
+    public static void MakeOverlay(Window window)
+    {
+        var hwnd = HandleOf(window);
+        if (hwnd == IntPtr.Zero) return;
+
+        var style = GetWindowLongPtrW(hwnd, GwlExStyle);
+        SetWindowLongPtrW(hwnd, GwlExStyle, style | WsExNoActivate | WsExToolWindow | WsExTransparent);
+        KeepOnTop(window);
+    }
+
+    /// <summary>Re-claims the front of the topmost band, without moving, resizing or focusing.</summary>
+    public static void KeepOnTop(Window window)
+    {
+        var hwnd = HandleOf(window);
+        if (hwnd == IntPtr.Zero) return;
+
+        SetWindowPos(hwnd, HwndTopmost, 0, 0, 0, 0, SwpNoMove | SwpNoSize | SwpNoActivate);
+    }
+
+    private static IntPtr HandleOf(Window window) =>
+        OperatingSystem.IsWindows()
+            ? window.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero
+            : IntPtr.Zero;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool SetWindowPos(
+        IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint flags);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern IntPtr GetWindowLongPtrW(IntPtr hWnd, int index);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern IntPtr SetWindowLongPtrW(IntPtr hWnd, int index, IntPtr value);
 }
