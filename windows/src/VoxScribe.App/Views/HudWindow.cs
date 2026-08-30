@@ -1,5 +1,7 @@
+using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Shapes;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
@@ -9,9 +11,9 @@ using VoxScribe.Core;
 namespace VoxScribe.App.Views;
 
 /// <summary>
-/// The dictation pill: a small overlay at the bottom of the screen showing live level bars
-/// while recording, the text as it is transcribed, and a shimmer while the tail finishes.
-/// Hidden when idle.
+/// The dictation pill ("Lentille"): a small transparent-glass overlay at the bottom of the
+/// screen with a record lamp and mode readout on the left, live level bars in the middle, a
+/// timer on the right, and the text as it is transcribed on a line below. Hidden when idle.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -30,31 +32,43 @@ namespace VoxScribe.App.Views;
 /// the text is shown — a pill that grows with a long dictation would end up covering the
 /// window being dictated into.
 /// </para>
+/// <para>
+/// The glass is plain transparency, not acrylic: system blur backs the whole rectangular
+/// window, which would paint square corners behind the rounded pill.
+/// </para>
 /// </remarks>
 public sealed class HudWindow : Window
 {
-    /// <summary>Height with bars only, and with the preview line showing.</summary>
-    private const double CompactHeight = 64;
-    private const double PreviewHeight = 104;
+    /// <summary>Height with the readout row only, and with the preview line showing.</summary>
+    private const double CompactHeight = 60;
+    private const double PreviewHeight = 100;
+
+    private const double PillWidth = 380;
 
     /// <summary>Characters of transcript kept on screen; older text scrolls off the left.</summary>
     private const int PreviewCharacters = 110;
 
     private readonly DictationEngine _engine;
+    private readonly Border _shell;
+    private readonly Ellipse _lamp;
     private readonly HudBars _bars;
     private readonly TextBlock _mode;
+    private readonly TextBlock _timer;
     private readonly TextBlock _preview;
 
-    /// <summary>Last mode rendered, so the brushes are rebuilt only when it flips.</summary>
-    private bool? _shownCleaning;
-    private readonly DispatcherTimer _timer;
+    /// <summary>Utterance clock, display-only. Runs while recording, freezes for the tail.</summary>
+    private readonly Stopwatch _clock = new();
+
+    /// <summary>Last (cleaning, recording) rendered, so brushes are rebuilt only on a flip.</summary>
+    private (bool Cleaning, bool Recording)? _shown;
+    private readonly DispatcherTimer _timerTick;
 
     /// <summary>Builds the pill over <paramref name="engine"/> and starts watching it.</summary>
     public HudWindow(DictationEngine engine)
     {
         _engine = engine;
 
-        Width = 420;
+        Width = PillWidth;
         Height = CompactHeight;
         SystemDecorations = SystemDecorations.None;
         TransparencyLevelHint = [WindowTransparencyLevel.Transparent];
@@ -66,22 +80,33 @@ public sealed class HudWindow : Window
         Focusable = false;
         IsHitTestVisible = false;
 
-        _bars = new HudBars { Height = 32, Margin = new Thickness(10, 12, 18, 0) };
+        _lamp = new Ellipse
+        {
+            Width = 7,
+            Height = 7,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
 
-        // Which of the two shortcuts is running. Placed beside the bars rather than over
-        // them: the pill is 420 px wide and the bars are the thing being watched.
         _mode = new TextBlock
         {
-            FontFamily = Tokens.Fonts.Grotesque,
+            FontFamily = Tokens.Fonts.Mono,
             FontSize = 10,
-            FontWeight = FontWeight.SemiBold,
+            LetterSpacing = Tokens.Fonts.SilkscreenTracking,
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(18, 12, 0, 0),
+        };
+
+        _bars = new HudBars { Height = 30, Margin = new Thickness(12, 0) };
+
+        _timer = new TextBlock
+        {
+            FontFamily = Tokens.Fonts.Mono,
+            FontSize = 11,
+            VerticalAlignment = VerticalAlignment.Center,
         };
 
         _preview = new TextBlock
         {
-            Margin = new Thickness(18, 2, 18, 12),
+            Margin = new Thickness(4, 2, 4, 0),
             FontFamily = Tokens.Fonts.Grotesque,
             FontSize = 13,
             Foreground = Tokens.Brushes.InkOnDeck,
@@ -91,55 +116,81 @@ public sealed class HudWindow : Window
             IsVisible = false,
         };
 
-        Content = new Border
+        _shell = new Border
         {
-            // A full pill on the Void Glass ground.
-            CornerRadius = new CornerRadius(32),
-            Background = new SolidColorBrush(Color.FromArgb(0xE6, 0x0C, 0x10, 0x16)),
-            BorderBrush = new SolidColorBrush(Avalonia.Media.Colors.White, 0.10),
+            // Transparent glass: the desktop shows through the pill.
+            CornerRadius = new CornerRadius(30),
+            Background = new SolidColorBrush(Color.FromArgb(0x8C, 0x0C, 0x10, 0x16)),
             BorderThickness = new Thickness(1),
+            Padding = new Thickness(20, 0, 20, 0),
             Child = new StackPanel
             {
                 VerticalAlignment = VerticalAlignment.Center,
-                Children = { BuildTopRow(), _preview },
+                Children = { BuildReadoutRow(), _preview },
             },
         };
+        Content = _shell;
 
-        _timer = new DispatcherTimer(DispatcherPriority.Background)
+        _timerTick = new DispatcherTimer(DispatcherPriority.Background)
         {
             Interval = TimeSpan.FromMilliseconds(33),
         };
-        _timer.Tick += (_, _) => Sync();
-        _timer.Start();
+        _timerTick.Tick += (_, _) => Sync();
+        _timerTick.Start();
     }
 
-    /// <summary>Badge on the left, level bars taking the rest.</summary>
-    private Grid BuildTopRow()
+    /// <summary>Lamp and mode readout on the left, bars in the middle, timer on the right.</summary>
+    private Grid BuildReadoutRow()
     {
-        var row = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*") };
+        var row = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
+            Height = CompactHeight,
+        };
 
-        Grid.SetColumn(_mode, 0);
+        var readout = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = Tokens.Space.Snug,
+            VerticalAlignment = VerticalAlignment.Center,
+            Children = { _lamp, _mode },
+        };
+
+        Grid.SetColumn(readout, 0);
         Grid.SetColumn(_bars, 1);
-        row.Children.Add(_mode);
+        Grid.SetColumn(_timer, 2);
+        row.Children.Add(readout);
         row.Children.Add(_bars);
+        row.Children.Add(_timer);
 
         return row;
     }
 
     /// <summary>
-    /// Paints the badge. Accent for the cleanup shortcut, muted for the raw one — the accent
-    /// is the app's "something extra is happening" colour, and red stays reserved for
-    /// recording.
+    /// Paints the readout for the current state. Red lamp while recording (the only red in
+    /// the app), a dark lens for the tail; the mode label goes amber while the tail is
+    /// worked on, echoing the shimmer.
     /// </summary>
-    private void ShowMode(bool cleaning)
+    private void ShowMode(bool cleaning, bool recording)
     {
-        if (_shownCleaning == cleaning) return;
-        _shownCleaning = cleaning;
+        if (_shown == (cleaning, recording)) return;
+        _shown = (cleaning, recording);
 
-        _mode.Text = cleaning ? "CLEAN" : "RAW";
-        _mode.Foreground = cleaning
+        var mode = cleaning ? "CLEAN" : "RAW";
+        _mode.Text = recording ? "REC · " + mode : mode;
+        _mode.Foreground = recording
+            ? new SolidColorBrush(Tokens.Colors.Ink, 0.82)
+            : new SolidColorBrush(Tokens.Colors.MeterAmber);
+
+        _lamp.Fill = recording ? Tokens.Brushes.Record : new SolidColorBrush(Tokens.Colors.RecordIdle);
+        _timer.Foreground = recording
             ? new SolidColorBrush(Tokens.Colors.Accent)
-            : new SolidColorBrush(Avalonia.Media.Colors.White, 0.35);
+            : new SolidColorBrush(Tokens.Colors.Ink, 0.82);
+
+        // Accent-tinted edge while recording, a plain hairline for the tail.
+        _shell.BorderBrush = recording
+            ? new SolidColorBrush(Tokens.Colors.Accent, 0.35)
+            : new SolidColorBrush(Avalonia.Media.Colors.White, 0.14);
     }
 
     private void Sync()
@@ -150,13 +201,19 @@ public sealed class HudWindow : Window
         {
             if (IsVisible) Hide();
 
-            // Forget the painted mode: the accent can change while the pill is hidden, and
+            // Forget the painted state: the accent can change while the pill is hidden, and
             // the next utterance must repaint rather than keep a stale brush.
-            _shownCleaning = null;
+            _shown = null;
+            _clock.Reset();
             return;
         }
 
-        ShowMode(_engine.CleaningThisUtterance);
+        var recording = state == DictationState.Recording;
+        if (recording && !_clock.IsRunning) _clock.Restart();
+        if (!recording) _clock.Stop();
+
+        ShowMode(_engine.CleaningThisUtterance, recording);
+        _timer.Text = $"{(int)_clock.Elapsed.TotalMinutes}:{_clock.Elapsed.Seconds:00}";
         _bars.Push(state, _engine.Level);
         ShowPreview(_engine.PartialText);
 
