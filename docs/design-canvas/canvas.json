@@ -11,7 +11,7 @@
     { "file": "Cogitator.dc.html", "title": "Direction C — Cogitator", "x": 980, "y": 0, "w": 880, "h": 720, "page": "page-2" },
     { "file": "PastilleActuelle.dc.html", "title": "Actuelle — référence", "x": 0, "y": 0, "w": 500, "h": 420, "page": "page-3" },
     { "file": "PastilleFilament.dc.html", "title": "Option Filament", "x": 600, "y": 0, "w": 500, "h": 420, "page": "page-3" },
-    { "file": "PastilleLentille.dc.html", "title": "Option Lentille", "x": 1200, "y": 0, "w": 500, "h": 420, "page": "page-3" },
+    { "file": "PastilleLentille.dc.html", "title": "Option Lentille", "x": 1200, "y": 0, "w": 500, "h": 460, "page": "page-3" },
     { "file": "PastilleConsole.dc.html", "title": "Option Console", "x": 1800, "y": 0, "w": 500, "h": 420, "page": "page-3" }
   ],
   "annotations": [
@@ -38,7 +38,7 @@
       "y": -190,
       "w": 620,
       "page": "page-3",
-      "text": "Redesign de la pastille de dictée (HUD bas d'écran) — 3 pistes à côté de l'actuelle, chacune dans ses deux états (enregistrement, puis transcription + aperçu).\nFilament : l'onde flotte sans cadre, un ruban fin n'apparaît que pour le texte — occlusion minimale, mais moins lisible sur fond clair.\nLentille (retenue, affinée) : 380px de large, lampe rouge + readout REC · CLEAN à gauche (repris de Console), chrono à droite, bord teinté accent.\nConsole : le texte en direct devient la star (readout mono, lampe rouge = enregistrement, coins 14px) — parfait pour suivre la transcription, moins de feedback de niveau.\nLe tweak Accent au-dessus de chaque cadre suit le réglage utilisateur.",
+      "text": "Redesign de la pastille de dictée (HUD bas d'écran) — 3 pistes à côté de l'actuelle, chacune dans ses deux états (enregistrement, puis transcription + aperçu).\nFilament : l'onde flotte sans cadre, un ruban fin n'apparaît que pour le texte — occlusion minimale, mais moins lisible sur fond clair.\nLentille (retenue, affinée) : 380px de large, verre transparent (fond ~55% + flou), lampe rouge + readout REC · CLEAN à gauche (repris de Console), chrono à droite, bord teinté accent.\nConsole : le texte en direct devient la star (readout mono, lampe rouge = enregistrement, coins 14px) — parfait pour suivre la transcription, moins de feedback de niveau.\nLe tweak Accent au-dessus de chaque cadre suit le réglage utilisateur.",
       "kind": "note"
     }
   ],
