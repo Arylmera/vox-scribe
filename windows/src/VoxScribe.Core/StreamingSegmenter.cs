@@ -70,6 +70,38 @@ public sealed class StreamingSegmenter
         _maxSegmentSamples = (int)(maxSegmentSeconds * AudioChunk.SampleRate);
     }
 
+    /// <summary>
+    /// True when <paramref name="segment"/> actually contains speech.
+    /// </summary>
+    /// <remarks>
+    /// A segment can close on nothing at all: the tail flushed on key release is whatever
+    /// followed the last pause, and a user who stops talking half a second before letting go
+    /// leaves pure silence behind. Recognisers do not answer "nothing" to that — they answer
+    /// with whatever their training data puts after a silence, which is why "thank you",
+    /// "yeah" and their kind appear at the end of an utterance nobody spoke.
+    /// The cheapest place to stop that is here, before the audio is ever sent.
+    /// <para>
+    /// Scored on the loudest 20 ms window rather than the whole segment's level: one word
+    /// inside ten seconds of quiet is speech, and its overall RMS is not.
+    /// </para>
+    /// </remarks>
+    public static bool HasSpeech(ReadOnlySpan<float> segment)
+    {
+        const int window = AudioChunk.SampleRate / 50;   // 20 ms
+        if (segment.Length == 0) return false;
+
+        for (var offset = 0; offset < segment.Length; offset += window)
+        {
+            var end = Math.Min(offset + window, segment.Length);
+            double sum = 0;
+            for (var i = offset; i < end; i++) sum += (double)segment[i] * segment[i];
+
+            if (Math.Sqrt(sum / (end - offset)) >= SilenceFloor) return true;
+        }
+
+        return false;
+    }
+
     /// <summary>Samples held back, waiting for a pause.</summary>
     public int Pending => _buffer.Count;
 

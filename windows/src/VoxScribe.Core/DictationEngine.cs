@@ -400,6 +400,10 @@ public sealed class DictationEngine : IAsyncDisposable
     /// <remarks>Callers must hold <see cref="_segments"/>.</remarks>
     private void Queue(ReadOnlyMemory<float> piece)
     {
+        // Silence is never sent: a recogniser given nothing invents something, and that is
+        // where the stray "thank you" at the end of an utterance comes from.
+        if (!StreamingSegmenter.HasSpeech(piece.Span)) return;
+
         var task = TranscribeSegmentAsync(_chain, piece);
         _chain = task;
         _queued.Add(task);

@@ -80,6 +80,26 @@ public sealed class DictationEngineTests
     }
 
     [Fact]
+    public async Task Silence_is_never_sent_to_the_recogniser()
+    {
+        var hotkey = new FakeHotkeySource();
+        // Would happily hand back a hallucination if it were ever asked.
+        var transcriber = new FakeTranscriber("Thank you.");
+        var injector = new RecordingTextInjector();
+
+        await using var engine = Build(
+            FakeAudioCapture.Silence(2.0), hotkey, transcriber, injector);
+
+        hotkey.Press();
+        for (var i = 0; i < 2000 && engine.State != DictationState.Recording; i++) await Task.Yield();
+        hotkey.Release();
+        for (var i = 0; i < 20000 && engine.State != DictationState.Idle; i++) await Task.Yield();
+
+        transcriber.SegmentLengths.ShouldBeEmpty();
+        injector.Injected.ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task Release_without_press_is_ignored()
     {
         var hotkey = new FakeHotkeySource();
