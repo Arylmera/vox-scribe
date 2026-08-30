@@ -6,7 +6,7 @@
     { "id": "page-4", "name": "Fenêtre native" }
   ],
   "artboards": [
-    { "file": "Main.dc.html", "title": "Main window + pill", "x": 0, "y": 0, "w": 880, "h": 720, "page": "page-1" },
+    { "file": "Main.dc.html", "title": "Main window + pill", "x": 0, "y": 0, "w": 880, "h": 780, "page": "page-1" },
     { "file": "Settings.dc.html", "title": "Settings", "x": 980, "y": 0, "w": 560, "h": 860, "page": "page-1" },
     { "file": "Aquila.dc.html", "title": "Direction A — Aquila", "x": 0, "y": 0, "w": 880, "h": 720, "page": "page-2" },
     { "file": "Cogitator.dc.html", "title": "Direction C — Cogitator", "x": 980, "y": 0, "w": 880, "h": 720, "page": "page-2" },
@@ -25,7 +25,7 @@
       "y": -170,
       "w": 560,
       "page": "page-1",
-      "text": "Void Glass — the chosen direction, built out.\nThe accent color is a user setting: cyan, blue, green, pink, gold, or a custom pick — see the Appearance section in Settings. Try the Accent tweak above each frame to preview any color across the whole UI.\nSample transcript copy; LiteLLM status reflects the real config.",
+      "text": "Void Glass — the chosen direction, built out. Main window now uses the Rail layout (chosen on the Fenêtre native page): extended client chrome, left icon rail, edge-to-edge content — implemented in the app.\nThe accent color is a user setting: cyan, blue, green, pink, gold, or a custom pick — see the Appearance section in Settings. Try the Accent tweak above each frame to preview any color across the whole UI.\nSample transcript copy; LiteLLM status reflects the real config.",
       "kind": "note"
     },
     {
@@ -51,9 +51,9 @@
       "y": -210,
       "w": 640,
       "page": "page-4",
-      "text": "Fenêtre native — supprimer le bord autour de l'app.\nLe « bord » actuel vient de trois choses : la barre de titre système claire au-dessus de l'UI sombre, la marge de 16 px autour du contenu, et le liseré 1 px du puits. Les trois pistes l'éliminent : chrome client étendu (barre de titre dessinée par l'app, boutons réduire/agrandir/fermer intégrés), contenu bord à bord, coins 8 px natifs Windows 11.\nAffleurante : la mise en page Void Glass actuelle, mais fondue — plus aucun hairline, la profondeur vient du ton. Le moins de changement de code.\nRail : rail de navigation à gauche façon app Windows 11 (Réglages/Explorateur) — la plus « native », mais réorganise la navigation.\nBandeau : tout l'opérationnel (REC, onde, chrono, onglets) dans un seul bandeau qui EST la barre de titre ; le reste n'est que lecture. La plus dense, moins d'air.\nLe tweak Accent suit le réglage utilisateur.",
+      "text": "Fenêtre native — supprimer le bord autour de l'app. RAIL RETENUE — implémentée dans l'app et reprise comme fenêtre principale sur la page Void Glass.\nLe « bord » actuel vient de trois choses : la barre de titre système claire au-dessus de l'UI sombre, la marge de 16 px autour du contenu, et le liseré 1 px du puits. Les trois pistes l'éliminent : chrome client étendu (barre de titre dessinée par l'app, boutons réduire/agrandir/fermer intégrés), contenu bord à bord, coins 8 px natifs Windows 11.\nAffleurante : la mise en page Void Glass actuelle, mais fondue — plus aucun hairline, la profondeur vient du ton. Le moins de changement de code.\nRail : rail de navigation à gauche façon app Windows 11 (Réglages/Explorateur) — la plus « native », mais réorganise la navigation.\nBandeau : tout l'opérationnel (REC, onde, chrono, onglets) dans un seul bandeau qui EST la barre de titre ; le reste n'est que lecture. La plus dense, moins d'air.\nLe tweak Accent suit le réglage utilisateur.",
       "kind": "note"
     }
   ],
-  "launch": { "view": "canvas", "page": "page-4" }
+  "launch": { "view": "canvas", "page": "page-1" }
 }
