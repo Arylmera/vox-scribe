@@ -242,6 +242,118 @@ public sealed class TransportKey : Button
 }
 
 /// <summary>
+/// A navigation rail key: a square icon button on the left rail.
+/// </summary>
+/// <remarks>
+/// Engaged tints the key with the accent and recolours its stroke icon; otherwise it sits
+/// flat on the rail with a silkscreen-grey icon. No borders — the rail separates by tone.
+/// </remarks>
+public sealed class RailKey : Button
+{
+    /// <summary>Whether this key is the active section.</summary>
+    public static readonly StyledProperty<bool> IsEngagedProperty =
+        AvaloniaProperty.Register<RailKey, bool>(nameof(IsEngaged));
+
+    /// <inheritdoc cref="IsEngagedProperty"/>
+    public bool IsEngaged
+    {
+        get => GetValue(IsEngagedProperty);
+        set => SetValue(IsEngagedProperty, value);
+    }
+
+    static RailKey() => AffectsRender<RailKey>(IsEngagedProperty, IsPressedProperty);
+
+    /// <summary>Creates a key holding a stroke icon parsed from SVG path data.</summary>
+    public RailKey(string iconPathData)
+    {
+        Width = Tokens.Material.RailKeySize;
+        Height = Tokens.Material.RailKeySize;
+        Background = null;
+        BorderBrush = null;
+        Padding = new Thickness(0);
+        HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center;
+        VerticalContentAlignment = Avalonia.Layout.VerticalAlignment.Center;
+
+        Content = new Avalonia.Controls.Shapes.Path
+        {
+            Data = Geometry.Parse(iconPathData),
+            Stroke = Tokens.Brushes.Silkscreen,
+            StrokeThickness = Tokens.Material.RailIconStroke,
+            StrokeLineCap = PenLineCap.Round,
+            StrokeJoin = PenLineJoin.Round,
+            Fill = null,
+            Width = Tokens.Material.RailIconSize,
+            Height = Tokens.Material.RailIconSize,
+            Stretch = Stretch.Uniform,
+        };
+    }
+
+    /// <inheritdoc />
+    public override void Render(DrawingContext context)
+    {
+        var bounds = new Rect(Bounds.Size);
+        if (bounds.Width <= 0 || bounds.Height <= 0) return;
+
+        var shape = new RoundedRect(bounds, Tokens.Radius.RailKey);
+
+        if (IsEngaged)
+        {
+            context.DrawRectangle(new SolidColorBrush(Tokens.Colors.Accent, 0.10), null, shape);
+        }
+        else if (IsPressed || IsPointerOver)
+        {
+            context.DrawRectangle(new SolidColorBrush(Tokens.Colors.Hover), null, shape);
+        }
+    }
+
+    /// <inheritdoc />
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+
+        // Recoloured here, not in Render — see TransportKey for why.
+        if (change.Property == IsEngagedProperty
+            && Content is Avalonia.Controls.Shapes.Path icon)
+        {
+            icon.Stroke = IsEngaged
+                ? new SolidColorBrush(Tokens.Colors.Accent)
+                : Tokens.Brushes.Silkscreen;
+        }
+    }
+}
+
+/// <summary>
+/// The round record button in the voice band: a red-tinted disc holding the record lamp.
+/// </summary>
+public sealed class RecordButton : Button
+{
+    static RecordButton() => AffectsRender<RecordButton>(IsPressedProperty);
+
+    /// <summary>Creates the button at the token size.</summary>
+    public RecordButton()
+    {
+        Width = Tokens.Material.RecordKeySize;
+        Height = Tokens.Material.RecordKeySize;
+        Background = null;
+        BorderBrush = null;
+        Padding = new Thickness(0);
+        HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center;
+        VerticalContentAlignment = Avalonia.Layout.VerticalAlignment.Center;
+    }
+
+    /// <inheritdoc />
+    public override void Render(DrawingContext context)
+    {
+        var size = Math.Min(Bounds.Width, Bounds.Height);
+        if (size <= 0) return;
+
+        var centre = new Point(Bounds.Width / 2, Bounds.Height / 2);
+        var fill = new SolidColorBrush(Tokens.Colors.Record, IsPressed ? 0.24 : 0.14);
+        context.DrawEllipse(fill, null, centre, size / 2, size / 2);
+    }
+}
+
+/// <summary>
 /// A VU meter with a real needle.
 /// </summary>
 /// <remarks>

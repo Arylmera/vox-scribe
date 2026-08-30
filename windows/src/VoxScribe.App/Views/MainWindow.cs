@@ -12,12 +12,13 @@ using VoxScribe.Core;
 namespace VoxScribe.App.Views;
 
 /// <summary>
-/// The main window — the front panel of the unit.
+/// The main window — a native-feeling shell with a navigation rail.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Laid out the way a deck is: transport and meter across the top on the panel itself, then a
-/// recessed well below holding whichever section is selected.
+/// The Rail layout: client area extended into the title bar (the system draws only the
+/// caption buttons), an icon rail down the left edge for sections, and edge-to-edge content.
+/// No root margin, no bordered well — separation comes from tone, not lines.
 /// </para>
 /// <para>
 /// Built in code rather than XAML, deliberately. Every value comes from <see cref="Tokens"/>,
@@ -27,14 +28,25 @@ namespace VoxScribe.App.Views;
 /// </remarks>
 public sealed class MainWindow : Window
 {
+    // Stroke icons for the rail, 24-unit grid, matching the design canvas.
+    private const string WaveIcon = "M4,10 V14 M8,7 V17 M12,4 V20 M16,8 V16 M20,10 V14";
+    private const string BookIcon = "M5,4 H16 A3,3 0 0 1 19,7 V20 H8 A3,3 0 0 1 5,17 Z M9,9 H15";
+    private const string GearIcon =
+        "M19,12 a7,7 0 0 0 -0.1,-1.2 l2,-1.6 -2,-3.4 -2.4,1 a7,7 0 0 0 -2,-1.2 L14,3 h-4 "
+        + "l-0.5,2.6 a7,7 0 0 0 -2,1.2 l-2.4,-1 -2,3.4 2,1.6 A7,7 0 0 0 5,12 a7,7 0 0 0 "
+        + "0.1,1.2 l-2,1.6 2,3.4 2.4,-1 a7,7 0 0 0 2,1.2 L10,21 h4 l0.5,-2.6 a7,7 0 0 0 "
+        + "2,-1.2 l2.4,1 2,-3.4 -2,-1.6 A7,7 0 0 0 19,12 Z M15,12 a3,3 0 1 1 -6,0 "
+        + "a3,3 0 0 1 6,0";
+    private const string MicIcon = "M12,4 V13 M8,8 V11 M16,8 V11 M12,17 V20 M7,13 a5,5 0 0 0 10,0";
+
     private readonly Composition? _composition;
-    private readonly TransportKey _recordKey;
+    private readonly RecordButton _recordKey;
     private readonly Lamp _recordLamp;
     private readonly VuMeter _meter;
     private readonly TextBlock _counter;
     private readonly ContentControl _sectionHost;
-    private readonly TransportKey _transcriptionsKey;
-    private readonly TransportKey _dictionaryKey;
+    private readonly RailKey _transcriptionsKey;
+    private readonly RailKey _dictionaryKey;
     private readonly DispatcherTimer _counterTimer;
 
     private Control? _transcriptionsView;
@@ -61,6 +73,12 @@ public sealed class MainWindow : Window
         Icon = new WindowIcon(Avalonia.Platform.AssetLoader.Open(
             new Uri("avares://VoxScribe.App/Assets/app.ico")));
 
+        // The client area runs into the chrome: the system keeps its caption buttons,
+        // the app paints everything else. This is what removes the light system title
+        // bar that framed the dark UI.
+        ExtendClientAreaToDecorationsHint = true;
+        ExtendClientAreaTitleBarHeightHint = Tokens.Material.TitleBarHeight;
+
         // The close button hides to the tray instead of closing: a closed Avalonia window
         // is destroyed and the tray's "Show" could never bring it back. Real exit goes
         // through the tray menu, which sets ExitAllowed before shutting down.
@@ -71,11 +89,20 @@ public sealed class MainWindow : Window
             Hide();
         };
 
-        _recordKey = new TransportKey { Content = "RECORD" };
+        _recordLamp = new Lamp
+        {
+            LampColor = Tokens.Colors.Record,
+            Width = Tokens.Material.RecordLensSize,
+            Height = Tokens.Material.RecordLensSize,
+        };
+        _recordKey = new RecordButton { Content = _recordLamp };
         _recordKey.Click += (_, _) => ToggleRecording();
 
-        _recordLamp = new Lamp { LampColor = Tokens.Colors.Record };
-        _meter = new VuMeter { Width = 168, Height = 54 };
+        _meter = new VuMeter
+        {
+            Height = Tokens.Material.RecordKeySize,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
 
         _counter = new TextBlock
         {
@@ -85,14 +112,8 @@ public sealed class MainWindow : Window
             Foreground = Tokens.Brushes.InkOnDeck,
         };
 
-        _transcriptionsKey = new TransportKey
-        {
-            Content = "TRANSCRIPTIONS", IsEngaged = true, EngagedColor = Tokens.Colors.Accent,
-        };
-        _dictionaryKey = new TransportKey
-        {
-            Content = "DICTIONARY", EngagedColor = Tokens.Colors.Accent,
-        };
+        _transcriptionsKey = new RailKey(WaveIcon) { IsEngaged = true };
+        _dictionaryKey = new RailKey(BookIcon);
         _transcriptionsKey.Click += (_, _) => ShowSection(transcriptions: true);
         _dictionaryKey.Click += (_, _) => ShowSection(transcriptions: false);
 
@@ -127,71 +148,118 @@ public sealed class MainWindow : Window
 
     private DockPanel BuildLayout()
     {
-        var root = new DockPanel { Margin = new Thickness(Tokens.Space.Roomy) };
+        // Edge to edge: the rail owns the left, the content column owns the rest.
+        var root = new DockPanel();
+        root.Children.Add(Panels.Docked(BuildRail(), Dock.Left));
 
-        root.Children.Add(Panels.Docked(BuildTransportPanel(), Dock.Top));
-        root.Children.Add(Panels.Docked(BuildSectionKeys(), Dock.Top));
+        var content = new DockPanel();
+        content.Children.Add(Panels.Docked(BuildTitleStrip(), Dock.Top));
+        content.Children.Add(Panels.Docked(BuildVoiceBand(), Dock.Top));
 
         if (_composition is not null && !Composition.IsModelInstalled)
         {
-            root.Children.Add(Panels.Docked(BuildModelBanner(), Dock.Top));
+            content.Children.Add(Panels.Docked(BuildModelBanner(), Dock.Top));
         }
 
-        root.Children.Add(BuildWell(_sectionHost));
+        _sectionHost.Margin = new Thickness(
+            Tokens.Space.Roomy, Tokens.Space.Snug, Tokens.Space.Roomy, Tokens.Space.Roomy);
+        content.Children.Add(_sectionHost);
+
+        root.Children.Add(content);
         return root;
     }
 
-    /// <summary>Record/stop, the record lamp, the level meter and the tape counter.</summary>
-    private BrushedPanel BuildTransportPanel()
+    /// <summary>The navigation rail: app badge, section keys, settings at the foot.</summary>
+    private Border BuildRail()
     {
-        var row = new StackPanel
+        var badge = new Border
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = Tokens.Space.Wide,
-            Margin = new Thickness(Tokens.Space.Roomy),
+            Width = 26,
+            Height = 26,
+            CornerRadius = new CornerRadius(Tokens.Radius.Chip),
+            Background = new SolidColorBrush(Tokens.Colors.Accent),
+            IsHitTestVisible = false,
+            Margin = new Thickness(0, 0, 0, Tokens.Space.Roomy),
+            Child = new Avalonia.Controls.Shapes.Path
+            {
+                Data = Geometry.Parse(MicIcon),
+                Stroke = Tokens.Brushes.Chassis,
+                StrokeThickness = 2.2,
+                StrokeLineCap = PenLineCap.Round,
+                Width = 14,
+                Height = 14,
+                Stretch = Stretch.Uniform,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+            },
         };
 
-        row.Children.Add(Panels.Labelled("TRANSPORT", new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = Tokens.Space.Snug,
-            Children =
-            {
-                _recordKey,
-                new StackPanel
-                {
-                    Orientation = Orientation.Horizontal,
-                    Spacing = Tokens.Space.Tight,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Children = { _recordLamp, new Silkscreen { Text = "REC" } },
-                },
-            },
-        }));
-
-        row.Children.Add(Panels.Labelled("LEVEL", _meter));
-        row.Children.Add(Panels.Labelled("COUNTER", Deck(_counter)));
-
-        var settings = new TransportKey { Content = "SETTINGS" };
+        var settings = new RailKey(GearIcon);
         settings.Click += (_, _) => ShowSettings();
 
-        row.Children.Add(new StackPanel
+        var rail = new DockPanel { LastChildFill = false };
+        rail.Children.Add(Panels.Docked(new StackPanel
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = Tokens.Space.Base,
-            VerticalAlignment = VerticalAlignment.Bottom,
-            Children = { settings },
-        });
+            Spacing = Tokens.Space.Tight,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Children = { badge, _transcriptionsKey, _dictionaryKey },
+        }, Dock.Top));
+        rail.Children.Add(Panels.Docked(settings, Dock.Bottom));
+        settings.HorizontalAlignment = HorizontalAlignment.Center;
 
-        return new BrushedPanel { Child = row, Margin = new Thickness(0, 0, 0, Tokens.Space.Base) };
+        return new Border
+        {
+            Width = Tokens.Material.RailWidth,
+            Background = Tokens.Brushes.Panel,
+            Padding = new Thickness(0, Tokens.Space.Base),
+            Child = rail,
+        };
     }
 
-    private StackPanel BuildSectionKeys() => new()
+    /// <summary>
+    /// The custom title strip. Sits inside the extended chrome region, so empty space here
+    /// is the window's drag handle; the system overlays its caption buttons on the right.
+    /// </summary>
+    private static Border BuildTitleStrip() => new()
     {
-        Orientation = Orientation.Horizontal,
-        Spacing = Tokens.Space.Snug,
-        Margin = new Thickness(0, 0, 0, Tokens.Space.Base),
-        Children = { _transcriptionsKey, _dictionaryKey },
+        Height = Tokens.Material.TitleBarHeight,
+        Padding = new Thickness(
+            Tokens.Space.Roomy, 0, Tokens.Material.CaptionButtonsReserve, 0),
+        Child = new TextBlock
+        {
+            Text = "Vox-Scribe",
+            FontFamily = Tokens.Fonts.Grotesque,
+            FontSize = Tokens.Fonts.Body,
+            FontWeight = FontWeight.SemiBold,
+            Foreground = Tokens.Brushes.Ink,
+            VerticalAlignment = VerticalAlignment.Center,
+            IsHitTestVisible = false,
+        },
     };
+
+    /// <summary>The voice band: record button, full-width level bars, tape counter.</summary>
+    private Grid BuildVoiceBand()
+    {
+        var band = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
+            Margin = new Thickness(
+                Tokens.Space.Roomy, Tokens.Space.Snug, Tokens.Space.Roomy, Tokens.Space.Base),
+        };
+
+        Grid.SetColumn(_recordKey, 0);
+        band.Children.Add(_recordKey);
+
+        _meter.Margin = new Thickness(Tokens.Space.Roomy, 0);
+        Grid.SetColumn(_meter, 1);
+        band.Children.Add(_meter);
+
+        _counter.VerticalAlignment = VerticalAlignment.Center;
+        Grid.SetColumn(_counter, 2);
+        band.Children.Add(_counter);
+
+        return band;
+    }
 
     /// <summary>
     /// A standing notice that the app cannot transcribe yet.
@@ -203,7 +271,7 @@ public sealed class MainWindow : Window
     /// </remarks>
     private static BrushedPanel BuildModelBanner() => new()
     {
-        Margin = new Thickness(0, 0, 0, Tokens.Space.Base),
+        Margin = new Thickness(Tokens.Space.Roomy, 0, Tokens.Space.Roomy, Tokens.Space.Base),
         Child = new StackPanel
         {
             Orientation = Orientation.Horizontal,
@@ -229,28 +297,6 @@ public sealed class MainWindow : Window
                 },
             },
         },
-    };
-
-    /// <summary>A recessed well cut into the panel — content sits inside it.</summary>
-    private static Border BuildWell(Control content) => new()
-    {
-        Background = Tokens.Brushes.Well,
-        CornerRadius = new CornerRadius(Tokens.Radius.Panel),
-        BorderBrush = new SolidColorBrush(Tokens.Colors.Seam, 0.55),
-        BorderThickness = new Thickness(Tokens.Border.Hairline),
-        Padding = new Thickness(Tokens.Space.Hair),
-        Child = content,
-    };
-
-    /// <summary>The dark readout window of a tape deck.</summary>
-    private static Border Deck(Control content) => new()
-    {
-        Background = Tokens.Brushes.Deck,
-        CornerRadius = new CornerRadius(Tokens.Radius.Panel),
-        BorderBrush = new SolidColorBrush(Tokens.Colors.Seam),
-        BorderThickness = new Thickness(Tokens.Border.Hairline),
-        Padding = new Thickness(Tokens.Space.Base, Tokens.Space.Snug),
-        Child = content,
     };
 
     private void ShowSection(bool transcriptions)
@@ -301,8 +347,6 @@ public sealed class MainWindow : Window
         _meter.Level = engine.Level;
         _meter.IsActive = recording;
         _recordLamp.IsLit = engine.State == DictationState.Recording;
-        _recordKey.IsEngaged = recording;
-        _recordKey.Content = recording ? "STOP" : "RECORD";
 
         if (recording && _startedAt is null) _startedAt = DateTimeOffset.Now;
         else if (!recording) _startedAt = null;
@@ -326,8 +370,6 @@ public sealed class MainWindow : Window
         if (_composition?.Engine is null)
         {
             IsRecording = !IsRecording;
-            _recordKey.Content = IsRecording ? "STOP" : "RECORD";
-            _recordKey.IsEngaged = IsRecording;
             _recordLamp.IsLit = IsRecording;
             _meter.IsActive = IsRecording;
             _startedAt = IsRecording ? DateTimeOffset.Now : null;

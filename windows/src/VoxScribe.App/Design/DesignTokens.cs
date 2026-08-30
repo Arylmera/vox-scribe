@@ -238,6 +238,9 @@ public static class Tokens
         /// <summary>Glass cards and recessed wells.</summary>
         public const double Panel = 14;
 
+        /// <summary>Navigation rail keys.</summary>
+        public const double RailKey = 12;
+
         /// <summary>The window itself.</summary>
         public const double Window = 18;
     }
@@ -292,6 +295,30 @@ public static class Tokens
 
         /// <summary>How far an unlit lamp sits below the lit value.</summary>
         public const double LampUnlitOpacity = 0.22;
+
+        /// <summary>Width of the navigation rail on the left edge.</summary>
+        public const double RailWidth = 64;
+
+        /// <summary>A square rail key (icon button).</summary>
+        public const double RailKeySize = 40;
+
+        /// <summary>Stroke-icon canvas inside a rail key.</summary>
+        public const double RailIconSize = 18;
+
+        /// <summary>Stroke weight of rail icons.</summary>
+        public const double RailIconStroke = 1.7;
+
+        /// <summary>The round record button in the voice band.</summary>
+        public const double RecordKeySize = 44;
+
+        /// <summary>The record button's lens (lamp) diameter.</summary>
+        public const double RecordLensSize = 12;
+
+        /// <summary>Height of the custom title strip; also the extended-chrome hint.</summary>
+        public const double TitleBarHeight = 44;
+
+        /// <summary>Space reserved right of the title strip for the system caption buttons.</summary>
+        public const double CaptionButtonsReserve = 140;
 
         /// <summary>Transport key height.</summary>
         public const double KeyHeight = 34;
