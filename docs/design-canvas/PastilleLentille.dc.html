@@ -15,49 +15,39 @@
 </helmet>
 <div style="width: 500px; display: flex; flex-direction: column; gap: 20px; align-items: center; background: radial-gradient(ellipse at 50% -10%, #101722 0%, #0a0d12 60%); padding: 28px 0 32px 0;">
 
-  <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 1.5px; color: #8b96a5;">ENREGISTREMENT — lentille mode + chrono</div>
+  <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 1.5px; color: #8b96a5;">ENREGISTREMENT — lampe rouge + readout</div>
 
-  <!-- State 1: mode lens left, wave centre, mono timer right -->
-  <div style="width: 440px; height: 64px; background: rgba(12,16,22,0.90); border: 1px solid {{a35}}; border-radius: 32px; display: flex; align-items: center; gap: 14px; padding: 0 12px 0 8px; box-shadow: 0 0 24px {{a10}}, 0 12px 32px rgba(0,0,0,0.5);">
-    <div style="width: 48px; height: 48px; border-radius: 50%; background: {{a10}}; border: 1px solid {{a55}}; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{accent}}" stroke-width="2" stroke-linecap="round">
-        <path d="M12 4 v9"></path>
-        <path d="M8 8 v3"></path>
-        <path d="M16 8 v3"></path>
-        <path d="M12 17 v3"></path>
-        <path d="M7 13 a5 5 0 0 0 10 0"></path>
-      </svg>
+  <!-- State 1: rec lamp + mono readout left, wave centre, mono timer right -->
+  <div style="width: 380px; height: 60px; background: rgba(12,16,22,0.90); border: 1px solid {{a35}}; border-radius: 30px; display: flex; align-items: center; gap: 12px; padding: 0 20px; box-shadow: 0 0 24px {{a10}}, 0 12px 32px rgba(0,0,0,0.5);">
+    <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+      <div style="width: 7px; height: 7px; border-radius: 50%; background: #e85656; box-shadow: 0 0 8px rgba(232,86,86,0.7);"></div>
+      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 1.5px; color: #8b96a5;">REC · CLEAN</div>
     </div>
-    <div style="flex-grow: 1; display: flex; align-items: center; justify-content: center; gap: 4px; height: 32px;">
-      <sc-for list="{{recBars}}" as="b" hint-placeholder-count="16">
+    <div style="flex-grow: 1; display: flex; align-items: center; justify-content: center; gap: 4px; height: 30px;">
+      <sc-for list="{{recBars}}" as="b" hint-placeholder-count="14">
         <div style="width: 4px; height: {{b.h}}px; border-radius: 99px; background: {{accent}}; opacity: {{b.o}};"></div>
       </sc-for>
     </div>
-    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: {{accent}}; flex-shrink: 0; padding-right: 8px;">0:07</div>
+    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: {{accent}}; flex-shrink: 0;">0:07</div>
   </div>
 
-  <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 1.5px; color: #8b96a5; margin-top: 8px;">TRANSCRIPTION · APERÇU — le texte glisse dessous</div>
+  <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 1.5px; color: #8b96a5; margin-top: 8px;">TRANSCRIPTION · APERÇU — lampe éteinte, le texte glisse dessous</div>
 
-  <!-- State 2: lens dims, amber shimmer, preview row inside with edge fade -->
-  <div style="width: 440px; background: rgba(12,16,22,0.90); border: 1px solid rgba(255,255,255,0.10); border-radius: 32px; display: flex; flex-direction: column; padding: 8px 12px 12px 8px; box-shadow: 0 12px 32px rgba(0,0,0,0.5);">
-    <div style="display: flex; align-items: center; gap: 14px;">
-      <div style="width: 48px; height: 48px; border-radius: 50%; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8b96a5" stroke-width="2" stroke-linecap="round">
-          <path d="M12 4 v9"></path>
-          <path d="M8 8 v3"></path>
-          <path d="M16 8 v3"></path>
-          <path d="M12 17 v3"></path>
-          <path d="M7 13 a5 5 0 0 0 10 0"></path>
-        </svg>
+  <!-- State 2: lamp off (dark lens), amber shimmer, preview row inside with edge fade -->
+  <div style="width: 380px; background: rgba(12,16,22,0.90); border: 1px solid rgba(255,255,255,0.10); border-radius: 30px; display: flex; flex-direction: column; padding: 10px 20px 12px 20px; box-shadow: 0 12px 32px rgba(0,0,0,0.5);">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+        <div style="width: 7px; height: 7px; border-radius: 50%; background: #3d2426;"></div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 1.5px; color: #e8b44f;">CLEAN</div>
       </div>
-      <div style="flex-grow: 1; display: flex; align-items: center; justify-content: center; gap: 4px; height: 32px;">
-        <sc-for list="{{shimmerBars}}" as="b" hint-placeholder-count="16">
+      <div style="flex-grow: 1; display: flex; align-items: center; justify-content: center; gap: 4px; height: 30px;">
+        <sc-for list="{{shimmerBars}}" as="b" hint-placeholder-count="14">
           <div style="width: 4px; height: {{b.h}}px; border-radius: 99px; background: #e8b44f;"></div>
         </sc-for>
       </div>
-      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #8b96a5; flex-shrink: 0; padding-right: 8px;">0:11</div>
+      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #8b96a5; flex-shrink: 0;">0:11</div>
     </div>
-    <div style="margin: 4px 10px 0 10px; font-size: 13px; color: #e9edf2; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; -webkit-mask-image: linear-gradient(90deg, transparent 0%, black 12%, black 88%, transparent 100%); mask-image: linear-gradient(90deg, transparent 0%, black 12%, black 88%, transparent 100%);">…quarante-deux millisecondes, et le trajet distant reste prioritaire pour cette session.</div>
+    <div style="margin: 4px 4px 0 4px; font-size: 13px; color: #e9edf2; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; -webkit-mask-image: linear-gradient(90deg, transparent 0%, black 12%, black 88%, transparent 100%); mask-image: linear-gradient(90deg, transparent 0%, black 12%, black 88%, transparent 100%);">…et le trajet distant reste prioritaire pour cette session.</div>
   </div>
 
 </div>
@@ -67,12 +57,12 @@ class Component extends DCLogic {
   renderVals() {
     const a = this.props.accent ?? '#4fd8e8';
     const rec = [], shim = [];
-    for (let i = 0; i < 24; i++) {
+    for (let i = 0; i < 18; i++) {
       const v = Math.abs(Math.sin(i * 0.85 + 1.1)) * (0.4 + 0.6 * Math.abs(Math.sin(i * 0.31)));
-      rec.push({ h: Math.round(4 + 28 * v), o: (0.35 + 0.65 * v).toFixed(2) });
-      shim.push({ h: Math.round(8 + 8 * Math.sin(i * 0.45)) });
+      rec.push({ h: Math.round(4 + 26 * v), o: (0.35 + 0.65 * v).toFixed(2) });
+      shim.push({ h: Math.round(8 + 7 * Math.sin(i * 0.45)) });
     }
-    return { accent: a, a10: a + '1a', a35: a + '59', a55: a + '8c', recBars: rec, shimmerBars: shim };
+    return { accent: a, a10: a + '1a', a35: a + '59', recBars: rec, shimmerBars: shim };
   }
 }
 </script>

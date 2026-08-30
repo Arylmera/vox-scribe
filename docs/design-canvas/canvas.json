@@ -38,7 +38,7 @@
       "y": -190,
       "w": 620,
       "page": "page-3",
-      "text": "Redesign de la pastille de dictée (HUD bas d'écran) — 3 pistes à côté de l'actuelle, chacune dans ses deux états (enregistrement, puis transcription + aperçu).\nFilament : l'onde flotte sans cadre, un ruban fin n'apparaît que pour le texte — occlusion minimale, mais moins lisible sur fond clair.\nLentille : lentille de mode + chrono + bord teinté accent — plus d'info d'un coup d'œil, mais plus présente à l'écran.\nConsole : le texte en direct devient la star (readout mono, lampe rouge = enregistrement, coins 14px) — parfait pour suivre la transcription, moins de feedback de niveau.\nLe tweak Accent au-dessus de chaque cadre suit le réglage utilisateur.",
+      "text": "Redesign de la pastille de dictée (HUD bas d'écran) — 3 pistes à côté de l'actuelle, chacune dans ses deux états (enregistrement, puis transcription + aperçu).\nFilament : l'onde flotte sans cadre, un ruban fin n'apparaît que pour le texte — occlusion minimale, mais moins lisible sur fond clair.\nLentille (retenue, affinée) : 380px de large, lampe rouge + readout REC · CLEAN à gauche (repris de Console), chrono à droite, bord teinté accent.\nConsole : le texte en direct devient la star (readout mono, lampe rouge = enregistrement, coins 14px) — parfait pour suivre la transcription, moins de feedback de niveau.\nLe tweak Accent au-dessus de chaque cadre suit le réglage utilisateur.",
       "kind": "note"
     }
   ],
