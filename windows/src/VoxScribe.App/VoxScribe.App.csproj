@@ -23,6 +23,11 @@
     <AvaloniaResource Include="Assets\**" />
   </ItemGroup>
 
+  <!-- The headless UI tests exercise the internal view furniture (Panels) directly. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="VoxScribe.App.Tests" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Avalonia" />
     <PackageReference Include="Avalonia.Desktop" />

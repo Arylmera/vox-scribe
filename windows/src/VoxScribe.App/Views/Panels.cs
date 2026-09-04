@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Animation;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -142,4 +143,86 @@ internal static class Panels
         Spacing = Tokens.Space.Tight,
         Children = { new Silkscreen { Text = label }, content },
     };
+
+    /// <summary>A settings section: silkscreen title over content on a brushed panel, fading in.</summary>
+    public static BrushedPanel Section(string label, Control content)
+    {
+        var section = new BrushedPanel
+        {
+            Opacity = 0.8, // Start slightly faded
+            Child = new StackPanel
+            {
+                Margin = new Thickness(Tokens.Space.Roomy),
+                Spacing = Tokens.Space.Base,
+                Children = { new Silkscreen { Text = label, IsLarge = true }, content },
+            },
+        };
+
+        var transitions = new Transitions
+        {
+            new DoubleTransition { Property = Visual.OpacityProperty, Duration = Tokens.Motion.FadeIn },
+        };
+        section.Transitions = transitions;
+        section.Loaded += (_, _) => section.Opacity = 1;
+
+        return section;
+    }
+
+    /// <summary>Secondary explanatory copy.</summary>
+    public static TextBlock Note(string text) => new()
+    {
+        Text = text,
+        FontFamily = Tokens.Fonts.Grotesque,
+        FontSize = Tokens.Fonts.Label,
+        Foreground = new SolidColorBrush(Tokens.Colors.InkSecondary),
+        TextWrapping = TextWrapping.Wrap,
+    };
+
+    /// <summary>A settings text box that persists on focus loss; empty saves as null.</summary>
+    public static TextBox Field(string hint, string? value, Action<string?> onCommit)
+    {
+        var box = new TextBox
+        {
+            Text = value ?? string.Empty,
+            Watermark = hint,
+            FontFamily = Tokens.Fonts.Grotesque,
+            FontSize = Tokens.Fonts.Body,
+        };
+
+        box.LostFocus += (_, _) =>
+        {
+            var text = box.Text?.Trim();
+            onCommit(string.IsNullOrEmpty(text) ? null : text);
+        };
+
+        return box;
+    }
+
+    /// <summary>A labelled check box, with an optional hint line beneath the label.</summary>
+    public static CheckBox Toggle(string label, bool value, Action<bool> onChange, string? hint = null)
+    {
+        var title = new TextBlock
+        {
+            Text = label,
+            FontFamily = Tokens.Fonts.Grotesque,
+            FontSize = Tokens.Fonts.Body,
+            Foreground = Tokens.Brushes.Ink,
+            TextWrapping = TextWrapping.Wrap,
+        };
+
+        var box = new CheckBox
+        {
+            IsChecked = value,
+            Content = hint is null
+                ? title
+                : new StackPanel
+                {
+                    Spacing = Tokens.Space.Tight,
+                    Children = { title, Note(hint) },
+                },
+        };
+
+        box.IsCheckedChanged += (_, _) => onChange(box.IsChecked ?? false);
+        return box;
+    }
 }

@@ -385,4 +385,20 @@ public static class Tokens
         /// </summary>
         public const double LevelGain = 2.5;
     }
+
+    /// <summary>Window sizes.</summary>
+    public static class Size
+    {
+        /// <summary>Settings window, initial width.</summary>
+        public const double SettingsWidth = 540;
+
+        /// <summary>Settings window, initial height — under a laptop screen, so it scrolls.</summary>
+        public const double SettingsHeight = 720;
+
+        /// <summary>Narrowest the settings window may be dragged.</summary>
+        public const double SettingsMinWidth = 480;
+
+        /// <summary>Shortest the settings window may be dragged.</summary>
+        public const double SettingsMinHeight = 480;
+    }
 }

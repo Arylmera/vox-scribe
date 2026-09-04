@@ -193,3 +193,37 @@ public sealed class DesignSystemTests
         Tokens.Motion.LevelGain.ShouldBeGreaterThan(1);
     }
 }
+
+/// <summary>The shared settings furniture.</summary>
+public sealed class PanelsTests
+{
+    [AvaloniaFact]
+    public void Toggle_with_hint_shows_the_hint_under_the_label()
+    {
+        var toggle = Panels.Toggle("Do the thing", true, _ => { }, hint: "Because reasons.");
+
+        var content = toggle.Content.ShouldBeOfType<StackPanel>();
+        content.Children.Count.ShouldBe(2);
+        content.Children[0].ShouldBeOfType<TextBlock>().Text.ShouldBe("Do the thing");
+        content.Children[1].ShouldBeOfType<TextBlock>().Text.ShouldBe("Because reasons.");
+    }
+
+    [AvaloniaFact]
+    public void Toggle_without_hint_is_a_single_label()
+    {
+        var toggle = Panels.Toggle("Do the thing", false, _ => { });
+
+        toggle.Content.ShouldBeOfType<TextBlock>().Text.ShouldBe("Do the thing");
+    }
+
+    [AvaloniaFact]
+    public void Toggle_reports_changes()
+    {
+        bool? seen = null;
+        var toggle = Panels.Toggle("Do the thing", false, v => seen = v);
+
+        toggle.IsChecked = true;
+
+        seen.ShouldBe(true);
+    }
+}
