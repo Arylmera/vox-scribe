@@ -4,6 +4,7 @@ using VoxScribe.Core;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
+using Avalonia.Media;
 using Avalonia.Headless.XUnit;
 using Avalonia.Themes.Fluent;
 using VoxScribe.App.Controls;
@@ -257,5 +258,25 @@ public sealed class SettingsWindowTests : IDisposable
             .ToArray();
 
         labels.ShouldBe(["SHORTCUTS", "TYPING", "CLEANUP", "SPEECH", "GENERAL", "APPEARANCE"]);
+    }
+}
+
+/// <summary>
+/// Every custom key must answer the pointer over its whole face.
+/// </summary>
+/// <remarks>
+/// These controls paint themselves in <c>Render</c> and so want no themed background — but
+/// a <i>null</i> background is not hit-tested, which left only the glyph stroke or the word
+/// clickable and made a 40&#215;40 rail key behave like a few thin lines. Transparent paints
+/// nothing and still takes the click.
+/// </remarks>
+public sealed class KeyHitAreaTests
+{
+    [AvaloniaFact]
+    public void Custom_keys_are_hit_testable_across_their_whole_face()
+    {
+        Button[] keys = [new TransportKey(), new RailKey("M4,10 V14"), new RecordButton()];
+
+        foreach (var key in keys) key.Background.ShouldBe(Brushes.Transparent);
     }
 }

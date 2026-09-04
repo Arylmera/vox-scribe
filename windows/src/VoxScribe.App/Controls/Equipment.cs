@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Media;
@@ -197,7 +197,10 @@ public sealed class TransportKey : Button
         Padding = new Thickness(Tokens.Space.Base, 0);
         HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center;
         VerticalContentAlignment = Avalonia.Layout.VerticalAlignment.Center;
-        Background = null;
+        // Transparent, never null: a null background is not hit-tested, so only the
+        // content — a glyph stroke, a word — would answer the pointer and the rest of the
+        // key would silently swallow clicks. The face is painted in Render either way.
+        Background = Brushes.Transparent;
         BorderBrush = null;
         FontFamily = Tokens.Fonts.Grotesque;
         FontSize = Tokens.Fonts.Silkscreen;
@@ -268,7 +271,10 @@ public sealed class RailKey : Button
     {
         Width = Tokens.Material.RailKeySize;
         Height = Tokens.Material.RailKeySize;
-        Background = null;
+        // Transparent, never null: a null background is not hit-tested, so only the
+        // content — a glyph stroke, a word — would answer the pointer and the rest of the
+        // key would silently swallow clicks. The face is painted in Render either way.
+        Background = Brushes.Transparent;
         BorderBrush = null;
         Padding = new Thickness(0);
         HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center;
@@ -334,7 +340,10 @@ public sealed class RecordButton : Button
     {
         Width = Tokens.Material.RecordKeySize;
         Height = Tokens.Material.RecordKeySize;
-        Background = null;
+        // Transparent, never null: a null background is not hit-tested, so only the
+        // content — a glyph stroke, a word — would answer the pointer and the rest of the
+        // key would silently swallow clicks. The face is painted in Render either way.
+        Background = Brushes.Transparent;
         BorderBrush = null;
         Padding = new Thickness(0);
         HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center;
