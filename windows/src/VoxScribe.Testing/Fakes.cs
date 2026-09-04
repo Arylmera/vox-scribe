@@ -193,6 +193,16 @@ public sealed class RecordingTextInjector : ITextInjector
         Injected.Add(text);
         return ValueTask.FromResult(true);
     }
+
+    /// <summary>Number of backspace keystrokes requested via <see cref="BackspaceAsync"/>.</summary>
+    public int Backspaces { get; private set; }
+
+    /// <inheritdoc />
+    public ValueTask<bool> BackspaceAsync(CancellationToken cancellationToken)
+    {
+        Backspaces++;
+        return ValueTask.FromResult(true);
+    }
 }
 
 /// <summary>A focus anchor that records when it was captured and restored.</summary>

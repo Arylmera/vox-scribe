@@ -114,6 +114,92 @@ public sealed class DictationEngineTests
     }
 
     [Fact]
+    public async Task Journal_holds_exactly_what_was_injected()
+    {
+        var hotkey = new FakeHotkeySource();
+        var injector = new RecordingTextInjector();
+        await using var engine = Build(
+            FakeAudioCapture.Tone(2.0), hotkey, new FakeTranscriber("hello world"), injector);
+
+        await DictateAsync(hotkey, engine);
+
+        engine.Journal.InjectedText.ShouldBe(string.Concat(injector.Injected));
+        engine.Journal.InjectedText.ShouldBe("hello world");
+    }
+
+    [Fact]
+    public async Task Journal_resets_on_each_new_dictation()
+    {
+        var hotkey = new FakeHotkeySource();
+        var injector = new RecordingTextInjector();
+        await using var engine = Build(
+            FakeAudioCapture.Tone(2.0), hotkey, new FakeTranscriber("first", "second"), injector);
+
+        await DictateAsync(hotkey, engine);
+        await DictateAsync(hotkey, engine);
+
+        engine.Journal.InjectedText.ShouldBe("second", "journal must describe only the LAST dictation");
+    }
+
+    [Fact]
+    public async Task Undo_backspaces_exactly_the_injected_text_and_empties_the_journal()
+    {
+        var hotkey = new FakeHotkeySource();
+        var injector = new RecordingTextInjector();
+        await using var engine = Build(
+            FakeAudioCapture.Tone(2.0), hotkey, new FakeTranscriber("hello world"), injector);
+
+        await DictateAsync(hotkey, engine);
+        var undone = await engine.UndoLastDictationAsync(CancellationToken.None);
+
+        undone.ShouldBeTrue();
+        injector.Backspaces.ShouldBe("hello world".Length);
+        engine.Journal.InjectedText.ShouldBe(string.Empty);
+    }
+
+    [Fact]
+    public async Task Undo_with_nothing_injected_does_nothing()
+    {
+        var hotkey = new FakeHotkeySource();
+        var injector = new RecordingTextInjector();
+        await using var engine = Build(
+            FakeAudioCapture.Tone(2.0), hotkey, new FakeTranscriber("hi"), injector);
+
+        (await engine.UndoLastDictationAsync(CancellationToken.None)).ShouldBeFalse();
+        injector.Backspaces.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task Undo_twice_only_deletes_once()
+    {
+        var hotkey = new FakeHotkeySource();
+        var injector = new RecordingTextInjector();
+        await using var engine = Build(
+            FakeAudioCapture.Tone(2.0), hotkey, new FakeTranscriber("hi"), injector);
+
+        await DictateAsync(hotkey, engine);
+        (await engine.UndoLastDictationAsync(CancellationToken.None)).ShouldBeTrue();
+        (await engine.UndoLastDictationAsync(CancellationToken.None)).ShouldBeFalse();
+        injector.Backspaces.ShouldBe("hi".Length);
+    }
+
+    [Fact]
+    public async Task Undo_backspaces_an_emoji_once_not_twice()
+    {
+        var hotkey = new FakeHotkeySource();
+        var injector = new RecordingTextInjector();
+        await using var engine = Build(
+            FakeAudioCapture.Tone(2.0), hotkey, new FakeTranscriber("ok 👍"), injector);
+
+        await DictateAsync(hotkey, engine);
+        (await engine.UndoLastDictationAsync(CancellationToken.None)).ShouldBeTrue();
+
+        // "ok " is three graphemes; the surrogate-pair emoji is one keystroke, not two.
+        injector.Backspaces.ShouldBe(4);
+        engine.Journal.InjectedText.ShouldBe(string.Empty);
+    }
+
+    [Fact]
     public async Task ReportNotice_publishes_and_raises_Changed()
     {
         var hotkey = new FakeHotkeySource();

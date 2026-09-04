@@ -71,6 +71,13 @@ public interface ITextInjector
     /// <summary>Inserts <paramref name="text"/> at the caret of the focused control.</summary>
     /// <returns>False if the text could not be delivered.</returns>
     ValueTask<bool> InjectAsync(string text, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Sends a single backspace keystroke to the focused control (deletes one
+    /// character/newline backward from the caret). Callers loop for counts —
+    /// keeping the platform layer a single logic-free keystroke.
+    /// </summary>
+    ValueTask<bool> BackspaceAsync(CancellationToken cancellationToken);
 }
 
 /// <summary>

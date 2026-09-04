@@ -53,6 +53,7 @@ public sealed class SendInputTextInjector : ITextInjector
     private const int VK_RWIN = 0x5C;
     private const int VK_V = 0x56;
     private const int VK_RETURN = 0x0D;
+    private const int VK_BACK = 0x08;   // not in the extended-key set, plain scancode path
 
     private const uint MAPVK_VK_TO_VSC = 0;
 
@@ -135,6 +136,19 @@ public sealed class SendInputTextInjector : ITextInjector
         }
 
         return TypeWithNewlines(text);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// One VK_BACK down/up pair through the same tagged <c>SendInput</c> path as typing, so
+    /// the app's own hook ignores it. The count loop lives in Core.
+    /// </remarks>
+    public ValueTask<bool> BackspaceAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        INPUT[] backspace = [KeyInput(VK_BACK, up: false), KeyInput(VK_BACK, up: true)];
+        return ValueTask.FromResult(SendInput(2, backspace, InputSize) == 2);
     }
 
     /// <summary>Types arbitrary text as Unicode packets.</summary>

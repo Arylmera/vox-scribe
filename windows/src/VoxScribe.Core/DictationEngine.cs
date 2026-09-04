@@ -1,4 +1,5 @@
-﻿using VoxScribe.Abstractions;
+﻿using System.Globalization;
+using VoxScribe.Abstractions;
 using VoxScribe.Dictionary;
 
 namespace VoxScribe.Core;
@@ -98,6 +99,11 @@ public sealed class DictationEngine : IAsyncDisposable
     public string PartialText { get; private set; } = string.Empty;
 
     /// <summary>
+    /// Exact record of what this engine sent to the injector for the current/last dictation.
+    /// </summary>
+    public InjectionJournal Journal { get; } = new();
+
+    /// <summary>
     /// The most recent failure worth telling the user about, or empty. Cleared when the next
     /// utterance starts.
     /// </summary>
@@ -195,6 +201,37 @@ public sealed class DictationEngine : IAsyncDisposable
         // own window: restoring it at release would type the utterance back into the app.
         if (State == DictationState.Idle) _anchorRequested = false;
         Toggle();
+    }
+
+    // Backspace pacing mirrors the Windows injector's typing cadence (bursts with a
+    // small settle gap) so slow target apps don't drop keystrokes.
+    private const int BackspaceBurst = 40;
+    private const int BackspaceGapMilliseconds = 4;
+
+    /// <summary>
+    /// Deletes the last dictation's injected text by sending one backspace per
+    /// text element (grapheme — surrogate pairs are one backspace, not two).
+    /// Only runs while idle; false when there is nothing to undo or a keystroke failed.
+    /// </summary>
+    public async Task<bool> UndoLastDictationAsync(CancellationToken cancellationToken)
+    {
+        if (State != DictationState.Idle) return false;
+
+        var text = Journal.InjectedText;
+        if (text.Length == 0) return false;
+
+        var keystrokes = new StringInfo(text).LengthInTextElements;
+        for (var i = 0; i < keystrokes; i++)
+        {
+            if (!await _injector.BackspaceAsync(cancellationToken).ConfigureAwait(false))
+                return false;
+
+            if ((i + 1) % BackspaceBurst == 0)
+                await Task.Delay(BackspaceGapMilliseconds, cancellationToken).ConfigureAwait(false);
+        }
+
+        Journal.Retract(text.Length);
+        return true;
     }
 
     private void Toggle()
@@ -345,6 +382,7 @@ public sealed class DictationEngine : IAsyncDisposable
             _capturedSamples = 0;
             PartialText = string.Empty;
             Notice = string.Empty;
+            Journal.BeginDictation();
             _recording = new CancellationTokenSource();
             SetState(DictationState.Recording);
         }
@@ -466,7 +504,8 @@ public sealed class DictationEngine : IAsyncDisposable
         if (_anchorCapture is { } capture && await capture.ConfigureAwait(false) is { } target)
             await target.RestoreAsync(CancellationToken.None).ConfigureAwait(false);
 
-        await _injector.InjectAsync(text, CancellationToken.None).ConfigureAwait(false);
+        if (await _injector.InjectAsync(text, CancellationToken.None).ConfigureAwait(false))
+            Journal.Record(text);
     }
 
     /// <summary>Adds a closed segment to the ordered transcription chain.</summary>
@@ -512,9 +551,14 @@ public sealed class DictationEngine : IAsyncDisposable
 
             if (InjectIncrementally)
             {
-                await _injector
+                // Journalled only when delivered: undo replays the journal as backspaces,
+                // and a string that never landed must not cost the user its length.
+                if (await _injector
                     .InjectAsync(separator + corrected, CancellationToken.None)
-                    .ConfigureAwait(false);
+                    .ConfigureAwait(false))
+                {
+                    Journal.Record(separator + corrected);
+                }
             }
 
             return new Segment(corrected, applied);
