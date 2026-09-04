@@ -65,10 +65,10 @@ public sealed class MainWindow : Window
         _composition = composition;
 
         Title = "Vox-Scribe";
-        MinWidth = 720;
-        MinHeight = 520;
-        Width = 880;
-        Height = 640;
+        MinWidth = Tokens.Size.MainMinWidth;
+        MinHeight = Tokens.Size.MainMinHeight;
+        Width = Tokens.Size.MainWidth;
+        Height = Tokens.Size.MainHeight;
         Background = Tokens.Brushes.Chassis;
         Icon = new WindowIcon(Avalonia.Platform.AssetLoader.Open(
             new Uri("avares://VoxScribe.App/Assets/app.ico")));
@@ -124,7 +124,7 @@ public sealed class MainWindow : Window
         // thread would be far more traffic than a display refresh needs.
         _counterTimer = new DispatcherTimer(DispatcherPriority.Background)
         {
-            Interval = TimeSpan.FromMilliseconds(100),
+            Interval = Tokens.Motion.PanelPoll,
         };
         _counterTimer.Tick += (_, _) => SyncFromEngine();
         _counterTimer.Start();
@@ -133,7 +133,7 @@ public sealed class MainWindow : Window
         ShowSection(transcriptions: true);
 
         // Fade-in animation on window load
-        Opacity = 0.9;
+        Opacity = Tokens.Motion.FadeInFrom;
         var transitions = new Transitions();
         transitions.Add(new DoubleTransition
         {
@@ -172,10 +172,12 @@ public sealed class MainWindow : Window
     /// <summary>The navigation rail: app badge, section keys, settings at the foot.</summary>
     private Border BuildRail()
     {
+        // Not a button: it identifies the app, it does not do anything. Hit-testing off so it
+        // never eats a click the user meant for the key below it.
         var badge = new Border
         {
-            Width = 26,
-            Height = 26,
+            Width = Tokens.Material.BadgeSize,
+            Height = Tokens.Material.BadgeSize,
             CornerRadius = new CornerRadius(Tokens.Radius.Chip),
             Background = new SolidColorBrush(Tokens.Colors.Accent),
             IsHitTestVisible = false,
@@ -184,10 +186,10 @@ public sealed class MainWindow : Window
             {
                 Data = Geometry.Parse(MicIcon),
                 Stroke = Tokens.Brushes.Chassis,
-                StrokeThickness = 2.2,
+                StrokeThickness = Tokens.Material.BadgeIconStroke,
                 StrokeLineCap = PenLineCap.Round,
-                Width = 14,
-                Height = 14,
+                Width = Tokens.Material.BadgeIconSize,
+                Height = Tokens.Material.BadgeIconSize,
                 Stretch = Stretch.Uniform,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,

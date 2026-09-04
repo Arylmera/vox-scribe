@@ -1,7 +1,6 @@
 using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Input.Platform;
 using Avalonia.Layout;
 using Avalonia.Media;
 using VoxScribe.App.Controls;
@@ -32,21 +31,14 @@ public sealed class TranscriptionsView : UserControl
         _search = Panels.SearchBox("Search transcriptions");
         _search.TextChanged += (_, _) => Refresh();
 
-        _list = new StackPanel { Spacing = Tokens.Space.Snug, Margin = new Thickness(Tokens.Space.Base) };
-        _count = new Silkscreen { Foreground = new SolidColorBrush(Tokens.Colors.InkOnDeck, 0.5) };
+        _list = Panels.ListBody();
+        _count = Panels.Counter();
 
         var clear = Panels.DeckButton("DELETE ALL");
         clear.Click += (_, _) => { _store.Clear(); Refresh(); };
 
-        Content = new DockPanel
-        {
-            Children =
-            {
-                Panels.Docked(Panels.SearchRow(_search), Dock.Top),
-                Panels.Docked(Panels.Footer(_count, clear), Dock.Bottom),
-                new ScrollViewer { Content = _list },
-            },
-        };
+        Content = Panels.ListShell(
+            Panels.SearchRow(_search), Panels.Footer(_count, clear), _list);
 
         // Changed fires from the dictation engine's worker thread (its pipeline runs
         // ConfigureAwait(false) throughout); touching Avalonia controls there throws and the
@@ -82,50 +74,38 @@ public sealed class TranscriptionsView : UserControl
             if (clipboard is not null) await clipboard.SetTextAsync(record.Text).ConfigureAwait(true);
 
             copy.Content = "COPIED";
-            await Task.Delay(TimeSpan.FromSeconds(1.4)).ConfigureAwait(true);
+            await Task.Delay(Tokens.Motion.CopyHold).ConfigureAwait(true);
             copy.Content = "COPY";
         };
 
         var delete = Panels.DeckButton("DELETE");
         delete.Click += (_, _) => _store.Remove(record.Id);
 
-        var header = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = Tokens.Space.Snug,
-            Children =
+        var header = Panels.Row(
+            Tokens.Space.Snug,
+            new Silkscreen
             {
-                new Silkscreen
-                {
-                    Text = record.At.ToLocalTime().ToString("HH:mm:ss", CultureInfo.CurrentCulture),
-                    Foreground = new SolidColorBrush(Tokens.Colors.InkOnDeck, 0.55),
-                    VerticalAlignment = VerticalAlignment.Center,
-                },
-                new TextBlock
-                {
-                    Text = record.ProcessingSeconds.ToString("0.00", CultureInfo.CurrentCulture) + "s",
-                    FontFamily = Tokens.Fonts.Mono,
-                    FontSize = Tokens.Fonts.Caption,
-                    Foreground = new SolidColorBrush(Tokens.Colors.InkOnDeck, 0.45),
-                    VerticalAlignment = VerticalAlignment.Center,
-                },
+                Text = record.At.ToLocalTime().ToString("HH:mm:ss", CultureInfo.CurrentCulture),
+                Foreground = Tokens.Brushes.InkOnDeckAt(Tokens.Emphasis.Soft),
+                VerticalAlignment = VerticalAlignment.Center,
             },
-        };
+            new TextBlock
+            {
+                Text = record.ProcessingSeconds.ToString("0.00", CultureInfo.CurrentCulture) + "s",
+                FontFamily = Tokens.Fonts.Mono,
+                FontSize = Tokens.Fonts.Caption,
+                Foreground = Tokens.Brushes.InkOnDeckAt(Tokens.Emphasis.Ghost),
+                VerticalAlignment = VerticalAlignment.Center,
+            });
 
-        var actions = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = Tokens.Space.Tight,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Children = { copy, delete },
-        };
+        var actions = Panels.Row(Tokens.Space.Tight, copy, delete);
 
         var body = new StackPanel
         {
             Spacing = Tokens.Space.Snug,
             Children =
             {
-                new Grid { Children = { header, actions } },
+                Panels.SplitRow(header, actions),
                 new TextBlock
                 {
                     Text = record.Text,
@@ -165,7 +145,8 @@ public sealed class TranscriptionsView : UserControl
 
             row.Children.Add(new Border
             {
-                BorderBrush = new SolidColorBrush(Tokens.Colors.MeterAmber, 0.35),
+                BorderBrush = new SolidColorBrush(
+                    Tokens.Colors.MeterAmber, Tokens.Material.NoticeEdgeOpacity),
                 BorderThickness = new Thickness(Tokens.Border.Hairline),
                 CornerRadius = new CornerRadius(Tokens.Radius.Chip),
                 Padding = new Thickness(Tokens.Space.Snug, Tokens.Space.Hair),

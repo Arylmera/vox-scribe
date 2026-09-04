@@ -1,6 +1,5 @@
 ﻿using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
 using Avalonia.Media;
 using Avalonia.Threading;
 using VoxScribe.App.Design;
@@ -99,13 +98,26 @@ public sealed class Silkscreen : TextBlock
 /// </remarks>
 public sealed class Lamp : Control
 {
+    /// <summary>Opacity of the rim drawn around the lens.</summary>
+    private const double RimOpacity = 0.7;
+
+    /// <summary>Specular dot radius, as a fraction of the lens diameter.</summary>
+    private const double DotRadiusRatio = 0.15;
+
+    /// <summary>Where the dot sits, as a fraction of the lens radius — up and to the left.</summary>
+    private const double DotOffsetX = 0.30;
+    private const double DotOffsetY = 0.32;
+
     /// <summary>Whether the lamp is lit.</summary>
     public static readonly StyledProperty<bool> IsLitProperty =
         AvaloniaProperty.Register<Lamp, bool>(nameof(IsLit));
 
-    /// <summary>The lamp's colour when lit.</summary>
+    /// <summary>
+    /// The lamp's colour when lit. Neutral by default — <b>red means recording</b>, so the
+    /// one lamp that means that says so itself rather than inheriting it from every lamp.
+    /// </summary>
     public static readonly StyledProperty<Color> LampColorProperty =
-        AvaloniaProperty.Register<Lamp, Color>(nameof(LampColor), Tokens.Colors.Record);
+        AvaloniaProperty.Register<Lamp, Color>(nameof(LampColor), Tokens.Colors.Silkscreen);
 
     /// <inheritdoc cref="IsLitProperty"/>
     public bool IsLit
@@ -142,16 +154,16 @@ public sealed class Lamp : Control
         var lens = new SolidColorBrush(LampColor, IsLit ? 1 : Tokens.Material.LampUnlitOpacity);
         context.DrawEllipse(lens, null, centre, radius, radius);
 
-        var rim = new Pen(new SolidColorBrush(Tokens.Colors.Seam, 0.7), Tokens.Border.Hairline);
+        var rim = new Pen(new SolidColorBrush(Tokens.Colors.Seam, RimOpacity), Tokens.Border.Hairline);
         context.DrawEllipse(null, rim, centre, radius, radius);
 
         if (!IsLit) return;
 
-        var specular = new SolidColorBrush(Avalonia.Media.Colors.White, Tokens.Material.LampSpecular);
-        var dot = size * 0.15;
+        var specular = new SolidColorBrush(Tokens.Colors.Specular, Tokens.Material.LampSpecular);
+        var dot = size * DotRadiusRatio;
         context.DrawEllipse(
             specular, null,
-            new Point(centre.X - (radius * 0.3), centre.Y - (radius * 0.32)),
+            new Point(centre.X - (radius * DotOffsetX), centre.Y - (radius * DotOffsetY)),
             dot, dot);
     }
 }
@@ -165,13 +177,24 @@ public sealed class Lamp : Control
 /// </remarks>
 public sealed class TransportKey : Button
 {
+    /// <summary>How strongly the engaged colour tints the pill's face and its edge.</summary>
+    private const double EngagedFillOpacity = 0.16;
+    private const double EngagedEdgeOpacity = 0.55;
+
+    /// <summary>How far the face dims while the key is held down.</summary>
+    private const double PressedFaceOpacity = 0.6;
+
     /// <summary>Whether this key is latched down.</summary>
     public static readonly StyledProperty<bool> IsEngagedProperty =
         AvaloniaProperty.Register<TransportKey, bool>(nameof(IsEngaged));
 
-    /// <summary>Label colour when engaged.</summary>
+    /// <summary>
+    /// Label and tint colour when engaged. Ink by default: a key is latched, not recording,
+    /// and a red default made every unconfigured key one <c>IsEngaged</c> away from breaking
+    /// the rule that nothing but the transport is red.
+    /// </summary>
     public static readonly StyledProperty<Color> EngagedColorProperty =
-        AvaloniaProperty.Register<TransportKey, Color>(nameof(EngagedColor), Tokens.Colors.Record);
+        AvaloniaProperty.Register<TransportKey, Color>(nameof(EngagedColor), Tokens.Colors.Ink);
 
     /// <inheritdoc cref="IsEngagedProperty"/>
     public bool IsEngaged
@@ -218,12 +241,12 @@ public sealed class TransportKey : Button
         var shape = new RoundedRect(bounds, bounds.Height / 2);
 
         var fill = IsEngaged
-            ? new SolidColorBrush(EngagedColor, 0.16)
-            : new SolidColorBrush(Tokens.Colors.Cap, IsPressed ? 0.6 : 1.0);
+            ? new SolidColorBrush(EngagedColor, EngagedFillOpacity)
+            : new SolidColorBrush(Tokens.Colors.Cap, IsPressed ? PressedFaceOpacity : 1.0);
         context.DrawRectangle(fill, null, shape);
 
         var edge = IsEngaged
-            ? new SolidColorBrush(EngagedColor, 0.55)
+            ? new SolidColorBrush(EngagedColor, EngagedEdgeOpacity)
             : new SolidColorBrush(Tokens.Colors.Seam);
         context.DrawRectangle(null, new Pen(edge, Tokens.Border.Hairline), shape);
     }
@@ -253,6 +276,9 @@ public sealed class TransportKey : Button
 /// </remarks>
 public sealed class RailKey : Button
 {
+    /// <summary>How faintly the accent washes the active key. A tint, not a fill.</summary>
+    private const double EngagedWashOpacity = 0.10;
+
     /// <summary>Whether this key is the active section.</summary>
     public static readonly StyledProperty<bool> IsEngagedProperty =
         AvaloniaProperty.Register<RailKey, bool>(nameof(IsEngaged));
@@ -304,7 +330,8 @@ public sealed class RailKey : Button
 
         if (IsEngaged)
         {
-            context.DrawRectangle(new SolidColorBrush(Tokens.Colors.Accent, 0.10), null, shape);
+            context.DrawRectangle(
+                new SolidColorBrush(Tokens.Colors.Accent, EngagedWashOpacity), null, shape);
         }
         else if (IsPressed || IsPointerOver)
         {
@@ -333,6 +360,10 @@ public sealed class RailKey : Button
 /// </summary>
 public sealed class RecordButton : Button
 {
+    /// <summary>How strongly red tints the disc at rest, and while it is held down.</summary>
+    private const double DiscOpacity = 0.14;
+    private const double PressedDiscOpacity = 0.24;
+
     static RecordButton() => AffectsRender<RecordButton>(IsPressedProperty);
 
     /// <summary>Creates the button at the token size.</summary>
@@ -357,19 +388,20 @@ public sealed class RecordButton : Button
         if (size <= 0) return;
 
         var centre = new Point(Bounds.Width / 2, Bounds.Height / 2);
-        var fill = new SolidColorBrush(Tokens.Colors.Record, IsPressed ? 0.24 : 0.14);
+        var fill = new SolidColorBrush(
+            Tokens.Colors.Record, IsPressed ? PressedDiscOpacity : DiscOpacity);
         context.DrawEllipse(fill, null, centre, size / 2, size / 2);
     }
 }
 
 /// <summary>
-/// A VU meter with a real needle.
+/// A VU meter: a damped movement, drawn as a strip of segments.
 /// </summary>
 /// <remarks>
 /// <para>
-/// The needle is damped rather than driven straight from the signal. A physical VU movement
-/// takes ~300 ms to reach a step and overshoots slightly before settling, and that lag is the
-/// instrument's character.
+/// The movement is damped rather than driven straight from the signal. A physical VU takes
+/// ~300 ms to reach a step and overshoots slightly before settling, and that lag is the
+/// instrument's character — kept here even though the strip has no visible needle.
 /// </para>
 /// <para>
 /// The physics live in plain fields stepped by a timer, deliberately kept out of the property
@@ -379,6 +411,28 @@ public sealed class RecordButton : Button
 /// </remarks>
 public sealed class VuMeter : Control
 {
+    /// <summary>Number of segments in the strip.</summary>
+    private const int Segments = 16;
+
+    /// <summary>Segments at the top of the strip that read as the red zone.</summary>
+    private const int OverSegments = 2;
+
+    /// <summary>Width of a segment as a fraction of its slot, and its floor in pixels.</summary>
+    private const double BarWidthRatio = 0.5;
+    private const double MinBarWidth = 2.0;
+
+    /// <summary>Segment height as a fraction of the strip: a ramp rising left to right.</summary>
+    private const double BarHeightBase = 0.28;
+    private const double BarHeightRamp = 0.5;
+
+    /// <summary>Opacity of an unlit segment while recording, and while idle.</summary>
+    private const double UnlitActiveOpacity = 0.18;
+    private const double UnlitIdleOpacity = 0.10;
+
+    /// <summary>Integration step and damping of the movement, per frame.</summary>
+    private const double NeedleStep = 0.16;
+    private const double NeedleDamping = 0.72;
+
     /// <summary>Current input level, 0…1.</summary>
     public static readonly StyledProperty<double> LevelProperty =
         AvaloniaProperty.Register<VuMeter, double>(nameof(Level));
@@ -414,7 +468,7 @@ public sealed class VuMeter : Control
 
         _ticker = new DispatcherTimer(DispatcherPriority.Render)
         {
-            Interval = TimeSpan.FromMilliseconds(16),
+            Interval = Tokens.Motion.MeterFrame,
         };
         _ticker.Tick += (_, _) => { AdvanceNeedle(); InvalidateVisual(); };
         _ticker.Start();
@@ -438,13 +492,10 @@ public sealed class VuMeter : Control
         var time = rising ? Tokens.Motion.NeedleAttackSeconds : Tokens.Motion.NeedleReleaseSeconds;
 
         var stiffness = 1 / time;
-        _velocity += (target - _needle) * stiffness * 0.16;
-        _velocity *= 0.72;
+        _velocity += (target - _needle) * stiffness * NeedleStep;
+        _velocity *= NeedleDamping;
         _needle = Math.Clamp(_needle + _velocity, 0, 1 + Tokens.Motion.NeedleOvershoot);
     }
-
-    /// <summary>Number of segments in the strip.</summary>
-    private const int Segments = 16;
 
     /// <inheritdoc />
     public override void Render(DrawingContext context)
@@ -456,70 +507,33 @@ public sealed class VuMeter : Control
         var shape = new RoundedRect(bounds, Tokens.Radius.Chip);
         context.DrawRectangle(Tokens.Brushes.MeterFace, null, shape);
 
-        // Rounded segments rise with the damped level; the top two are the red zone.
+        // Rounded segments rise with the damped level; the last few are the red zone.
+        // The accent is read per frame, never cached: it is a live user setting.
         var accent = Tokens.Colors.Accent;
-        var inset = 8.0;
-        var slot = (bounds.Width - inset * 2) / Segments;
-        var barWidth = Math.Max(2.0, slot * 0.5);
+        var inset = Tokens.Space.Snug;
+        var slot = (bounds.Width - (inset * 2)) / Segments;
+        var barWidth = Math.Max(MinBarWidth, slot * BarWidthRatio);
         var lit = _needle * Segments;
 
         for (var i = 0; i < Segments; i++)
         {
-            var over = i >= Segments - 2;
+            var over = i >= Segments - OverSegments;
             var on = i < lit;
             var color = over ? Tokens.Colors.MeterRed : accent;
 
-            var height = bounds.Height * (0.28 + (0.5 * (i + 1) / Segments));
+            var height = bounds.Height
+                * (BarHeightBase + (BarHeightRamp * (i + 1) / Segments));
             var x = inset + (i * slot) + ((slot - barWidth) / 2);
             var y = (bounds.Height - height) / 2;
 
+            var opacity = on ? 1.0 : (IsActive ? UnlitActiveOpacity : UnlitIdleOpacity);
+
             context.DrawRectangle(
-                new SolidColorBrush(color, on ? 1.0 : (IsActive ? 0.18 : 0.10)), null,
+                new SolidColorBrush(color, opacity), null,
                 new RoundedRect(new Rect(x, y, barWidth, height), barWidth / 2));
         }
 
         var frame = new Pen(new SolidColorBrush(Tokens.Colors.Seam), Tokens.Border.Hairline);
         context.DrawRectangle(null, frame, shape);
-    }
-}
-
-/// <summary>A run of ventilation slots.</summary>
-/// <remarks>
-/// Purely decorative, and deliberately so — real equipment has vents and fasteners, and their
-/// absence is one of the things that makes software look like software.
-/// </remarks>
-public sealed class Vents : Control
-{
-    /// <summary>How many slots to draw.</summary>
-    public static readonly StyledProperty<int> CountProperty =
-        AvaloniaProperty.Register<Vents, int>(nameof(Count), 6);
-
-    /// <inheritdoc cref="CountProperty"/>
-    public int Count
-    {
-        get => GetValue(CountProperty);
-        set => SetValue(CountProperty, value);
-    }
-
-    static Vents() => AffectsRender<Vents>(CountProperty);
-
-    /// <inheritdoc />
-    protected override Size MeasureOverride(Size availableSize) => new(
-        (Count * Tokens.Material.VentSlotWidth) + ((Count - 1) * Tokens.Material.VentSlotGap),
-        Tokens.Material.VentSlotHeight);
-
-    /// <inheritdoc />
-    public override void Render(DrawingContext context)
-    {
-        var brush = new SolidColorBrush(Tokens.Colors.Seam, 0.5);
-        var pitch = Tokens.Material.VentSlotWidth + Tokens.Material.VentSlotGap;
-
-        for (var i = 0; i < Count; i++)
-        {
-            var slot = new Rect(
-                i * pitch, 0,
-                Tokens.Material.VentSlotWidth, Tokens.Material.VentSlotHeight);
-            context.DrawRectangle(brush, null, new RoundedRect(slot, 1.5));
-        }
     }
 }

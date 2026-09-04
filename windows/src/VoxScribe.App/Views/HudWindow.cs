@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls;
@@ -40,14 +40,14 @@ namespace VoxScribe.App.Views;
 /// </remarks>
 public sealed class HudWindow : Window
 {
-    /// <summary>Height with the readout row only, and with the preview line showing.</summary>
-    private const double CompactHeight = 60;
-    private const double PreviewHeight = 100;
-
-    private const double PillWidth = 380;
-
     /// <summary>Characters of transcript kept on screen; older text scrolls off the left.</summary>
     private const int PreviewCharacters = 110;
+
+    /// <summary>How solidly ink sits on the glass. Never quite 1: the pill is translucent.</summary>
+    private const double GlassInkOpacity = 0.82;
+
+    /// <summary>How strongly the accent tints the pill's edge while recording.</summary>
+    private const double RecordingEdgeOpacity = 0.35;
 
     private readonly DictationEngine _engine;
     private readonly Border _shell;
@@ -72,8 +72,8 @@ public sealed class HudWindow : Window
     {
         _engine = engine;
 
-        Width = PillWidth;
-        Height = CompactHeight;
+        Width = Tokens.Size.PillWidth;
+        Height = Tokens.Size.PillCompactHeight;
         SystemDecorations = SystemDecorations.None;
         TransparencyLevelHint = [WindowTransparencyLevel.Transparent];
         Background = Brushes.Transparent;
@@ -86,33 +86,37 @@ public sealed class HudWindow : Window
 
         _lamp = new Ellipse
         {
-            Width = 7,
-            Height = 7,
+            Width = Tokens.Material.PillLampSize,
+            Height = Tokens.Material.PillLampSize,
             VerticalAlignment = VerticalAlignment.Center,
         };
 
         _mode = new TextBlock
         {
             FontFamily = Tokens.Fonts.Mono,
-            FontSize = 10,
+            FontSize = Tokens.Fonts.Caption,
             LetterSpacing = Tokens.Fonts.SilkscreenTracking,
             VerticalAlignment = VerticalAlignment.Center,
         };
 
-        _bars = new HudBars { Height = 30, Margin = new Thickness(12, 0) };
+        _bars = new HudBars
+        {
+            Height = Tokens.Material.PillBarsHeight,
+            Margin = new Thickness(Tokens.Space.Base, 0),
+        };
 
         _timer = new TextBlock
         {
             FontFamily = Tokens.Fonts.Mono,
-            FontSize = 11,
+            FontSize = Tokens.Fonts.Label,
             VerticalAlignment = VerticalAlignment.Center,
         };
 
         _preview = new TextBlock
         {
-            Margin = new Thickness(4, 2, 4, 0),
+            Margin = new Thickness(Tokens.Space.Tight, Tokens.Space.Hair, Tokens.Space.Tight, 0),
             FontFamily = Tokens.Fonts.Grotesque,
-            FontSize = 13,
+            FontSize = Tokens.Fonts.Body,
             Foreground = Tokens.Brushes.InkOnDeck,
             TextAlignment = TextAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis,
@@ -123,10 +127,10 @@ public sealed class HudWindow : Window
         _shell = new Border
         {
             // Transparent glass: the desktop shows through the pill.
-            CornerRadius = new CornerRadius(30),
-            Background = new SolidColorBrush(Color.FromArgb(0x8C, 0x0C, 0x10, 0x16)),
-            BorderThickness = new Thickness(1),
-            Padding = new Thickness(20, 0, 20, 0),
+            CornerRadius = new CornerRadius(Tokens.Material.PillRadius),
+            Background = new SolidColorBrush(Tokens.Colors.Glass),
+            BorderThickness = new Thickness(Tokens.Border.Hairline),
+            Padding = new Thickness(Tokens.Space.Wide, 0),
             Child = new StackPanel
             {
                 VerticalAlignment = VerticalAlignment.Center,
@@ -137,7 +141,7 @@ public sealed class HudWindow : Window
 
         _timerTick = new DispatcherTimer(DispatcherPriority.Background)
         {
-            Interval = TimeSpan.FromMilliseconds(33),
+            Interval = Tokens.Motion.PillFrame,
         };
         _timerTick.Tick += (_, _) => Sync();
         _timerTick.Start();
@@ -149,7 +153,7 @@ public sealed class HudWindow : Window
         var row = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
-            Height = CompactHeight,
+            Height = Tokens.Size.PillCompactHeight,
         };
 
         var readout = new StackPanel
@@ -183,18 +187,18 @@ public sealed class HudWindow : Window
         var mode = cleaning ? "CLEAN" : "RAW";
         _mode.Text = recording ? "REC · " + mode : mode;
         _mode.Foreground = recording
-            ? new SolidColorBrush(Tokens.Colors.Ink, 0.82)
+            ? new SolidColorBrush(Tokens.Colors.Ink, GlassInkOpacity)
             : new SolidColorBrush(Tokens.Colors.MeterAmber);
 
         _lamp.Fill = recording ? Tokens.Brushes.Record : new SolidColorBrush(Tokens.Colors.RecordIdle);
         _timer.Foreground = recording
             ? new SolidColorBrush(Tokens.Colors.Accent)
-            : new SolidColorBrush(Tokens.Colors.Ink, 0.82);
+            : new SolidColorBrush(Tokens.Colors.Ink, GlassInkOpacity);
 
         // Accent-tinted edge while recording, a plain hairline for the tail.
         _shell.BorderBrush = recording
-            ? new SolidColorBrush(Tokens.Colors.Accent, 0.35)
-            : new SolidColorBrush(Avalonia.Media.Colors.White, 0.14);
+            ? new SolidColorBrush(Tokens.Colors.Accent, RecordingEdgeOpacity)
+            : new SolidColorBrush(Tokens.Colors.Specular, Tokens.Material.GlassEdgeOpacity);
     }
 
     private void Sync()
@@ -248,7 +252,9 @@ public sealed class HudWindow : Window
         _preview.Text = wanted;
         _preview.IsVisible = wanted.Length > 0;
 
-        var height = _preview.IsVisible ? PreviewHeight : CompactHeight;
+        var height = _preview.IsVisible
+            ? Tokens.Size.PillPreviewHeight
+            : Tokens.Size.PillCompactHeight;
         if (Math.Abs(Height - height) < 0.5) return;
 
         Height = height;
@@ -268,7 +274,7 @@ public sealed class HudWindow : Window
         var area = screen.WorkingArea;
         var width = (int)(Width * screen.Scaling);
         var height = (int)(Height * screen.Scaling);
-        var margin = (int)(24 * screen.Scaling);
+        var margin = (int)(Tokens.Material.PillScreenMargin * screen.Scaling);
 
         Position = new PixelPoint(
             area.X + ((area.Width - width) / 2),
@@ -280,6 +286,23 @@ public sealed class HudWindow : Window
 internal sealed class HudBars : Control
 {
     private const int BarCount = 32;
+
+    /// <summary>Width of a bar as a fraction of its slot, and its floor in pixels.</summary>
+    private const double BarWidthRatio = 0.55;
+    private const double MinBarWidth = 2.0;
+
+    /// <summary>Shortest a bar is ever drawn, so silence still reads as a strip.</summary>
+    private const double MinBarHeight = 3.0;
+
+    /// <summary>A quiet bar's opacity, and how much of the range loudness adds back.</summary>
+    private const double QuietOpacity = 0.35;
+    private const double LoudOpacityRange = 0.65;
+
+    /// <summary>The "working" shimmer: how fast it travels, its floor, swing and pitch.</summary>
+    private const double ShimmerStep = 0.35;
+    private const double ShimmerBase = 0.25;
+    private const double ShimmerSwing = 0.20;
+    private const double ShimmerPitch = 0.45;
 
     /// <summary>Rolling level history, newest last — drawn as a scrolling waveform.</summary>
     private readonly double[] _history = new double[BarCount];
@@ -303,7 +326,7 @@ internal sealed class HudBars : Control
         {
             // Transcribing: a travelling shimmer says "working" without pretending audio
             // is still being heard.
-            _phase += 0.35;
+            _phase += ShimmerStep;
         }
 
         InvalidateVisual();
@@ -316,19 +339,20 @@ internal sealed class HudBars : Control
         var color = recording ? Tokens.Colors.Accent : Tokens.Colors.MeterAmber;
 
         var slot = Bounds.Width / BarCount;
-        var barWidth = Math.Max(2.0, slot * 0.55);
+        var barWidth = Math.Max(MinBarWidth, slot * BarWidthRatio);
         var maxBar = Bounds.Height;
 
         for (var i = 0; i < BarCount; i++)
         {
             var intensity = recording
                 ? _history[i]
-                : 0.25 + (0.20 * Math.Sin(_phase + (i * 0.45)));
+                : ShimmerBase + (ShimmerSwing * Math.Sin(_phase + (i * ShimmerPitch)));
 
             // Loud bars are solid, quiet ones translucent — the strip breathes with the
             // voice instead of only changing height.
-            var brush = new SolidColorBrush(color, recording ? 0.35 + (0.65 * intensity) : 1.0);
-            var barHeight = Math.Max(3.0, maxBar * intensity);
+            var opacity = recording ? QuietOpacity + (LoudOpacityRange * intensity) : 1.0;
+            var brush = new SolidColorBrush(color, opacity);
+            var barHeight = Math.Max(MinBarHeight, maxBar * intensity);
             var x = (i * slot) + ((slot - barWidth) / 2);
             var y = (Bounds.Height - barHeight) / 2;
 

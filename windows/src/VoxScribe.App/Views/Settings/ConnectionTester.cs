@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
@@ -16,6 +16,16 @@ namespace VoxScribe.App.Views.Settings;
 /// </summary>
 internal static class ConnectionTester
 {
+    /// <summary>
+    /// How long to wait for the gateway before calling it unreachable.
+    /// </summary>
+    /// <remarks>
+    /// One constant, used for both the timeout and the message that reports it — they were
+    /// two separate literals, which is how a message ends up quoting a number the code no
+    /// longer uses.
+    /// </remarks>
+    private static readonly TimeSpan ProbeTimeout = TimeSpan.FromSeconds(8);
+
     /// <summary>Builds the row; <paramref name="read"/> supplies the current settings.</summary>
     public static StackPanel Build(Func<(string? Endpoint, string Model, string? Key)> read)
     {
@@ -23,7 +33,7 @@ internal static class ConnectionTester
         var status = Panels.Note("Not tested yet.");
         status.VerticalAlignment = VerticalAlignment.Center;
 
-        var test = new TransportKey { Content = "TEST CONNECTION", EngagedColor = Tokens.Colors.Ink };
+        var test = new TransportKey { Content = "TEST CONNECTION" };
         test.Click += async (_, _) =>
         {
             // Clicking steals focus from the field being edited, so its LostFocus save has
@@ -39,17 +49,18 @@ internal static class ConnectionTester
             test.IsEnabled = true;
         };
 
-        var save = new TransportKey { Content = "SAVE", EngagedColor = Tokens.Colors.Ink };
+        var save = new TransportKey { Content = "SAVE" };
         save.Click += async (_, _) =>
         {
             // Force LostFocus on any active field to trigger its onCommit handler
             save.Focus();
 
-            // Feedback: brief status, then clear after 2s
+            // Says so briefly, then reverts: a verdict that stays put reads as the
+            // result of the next test that has not run yet.
             status.Text = "Saved.";
             status.Foreground = new SolidColorBrush(Tokens.Colors.MeterGreen);
 
-            await Task.Delay((int)Tokens.Motion.Feedback.TotalMilliseconds * 4);
+            await Task.Delay(Tokens.Motion.StatusHold);
             status.Text = "Not tested yet.";
             status.Foreground = new SolidColorBrush(Tokens.Colors.InkSecondary);
         };
@@ -74,7 +85,7 @@ internal static class ConnectionTester
 
         try
         {
-            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
+            using var http = new HttpClient { Timeout = ProbeTimeout };
             if (!string.IsNullOrEmpty(apiKey))
                 http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
 
@@ -101,7 +112,7 @@ internal static class ConnectionTester
         catch (Exception e) when (e is HttpRequestException or TaskCanceledException or UriFormatException or JsonException)
         {
             return (false, e is TaskCanceledException
-                ? "No answer within 8 s — server unreachable?"
+                ? $"No answer within {ProbeTimeout.TotalSeconds:F0} s — server unreachable?"
                 : $"Connection failed: {e.Message}");
         }
     }

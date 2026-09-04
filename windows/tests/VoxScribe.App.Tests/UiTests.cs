@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using Avalonia.VisualTree;
 using VoxScribe.Core;
 using Avalonia;
@@ -79,8 +79,8 @@ public sealed class MainWindowTests
         var window = new MainWindow();
         window.Show();
 
-        window.MinWidth.ShouldBe(720);
-        window.MinHeight.ShouldBe(520);
+        window.MinWidth.ShouldBe(Tokens.Size.MainMinWidth);
+        window.MinHeight.ShouldBe(Tokens.Size.MainMinHeight);
     }
 }
 
@@ -116,17 +116,6 @@ public sealed class EquipmentTests
         var key = new TransportKey();
         key.Height.ShouldBe(Tokens.Material.KeyHeight);
         key.MinWidth.ShouldBe(Tokens.Material.KeyMinWidth);
-    }
-
-    [AvaloniaFact]
-    public void Vents_measure_to_the_slot_geometry()
-    {
-        var vents = new Vents { Count = 4 };
-        vents.Measure(Size.Infinity);
-
-        var expected = (4 * Tokens.Material.VentSlotWidth) + (3 * Tokens.Material.VentSlotGap);
-        vents.DesiredSize.Width.ShouldBe(expected);
-        vents.DesiredSize.Height.ShouldBe(Tokens.Material.VentSlotHeight);
     }
 
     [AvaloniaFact]
@@ -168,9 +157,19 @@ public sealed class DesignSystemTests
         // equipment look creeping back.
         Tokens.Radius.Chip.ShouldBeGreaterThanOrEqualTo(6);
         Tokens.Radius.Panel.ShouldBeGreaterThanOrEqualTo(12);
-        Tokens.Radius.Window.ShouldBeGreaterThanOrEqualTo(14);
-        // Controls are full pills: half the standard key height.
-        Tokens.Radius.Control.ShouldBe(Tokens.Material.KeyHeight / 2);
+        Tokens.Radius.RailKey.ShouldBeGreaterThanOrEqualTo(10);
+    }
+
+    [AvaloniaFact]
+    public void Nothing_is_red_unless_it_asks_to_be()
+    {
+        // Red means recording, so the shared controls default to neutral and the transport
+        // opts in. A red default left every unconfigured key one IsEngaged away from
+        // breaking the rule, which is the quiet way a colour rule dies.
+        new Lamp().LampColor.ShouldNotBe(Tokens.Colors.Record);
+        new TransportKey().EngagedColor.ShouldNotBe(Tokens.Colors.Record);
+
+        new MainWindow().RecordLamp.LampColor.ShouldBe(Tokens.Colors.Record);
     }
 
     [AvaloniaFact]

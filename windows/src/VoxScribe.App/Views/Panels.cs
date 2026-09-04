@@ -72,6 +72,63 @@ internal static class Panels
         };
     }
 
+    /// <summary>
+    /// The shell both list views share: a search row on top, a footer at the foot, and the
+    /// list scrolling between them.
+    /// </summary>
+    /// <remarks>
+    /// Extracted because the two views had it letter for letter. It is not only duplication:
+    /// the order of the children <i>is</i> the rule — a docked panel gives the last child
+    /// what is left, so the scroller has to be added last or the footer eats the view.
+    /// </remarks>
+    public static DockPanel ListShell(Control searchRow, Control footer, Control list) => new()
+    {
+        Children =
+        {
+            Docked(searchRow, Dock.Top),
+            Docked(footer, Dock.Bottom),
+            new ScrollViewer { Content = list },
+        },
+    };
+
+    /// <summary>The scrolling body of a list view: rows stacked on the deck.</summary>
+    public static StackPanel ListBody() => new()
+    {
+        Spacing = Tokens.Space.Snug,
+        Margin = new Thickness(Tokens.Space.Base),
+    };
+
+    /// <summary>The "N THINGS" readout that sits in a footer.</summary>
+    public static Silkscreen Counter() =>
+        new() { Foreground = Tokens.Brushes.InkOnDeckAt(Tokens.Emphasis.Soft) };
+
+    /// <summary>
+    /// One row with content on the left and actions on the right.
+    /// </summary>
+    /// <remarks>
+    /// A single-cell grid rather than a <c>DockPanel</c>: the two overlap when the left side
+    /// runs long, and the right side is added last so it stays on top and keeps its clicks.
+    /// </remarks>
+    public static Grid SplitRow(Control leading, Control trailing)
+    {
+        trailing.HorizontalAlignment = HorizontalAlignment.Right;
+        return new Grid { Children = { leading, trailing } };
+    }
+
+    /// <summary>A horizontal run of controls at the standard gap.</summary>
+    public static StackPanel Row(double spacing, params Control[] children)
+    {
+        var row = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = spacing,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+
+        foreach (var child in children) row.Children.Add(child);
+        return row;
+    }
+
     /// <summary>A small outlined button for use on a dark readout.</summary>
     public static Button DeckButton(string label) => new()
     {
@@ -79,9 +136,9 @@ internal static class Panels
         FontFamily = Tokens.Fonts.Grotesque,
         FontSize = Tokens.Fonts.Silkscreen,
         FontWeight = FontWeight.Medium,
-        Foreground = new SolidColorBrush(Tokens.Colors.InkOnDeck, 0.65),
+        Foreground = Tokens.Brushes.InkOnDeckAt(Tokens.Emphasis.Muted),
         Background = Brushes.Transparent,
-        BorderBrush = new SolidColorBrush(Tokens.Colors.InkOnDeck, 0.3),
+        BorderBrush = Tokens.Brushes.InkOnDeckAt(Tokens.Emphasis.Outline),
         BorderThickness = new Thickness(Tokens.Border.Hairline),
         CornerRadius = new CornerRadius(Tokens.Radius.Chip),
         Padding = new Thickness(Tokens.Space.Snug, Tokens.Space.Hair),
@@ -112,7 +169,7 @@ internal static class Panels
             {
                 Text = label,
                 IsLarge = true,
-                Foreground = new SolidColorBrush(Tokens.Colors.InkOnDeck, 0.55),
+                Foreground = Tokens.Brushes.InkOnDeckAt(Tokens.Emphasis.Soft),
                 HorizontalAlignment = HorizontalAlignment.Center,
             },
             new TextBlock
@@ -120,7 +177,7 @@ internal static class Panels
                 Text = detail,
                 FontFamily = Tokens.Fonts.Grotesque,
                 FontSize = Tokens.Fonts.Label,
-                Foreground = new SolidColorBrush(Tokens.Colors.InkOnDeck, 0.4),
+                Foreground = Tokens.Brushes.InkOnDeckAt(Tokens.Emphasis.Ghost),
                 HorizontalAlignment = HorizontalAlignment.Center,
             },
         },
@@ -149,7 +206,7 @@ internal static class Panels
     {
         var section = new BrushedPanel
         {
-            Opacity = 0.8, // Start slightly faded
+            Opacity = Tokens.Motion.SectionFadeInFrom,
             Child = new StackPanel
             {
                 Margin = new Thickness(Tokens.Space.Roomy),

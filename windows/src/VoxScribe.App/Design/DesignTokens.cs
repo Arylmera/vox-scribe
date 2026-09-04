@@ -1,6 +1,4 @@
-using Avalonia;
-using Avalonia.Media;
-using Avalonia.Styling;
+﻿using Avalonia.Media;
 
 namespace VoxScribe.App.Design;
 
@@ -17,15 +15,17 @@ namespace VoxScribe.App.Design;
 /// <b>Views must not contain literal values.</b> If a control needs a number that isn't here,
 /// add the token rather than inlining it.
 /// </para>
+/// <para>
+/// The line between a token and a private constant: a token is a decision the <i>system</i>
+/// makes and more than one control must agree on. A number that only exists inside one
+/// control's <c>Render</c> — where a specular dot sits on a lens, how far a bar breathes —
+/// is that control's own arithmetic and belongs to it as a named private constant. Hoisting
+/// those here would make the system look bigger than the decisions it actually holds.
+/// </para>
 /// <para>One rule that is not negotiable: <b>red means recording.</b> Nothing else is red.</para>
 /// </remarks>
 public static class Tokens
 {
-    /// <summary>
-    /// Void Glass is a single dark finish; kept for call sites that still branch on it.
-    /// </summary>
-    public static bool IsBlackFace => true;
-
     // ---- Colour ----
 
     /// <summary>Surfaces, from the window ground inward.</summary>
@@ -37,16 +37,7 @@ public static class Tokens
         /// <summary>A glass card resting on the ground.</summary>
         public static Color Panel => Rgb(0x12161D);
 
-        /// <summary>Lifted edge of a glass card (hover, subtle emphasis).</summary>
-        public static Color PanelHighlight => Rgb(0x1D232C);
-
-        /// <summary>Recess behind a card.</summary>
-        public static Color PanelShade => Rgb(0x0D1015);
-
-        /// <summary>Recessed wells, set into the ground.</summary>
-        public static Color Well => Rgb(0x0E1218);
-
-        /// <summary>The darkest readout surface (counters, inputs).</summary>
+        /// <summary>The darkest readout surface (counters, inputs, lists).</summary>
         public static Color Deck => Rgb(0x0B0F14);
 
         /// <summary>Buttons and interactive chips.</summary>
@@ -54,6 +45,9 @@ public static class Tokens
 
         /// <summary>Hairline border between surfaces.</summary>
         public static Color Seam => Rgb(0x232A35);
+
+        /// <summary>Row under the pointer, before selection.</summary>
+        public static Color Hover => Rgb(0x171D26);
 
         /// <summary>Primary readable text.</summary>
         public static Color Ink => Rgb(0xE9EDF2);
@@ -73,35 +67,33 @@ public static class Tokens
         /// <summary>The record indicator unlit — a dark lens, not an absence.</summary>
         public static Color RecordIdle => Rgb(0x3D2426);
 
-        /// <summary>A selected row.</summary>
-        public static Color Selection => Rgb(0x1A212B);
+        /// <summary>
+        /// The dictation pill's fill: near-black at ~55% alpha, so the desktop shows through.
+        /// </summary>
+        /// <remarks>
+        /// Carries its own alpha rather than taking one from <see cref="Emphasis"/>: this is a
+        /// material, not a de-emphasised ink, and the pill is the only thing wearing it.
+        /// </remarks>
+        public static Color Glass => Color.FromArgb(0x8C, 0x0C, 0x10, 0x16);
 
-        /// <summary>Edge on a selected or focused element.</summary>
-        public static Color SelectionEdge => Rgb(0x2C3542);
-
-        /// <summary>Keyboard focus ring. Reads without relying on colour.</summary>
-        public static Color FocusRing => Rgb(0x3A4656);
-
-        /// <summary>Row under the pointer, before selection.</summary>
-        public static Color Hover => Rgb(0x171D26);
+        /// <summary>Lens highlights and glass edges. Always used with an opacity.</summary>
+        public static Color Specular => Avalonia.Media.Colors.White;
 
         /// <summary>
-        /// The user's accent, from settings (Void Glass redesign). Mutable on purpose:
-        /// set at startup and whenever settings change; controls that repaint per frame
-        /// (the HUD bars) pick it up immediately.
+        /// The user's accent, from settings. Mutable on purpose: set at startup and whenever
+        /// settings change; controls that repaint per frame pick it up immediately.
         /// </summary>
+        /// <remarks>
+        /// Because it moves, <b>nothing may cache a brush made from it</b>. Build the brush at
+        /// paint time, or a stale accent survives until the control is rebuilt.
+        /// </remarks>
         public static Color Accent { get; set; } = Color.FromRgb(0x4F, 0xD8, 0xE8);
 
-        // Status colours: green = healthy, amber = attention, red = over/error.
+        // Instrumentation colours. Green and amber are readings — a level, a verdict, a
+        // correction that fired — and never UI chrome.
 
         /// <summary>The level strip's dark backing.</summary>
         public static Color MeterFace => Rgb(0x0B0F14);
-
-        /// <summary>Unlit level segment.</summary>
-        public static Color MeterLamp => Rgb(0x1D232C);
-
-        /// <summary>Level strip tick printing.</summary>
-        public static Color MeterNeedle => Rgb(0x3A4656);
 
         /// <summary>Healthy / nominal.</summary>
         public static Color MeterGreen => Rgb(0x4FE8A0);
@@ -125,14 +117,8 @@ public static class Tokens
         /// <inheritdoc cref="Colors.Panel"/>
         public static IBrush Panel => new SolidColorBrush(Colors.Panel);
 
-        /// <inheritdoc cref="Colors.Well"/>
-        public static IBrush Well => new SolidColorBrush(Colors.Well);
-
         /// <inheritdoc cref="Colors.Deck"/>
         public static IBrush Deck => new SolidColorBrush(Colors.Deck);
-
-        /// <inheritdoc cref="Colors.Cap"/>
-        public static IBrush Cap => new SolidColorBrush(Colors.Cap);
 
         /// <inheritdoc cref="Colors.Ink"/>
         public static IBrush Ink => new SolidColorBrush(Colors.Ink);
@@ -148,6 +134,36 @@ public static class Tokens
 
         /// <inheritdoc cref="Colors.MeterFace"/>
         public static IBrush MeterFace => new SolidColorBrush(Colors.MeterFace);
+
+        /// <summary>Ink at a chosen level of de-emphasis. See <see cref="Emphasis"/>.</summary>
+        public static IBrush InkOnDeckAt(double emphasis) =>
+            new SolidColorBrush(Colors.InkOnDeck, emphasis);
+    }
+
+    /// <summary>
+    /// How far something recedes, as an opacity.
+    /// </summary>
+    /// <remarks>
+    /// A ladder rather than a number per call site. Six hand-picked alphas between 0.3 and
+    /// 0.65 once did this job and no two of them were meaningfully different to the eye —
+    /// which is exactly how a design system rots. Pick the rung that matches the intent.
+    /// </remarks>
+    public static class Emphasis
+    {
+        /// <summary>A control's own label: quieter than body text, still clearly a control.</summary>
+        public const double Muted = 0.65;
+
+        /// <summary>Labels, counts, tags, timestamps — present but not competing.</summary>
+        public const double Soft = 0.5;
+
+        /// <summary>Something switched off but still listed.</summary>
+        public const double Disabled = 0.45;
+
+        /// <summary>Explanatory copy under a heading.</summary>
+        public const double Ghost = 0.4;
+
+        /// <summary>A hairline edge drawn on the deck.</summary>
+        public const double Outline = 0.3;
     }
 
     // ---- Type ----
@@ -183,9 +199,6 @@ public static class Tokens
 
         /// <summary>Body text.</summary>
         public const double Body = 13;
-
-        /// <summary>Section titles.</summary>
-        public const double Title = 17;
 
         /// <summary>The big transport counter.</summary>
         public const double CounterLarge = 26;
@@ -226,23 +239,14 @@ public static class Tokens
     /// </summary>
     public static class Radius
     {
-        /// <summary>Seams and dividers — square.</summary>
-        public const double None = 0;
-
-        /// <summary>Indicator chips, small lamps.</summary>
+        /// <summary>Indicator chips, small lamps, badges.</summary>
         public const double Chip = 8;
-
-        /// <summary>Buttons and controls — full pill at control heights.</summary>
-        public const double Control = 17;
 
         /// <summary>Glass cards and recessed wells.</summary>
         public const double Panel = 14;
 
         /// <summary>Navigation rail keys.</summary>
         public const double RailKey = 12;
-
-        /// <summary>The window itself.</summary>
-        public const double Window = 18;
     }
 
     /// <summary>Line weights. All 1 — a machined edge reads the same at any density.</summary>
@@ -254,47 +258,26 @@ public static class Tokens
         /// <summary>The seam between two panels.</summary>
         public const double Seam = 1;
 
-        /// <summary>Bevel thickness on raised controls.</summary>
-        public const double Bevel = 1;
+        /// <summary>The ring around the selected accent swatch.</summary>
+        public const double Ring = 2;
     }
 
     // ---- Material ----
 
-    /// <summary>
-    /// The physical detail that makes a panel read as a machined object: metal grain,
-    /// fasteners, ventilation, lamps, key travel, needle sweep.
-    /// </summary>
+    /// <summary>The fixed dimensions of the app's own furniture.</summary>
     public static class Material
     {
-        /// <summary>Opacity of the lighter striations in brushed metal.</summary>
-        public const double GrainLight = 0.055;
-
-        /// <summary>Opacity of the darker striations.</summary>
-        public const double GrainDark = 0.07;
-
-        /// <summary>Distance between striations.</summary>
-        public const double GrainPitch = 2;
-
-        /// <summary>Diameter of a panel screw head.</summary>
-        public const double ScrewSize = 9;
-
-        /// <summary>A single vent slot.</summary>
-        public const double VentSlotWidth = 3;
-
-        /// <summary>Height of a vent slot.</summary>
-        public const double VentSlotHeight = 22;
-
-        /// <summary>Gap between vent slots.</summary>
-        public const double VentSlotGap = 4;
-
         /// <summary>Indicator lamp diameter.</summary>
         public const double LampSize = 7;
 
-        /// <summary>A lit lamp's lens highlight — a specular dot, not a bloom.</summary>
-        public const double LampSpecular = 0.45;
+        /// <summary>A lamp shrunk to a bullet beside a line of text.</summary>
+        public const double LampBullet = 6;
 
         /// <summary>How far an unlit lamp sits below the lit value.</summary>
         public const double LampUnlitOpacity = 0.22;
+
+        /// <summary>A lit lamp's lens highlight — a specular dot, not a bloom.</summary>
+        public const double LampSpecular = 0.45;
 
         /// <summary>Width of the navigation rail on the left edge.</summary>
         public const double RailWidth = 64;
@@ -307,6 +290,15 @@ public static class Tokens
 
         /// <summary>Stroke weight of rail icons.</summary>
         public const double RailIconStroke = 1.7;
+
+        /// <summary>The app badge at the head of the rail.</summary>
+        public const double BadgeSize = 26;
+
+        /// <summary>The mark inside the app badge.</summary>
+        public const double BadgeIconSize = 14;
+
+        /// <summary>Stroke weight of the badge mark — heavier than a rail icon, it is smaller.</summary>
+        public const double BadgeIconStroke = 2.2;
 
         /// <summary>The round record button in the voice band.</summary>
         public const double RecordKeySize = 44;
@@ -326,17 +318,36 @@ public static class Tokens
         /// <summary>Minimum transport key width.</summary>
         public const double KeyMinWidth = 52;
 
-        /// <summary>How far a key sinks when pressed.</summary>
-        public const double KeyTravel = 1.5;
+        /// <summary>An accent swatch in Settings.</summary>
+        public const double SwatchSize = 30;
 
-        /// <summary>Total sweep of the VU needle, in degrees, centred on vertical.</summary>
-        public const double NeedleSweepDegrees = 96;
+        /// <summary>Width of the FIX / TERM tag column, so the words beside them line up.</summary>
+        public const double EntryTagWidth = 34;
 
-        /// <summary>Needle thickness.</summary>
-        public const double NeedleWidth = 1.5;
+        /// <summary>Widest a warning line may run before it wraps.</summary>
+        public const double WarningMaxWidth = 340;
 
-        /// <summary>Where 0 VU sits along the scale, 0…1. The red zone begins here.</summary>
-        public const double MeterZeroPoint = 0.72;
+        /// <summary>
+        /// How strongly an instrumentation colour tints the outline of a notice — the
+        /// "corrected" chips and the dictionary's false-positive warnings. Amber at full
+        /// strength around a box reads as an error; this reads as a note.
+        /// </summary>
+        public const double NoticeEdgeOpacity = 0.4;
+
+        /// <summary>Opacity of the pill's glass edge when not recording.</summary>
+        public const double GlassEdgeOpacity = 0.14;
+
+        /// <summary>The dictation pill's lamp — smaller than a panel lamp.</summary>
+        public const double PillLampSize = 7;
+
+        /// <summary>Height of the level bars inside the pill.</summary>
+        public const double PillBarsHeight = 30;
+
+        /// <summary>Corner radius of the pill: a full round end at its compact height.</summary>
+        public const double PillRadius = 30;
+
+        /// <summary>How far the pill sits above the bottom of the working area.</summary>
+        public const double PillScreenMargin = 24;
     }
 
     // ---- Motion ----
@@ -344,23 +355,29 @@ public static class Tokens
     /// <summary>Mechanical, not bouncy. A key travels and stops; it doesn't spring.</summary>
     public static class Motion
     {
-        /// <summary>Key travel down. Fast enough to feel like contact.</summary>
-        public static TimeSpan Press { get; } = TimeSpan.FromMilliseconds(60);
+        /// <summary>How long a transient status line stays before it reverts.</summary>
+        public static TimeSpan StatusHold { get; } = TimeSpan.FromSeconds(2);
 
-        /// <summary>Key travel up.</summary>
-        public static TimeSpan Release { get; } = TimeSpan.FromMilliseconds(120);
-
-        /// <summary>Panel and view changes.</summary>
-        public static TimeSpan Panel { get; } = TimeSpan.FromMilliseconds(180);
-
-        /// <summary>The record lamp coming on — instant, like a filament.</summary>
-        public static TimeSpan Lamp { get; } = TimeSpan.FromMilliseconds(80);
-
-        /// <summary>Subtle feedback (button pulse, status update).</summary>
-        public static TimeSpan Feedback { get; } = TimeSpan.FromMilliseconds(200);
+        /// <summary>How long "COPIED" replaces "COPY" on a transcript row.</summary>
+        public static TimeSpan CopyHold { get; } = TimeSpan.FromMilliseconds(1400);
 
         /// <summary>View entrance fade-in.</summary>
         public static TimeSpan FadeIn { get; } = TimeSpan.FromMilliseconds(300);
+
+        /// <summary>Opacity a view fades in from. Close to 1: a hint of arrival, not a reveal.</summary>
+        public const double FadeInFrom = 0.9;
+
+        /// <summary>Opacity a settings section fades in from.</summary>
+        public const double SectionFadeInFrom = 0.8;
+
+        /// <summary>Display refresh for the pill — ~30 fps, which is all a readout needs.</summary>
+        public static TimeSpan PillFrame { get; } = TimeSpan.FromMilliseconds(33);
+
+        /// <summary>Display refresh for the VU movement — ~60 fps, so the needle is smooth.</summary>
+        public static TimeSpan MeterFrame { get; } = TimeSpan.FromMilliseconds(16);
+
+        /// <summary>How often the main window polls the engine for level and elapsed time.</summary>
+        public static TimeSpan PanelPoll { get; } = TimeSpan.FromMilliseconds(100);
 
         /// <summary>
         /// VU ballistics: seconds to reach a step going up.
@@ -389,6 +406,18 @@ public static class Tokens
     /// <summary>Window sizes.</summary>
     public static class Size
     {
+        /// <summary>Main window, initial width.</summary>
+        public const double MainWidth = 880;
+
+        /// <summary>Main window, initial height.</summary>
+        public const double MainHeight = 640;
+
+        /// <summary>Narrowest the main window may be dragged before the rail crowds the content.</summary>
+        public const double MainMinWidth = 720;
+
+        /// <summary>Shortest the main window may be dragged.</summary>
+        public const double MainMinHeight = 520;
+
         /// <summary>Settings window, initial width.</summary>
         public const double SettingsWidth = 540;
 
@@ -400,5 +429,17 @@ public static class Tokens
 
         /// <summary>Shortest the settings window may be dragged.</summary>
         public const double SettingsMinHeight = 480;
+
+        /// <summary>The dictionary entry editor. Height follows its content.</summary>
+        public const double EditorWidth = 460;
+
+        /// <summary>The dictation pill.</summary>
+        public const double PillWidth = 380;
+
+        /// <summary>Pill height with the readout row only.</summary>
+        public const double PillCompactHeight = 60;
+
+        /// <summary>Pill height once the transcript preview line is showing.</summary>
+        public const double PillPreviewHeight = 100;
     }
 }

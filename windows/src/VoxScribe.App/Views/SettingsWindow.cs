@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Media;
@@ -50,13 +50,13 @@ public sealed class SettingsWindow : Window
         Background = Tokens.Brushes.Chassis;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
 
-        _hotkeyButton = new TransportKey { EngagedColor = Tokens.Colors.Ink };
+        _hotkeyButton = new TransportKey();
         _hotkeyButton.Click += (_, _) =>
         {
             if (_recorder is null) StartRecording(cleanup: false); else CancelRecording();
         };
 
-        _cleanupHotkeyButton = new TransportKey { EngagedColor = Tokens.Colors.Ink };
+        _cleanupHotkeyButton = new TransportKey();
         _cleanupHotkeyButton.Click += (_, _) =>
         {
             if (_recorder is null) StartRecording(cleanup: true); else CancelRecording();

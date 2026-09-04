@@ -24,11 +24,11 @@ internal static class AppearanceSection
         {
             var dot = new Border
             {
-                Width = 30,
-                Height = 30,
-                CornerRadius = new CornerRadius(15),
+                Width = Tokens.Material.SwatchSize,
+                Height = Tokens.Material.SwatchSize,
+                CornerRadius = new CornerRadius(Tokens.Material.SwatchSize / 2),
                 Background = new SolidColorBrush(Color.Parse(hex)),
-                BorderThickness = new Thickness(2),
+                BorderThickness = new Thickness(Tokens.Border.Ring),
                 Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
             };
             dot.PointerPressed += (_, _) =>
