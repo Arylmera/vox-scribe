@@ -36,3 +36,9 @@ La vague 4 est indépendante des trois autres et peut être faite à tout moment
 Les vagues 1, 3 et 4 touchent l'injection réelle ou la capture audio. Chacune se
 termine par une checklist de test manuel — c'est la règle du dépôt pour tout ce
 qui passe par `PushToTalkHook`, `SendInput` ou WASAPI.
+
+## Hors vagues
+
+| Plan | Contenu |
+|---|---|
+| [focus-anchor-and-settings](2026-09-04-focus-anchor-and-settings.md) | Ancrage du champ ciblé à l'appui (texte tapé dans ce champ à la relâche, où que soit l'utilisateur) ; refonte de la fenêtre Réglages (redimensionnable, défilante, un fichier par section). Indépendant des vagues 1–4. Spec : `docs/superpowers/specs/2026-09-04-focus-anchor-and-settings-design.md`. |
