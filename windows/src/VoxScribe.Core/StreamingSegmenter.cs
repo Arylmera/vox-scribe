@@ -127,7 +127,12 @@ public sealed class StreamingSegmenter
         else _quietSamples = 0;
 
         var pause = _quietSamples >= _pauseSamples && _buffer.Count >= _minSegmentSamples;
-        return pause || _buffer.Count >= _maxSegmentSamples ? Take() : null;
+
+        // Not a ternary with null: ReadOnlyMemory<float> converts implicitly from an array,
+        // so `? Take() : null` types the null as an *empty memory* and every chunk comes
+        // back as a zero-length "closed segment" instead of the null the contract promises.
+        if (pause || _buffer.Count >= _maxSegmentSamples) return Take();
+        return null;
     }
 
     /// <summary>
