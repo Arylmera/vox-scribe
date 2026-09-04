@@ -1,4 +1,4 @@
-using VoxScribe.Abstractions;
+﻿using VoxScribe.Abstractions;
 using VoxScribe.Dictionary;
 
 namespace VoxScribe.Core;
@@ -54,6 +54,7 @@ public sealed class DictationEngine : IAsyncDisposable
     private readonly IClock _clock;
     private readonly Func<IReadOnlyList<DictionaryEntry>> _dictionary;
     private readonly IHotkeySource? _cleanupHotkey;
+    private readonly IFocusAnchor? _focusAnchor;
 
     private readonly SemaphoreSlim _gate = new(1, 1);
 
@@ -71,6 +72,18 @@ public sealed class DictationEngine : IAsyncDisposable
     private DictionaryCorrector? _corrector;
     private IReadOnlyList<string> _bias = [];
     private int _capturedSamples;
+
+    /// <summary>The capture started at press, awaited at release. Null when not anchoring.</summary>
+    private Task<IFocusTarget?>? _anchorCapture;
+
+    /// <summary>Fixed at press, like the cleanup flag, so a mid-utterance toggle cannot double-type.</summary>
+    private bool _anchoredThisUtterance;
+
+    /// <summary>
+    /// Whether the press that started the utterance left a field worth coming back to. False
+    /// for the in-app button, which the user reaches by clicking VoxScribe's own window.
+    /// </summary>
+    private bool _anchorRequested;
 
     /// <summary>Current state.</summary>
     public DictationState State { get; private set; } = DictationState.Idle;
@@ -108,6 +121,10 @@ public sealed class DictationEngine : IAsyncDisposable
     /// through <see cref="Cleanup"/> before it is typed — one key for raw and fast, one for
     /// tidied. Null leaves a single shortcut, and then nothing is ever cleaned.
     /// </param>
+    /// <param name="focusAnchor">
+    /// Optional. Remembers the focused field at press so the text can be typed there at
+    /// release even if the user has moved on. Null means text goes wherever focus is.
+    /// </param>
     public DictationEngine(
         IAudioCapture capture,
         IHotkeySource hotkey,
@@ -115,7 +132,8 @@ public sealed class DictationEngine : IAsyncDisposable
         ITextInjector injector,
         Func<IReadOnlyList<DictionaryEntry>> dictionary,
         IClock? clock = null,
-        IHotkeySource? cleanupHotkey = null)
+        IHotkeySource? cleanupHotkey = null,
+        IFocusAnchor? focusAnchor = null)
     {
         _capture = capture;
         _hotkey = hotkey;
@@ -123,6 +141,7 @@ public sealed class DictationEngine : IAsyncDisposable
         _injector = injector;
         _dictionary = dictionary;
         _clock = clock ?? SystemClock.Instance;
+        _focusAnchor = focusAnchor;
 
         _hotkey.Pressed += OnPlainPressed;
         _hotkey.Released += OnReleased;
@@ -154,6 +173,14 @@ public sealed class DictationEngine : IAsyncDisposable
     /// </remarks>
     public void TogglePushToTalk()
     {
+        // Clicking the button focuses VoxScribe, so the field that had focus at press is our
+        // own window: restoring it at release would type the utterance back into the app.
+        if (State == DictationState.Idle) _anchorRequested = false;
+        Toggle();
+    }
+
+    private void Toggle()
+    {
         if (State == DictationState.Idle) _ = BeginAsync();
         else if (State == DictationState.Recording) _ = EndAsync();
     }
@@ -182,6 +209,14 @@ public sealed class DictationEngine : IAsyncDisposable
     public bool IncrementalInjection { get; set; }
 
     /// <summary>
+    /// Whether to type into the field that had focus at press. Overrides
+    /// <see cref="IncrementalInjection"/> for the utterance: phrases are held and typed
+    /// together at release, because typing them as they land would send them wherever the
+    /// user is clicking at that moment.
+    /// </summary>
+    public bool AnchorFocus { get; set; }
+
+    /// <summary>
     /// Whether the utterance in progress is being typed phrase by phrase.
     /// </summary>
     /// <remarks>
@@ -191,7 +226,8 @@ public sealed class DictationEngine : IAsyncDisposable
     /// window cannot be repaired. The specific request wins, and the setting keeps its full
     /// effect on every raw dictation.
     /// </remarks>
-    private bool InjectIncrementally => IncrementalInjection && !_cleanThisUtterance;
+    private bool InjectIncrementally =>
+        IncrementalInjection && !_cleanThisUtterance && !_anchoredThisUtterance;
 
     /// <summary>
     /// Optional repair pass applied to the finished utterance before it is reported and
@@ -242,13 +278,18 @@ public sealed class DictationEngine : IAsyncDisposable
     /// </remarks>
     private void Pressed(bool cleanup, object? sender, EventArgs e)
     {
-        if (State == DictationState.Idle) _cleanThisUtterance = cleanup;
+        if (State == DictationState.Idle)
+        {
+            _cleanThisUtterance = cleanup;
+            _anchorRequested = true;
+        }
+
         OnPressed(sender, e);
     }
 
     private void OnPressed(object? sender, EventArgs e)
     {
-        if (ToggleMode) TogglePushToTalk();
+        if (ToggleMode) Toggle();
         else _ = BeginAsync();
     }
 
@@ -275,6 +316,13 @@ public sealed class DictationEngine : IAsyncDisposable
                 _queued = [];
                 _chain = Task.CompletedTask;
             }
+
+            // Started, not awaited: capture must never delay the first audio chunk. It is
+            // collected at release, just before typing.
+            _anchoredThisUtterance = AnchorFocus && _anchorRequested && _focusAnchor is not null;
+            _anchorCapture = _anchoredThisUtterance
+                ? _focusAnchor!.CaptureAsync(CancellationToken.None).AsTask()
+                : null;
 
             _capturedSamples = 0;
             PartialText = string.Empty;
@@ -392,8 +440,14 @@ public sealed class DictationEngine : IAsyncDisposable
 
         // In incremental mode every segment was typed as it landed, so there is nothing left
         // to type — injecting here would double the whole utterance.
-        if (!InjectIncrementally)
-            await _injector.InjectAsync(text, CancellationToken.None).ConfigureAwait(false);
+        if (InjectIncrementally) return;
+
+        // Bring the anchored field back first. A failed restore is deliberate silence: the
+        // fallback is to type where focus is now, which is what the app always did.
+        if (_anchorCapture is { } capture && await capture.ConfigureAwait(false) is { } target)
+            await target.RestoreAsync(CancellationToken.None).ConfigureAwait(false);
+
+        await _injector.InjectAsync(text, CancellationToken.None).ConfigureAwait(false);
     }
 
     /// <summary>Adds a closed segment to the ordered transcription chain.</summary>

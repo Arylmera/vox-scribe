@@ -95,6 +95,7 @@ public sealed class Composition : IAsyncDisposable
         var capture = PlatformFactory.CreateAudioCapture(settings.Data.AudioDeviceId);
         var hotkey = PlatformFactory.CreateHotkeySource(settings.Data.ResolvedPushToTalkKeys);
         var injector = PlatformFactory.CreateTextInjector();
+        var focusAnchor = PlatformFactory.CreateFocusAnchor();
 
         DictationEngine? engine = null;
         var available = capture is not null && hotkey is not null && injector is not null;
@@ -126,10 +127,12 @@ public sealed class Composition : IAsyncDisposable
             engine = new DictationEngine(
                 capture!, hotkey!, transcriber, injector!,
                 () => dictionary.Entries,
-                cleanupHotkey: cleanupHotkey);
+                cleanupHotkey: cleanupHotkey,
+                focusAnchor: focusAnchor);
 
             engine.ToggleMode = settings.Data.PushToTalkToggle;
             engine.IncrementalInjection = settings.Data.IncrementalInjection;
+            engine.AnchorFocus = settings.Data.AnchorFocus;
 
             if (settings.Data.CleanupEndpoint is { Length: > 0 } cleanupEndpoint)
             {
@@ -156,6 +159,7 @@ public sealed class Composition : IAsyncDisposable
                     Blockers(settings.Data.ResolvedPushToTalkKeys, settings.Data.CleanupPushToTalkKeys));
                 live.ToggleMode = settings.Data.PushToTalkToggle;
                 live.IncrementalInjection = settings.Data.IncrementalInjection;
+                live.AnchorFocus = settings.Data.AnchorFocus;
             };
 
             engine.Completed += (_, result) =>

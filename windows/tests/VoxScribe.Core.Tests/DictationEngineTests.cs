@@ -1,4 +1,4 @@
-using VoxScribe.Abstractions;
+﻿using VoxScribe.Abstractions;
 using VoxScribe.Core;
 using VoxScribe.Dictionary;
 using VoxScribe.Testing;
@@ -25,6 +25,20 @@ public sealed class DictationEngineTests
         RecordingTextInjector injector,
         params DictionaryEntry[] dictionary) =>
         new(capture, hotkey, transcriber, injector, () => dictionary, new FakeClock());
+
+    private static DictationEngine BuildAnchored(
+        FakeHotkeySource hotkey,
+        ITranscriber transcriber,
+        RecordingTextInjector injector,
+        FakeFocusAnchor anchor,
+        bool anchorFocus = true,
+        bool incremental = false) =>
+        new(FakeAudioCapture.Tone(1.0), hotkey, transcriber, injector, () => [], new FakeClock(),
+            focusAnchor: anchor)
+        {
+            AnchorFocus = anchorFocus,
+            IncrementalInjection = incremental,
+        };
 
     /// <summary>Presses, waits for capture to drain, then releases.</summary>
     private static async Task DictateAsync(FakeHotkeySource hotkey, DictationEngine engine)
@@ -249,6 +263,118 @@ public sealed class DictationEngineTests
 
         injector.Injected.ShouldHaveSingleItem();
         injector.Injected[0].ShouldBe("one three");
+    }
+
+
+    /// <summary>Starts and stops from the in-app button rather than the shortcut.</summary>
+    private static async Task DictateFromButtonAsync(DictationEngine engine)
+    {
+        engine.TogglePushToTalk();
+        for (var i = 0; i < 2000 && engine.State != DictationState.Recording; i++) await Task.Yield();
+        for (var i = 0; i < 20000 && engine.Level == 0; i++) await Task.Yield();
+
+        engine.TogglePushToTalk();
+        for (var i = 0; i < 20000 && engine.State != DictationState.Idle; i++) await Task.Yield();
+    }
+
+    [Fact]
+    public async Task The_record_button_does_not_anchor_voxscribes_own_window()
+    {
+        var hotkey = new FakeHotkeySource();
+        var injector = new RecordingTextInjector();
+        var anchor = new FakeFocusAnchor(injector);
+
+        await using var engine = BuildAnchored(hotkey, new FakeTranscriber("hello there"), injector, anchor);
+
+        await DictateFromButtonAsync(engine);
+
+        // Clicking the button focuses VoxScribe, so there is no field worth returning to.
+        anchor.Captures.ShouldBe(0);
+        injector.Injected.ShouldBe(["hello there"]);
+    }
+
+    [Fact]
+    public async Task Anchor_is_captured_at_press_and_restored_before_typing()
+    {
+        var hotkey = new FakeHotkeySource();
+        var injector = new RecordingTextInjector();
+        var anchor = new FakeFocusAnchor(injector);
+
+        await using var engine = BuildAnchored(hotkey, new FakeTranscriber("hello there"), injector, anchor);
+
+        await DictateAsync(hotkey, engine);
+
+        anchor.Captures.ShouldBe(1);
+        anchor.Targets.ShouldHaveSingleItem();
+        anchor.Targets[0].Restores.ShouldBe(1);
+        anchor.Targets[0].InjectedWhenRestored.ShouldBe(0);
+        injector.Injected.ShouldBe(["hello there"]);
+    }
+
+    [Fact]
+    public async Task Anchoring_holds_phrases_until_release_even_when_incremental_is_on()
+    {
+        var hotkey = new FakeHotkeySource();
+        var injector = new RecordingTextInjector();
+        var anchor = new FakeFocusAnchor(injector);
+
+        await using var engine = BuildAnchored(
+            hotkey, new FakeTranscriber("hello there"), injector, anchor, incremental: true);
+
+        await DictateAsync(hotkey, engine);
+
+        // One string, typed after restore — not one per phrase while the user was elsewhere.
+        injector.Injected.ShouldBe(["hello there"]);
+        anchor.Targets[0].InjectedWhenRestored.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task Anchor_off_neither_captures_nor_restores()
+    {
+        var hotkey = new FakeHotkeySource();
+        var injector = new RecordingTextInjector();
+        var anchor = new FakeFocusAnchor(injector);
+
+        await using var engine = BuildAnchored(
+            hotkey, new FakeTranscriber("hello there"), injector, anchor, anchorFocus: false);
+
+        await DictateAsync(hotkey, engine);
+
+        anchor.Captures.ShouldBe(0);
+        injector.Injected.ShouldBe(["hello there"]);
+    }
+
+    [Fact]
+    public async Task Failed_capture_still_types_into_current_focus()
+    {
+        var hotkey = new FakeHotkeySource();
+        var injector = new RecordingTextInjector();
+        var anchor = new FakeFocusAnchor(injector) { CaptureReturnsNull = true };
+
+        await using var engine = BuildAnchored(hotkey, new FakeTranscriber("hello there"), injector, anchor);
+
+        await DictateAsync(hotkey, engine);
+
+        anchor.Captures.ShouldBe(1);
+        anchor.Targets.ShouldBeEmpty();
+        injector.Injected.ShouldBe(["hello there"]);
+    }
+
+    [Fact]
+    public async Task Empty_utterance_does_not_steal_foreground()
+    {
+        var hotkey = new FakeHotkeySource();
+        var injector = new RecordingTextInjector();
+        var anchor = new FakeFocusAnchor(injector);
+
+        await using var engine = BuildAnchored(hotkey, new FakeTranscriber(""), injector, anchor);
+
+        await DictateAsync(hotkey, engine);
+
+        anchor.Captures.ShouldBe(1);
+        anchor.Targets.ShouldHaveSingleItem();
+        anchor.Targets[0].Restores.ShouldBe(0);
+        injector.Injected.ShouldBeEmpty();
     }
 
     /// <summary>A transcriber that fails on one nominated call and works on the rest.</summary>
