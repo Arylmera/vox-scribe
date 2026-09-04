@@ -99,14 +99,19 @@ public sealed class DictionaryFile
 
                 entries.Add(new DictionaryEntry
                 {
-                    Kind = EntryKind.Correction, Hear = hear, Write = write, IsEnabled = enabled,
+                    Kind = EntryKind.Correction,
+                    Hear = hear,
+                    Write = write,
+                    IsEnabled = enabled,
                 });
             }
             else
             {
                 entries.Add(new DictionaryEntry
                 {
-                    Kind = EntryKind.Term, Write = line, IsEnabled = enabled,
+                    Kind = EntryKind.Term,
+                    Write = line,
+                    IsEnabled = enabled,
                 });
             }
         }

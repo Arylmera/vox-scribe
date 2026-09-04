@@ -1,0 +1,22 @@
+# Dependency update PRs. Three packages are pinned deliberately and break silently at
+# "latest" — see AGENTS.md and windows/Directory.Packages.props — so they are ignored
+# here rather than trusted to a bot.
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: /windows
+    schedule:
+      interval: weekly
+    ignore:
+      # NAudio 3.x targets net9.0+ only and will not restore.
+      - dependency-name: NAudio
+      # 12.x requires xUnit v3, a different package line; keep the whole Avalonia set in
+      # lockstep by hand instead of one PR per package.
+      - dependency-name: "Avalonia*"
+      # Bundles its own ONNX Runtime; version moves are a deliberate decision.
+      - dependency-name: "org.k2fsa.sherpa.onnx*"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

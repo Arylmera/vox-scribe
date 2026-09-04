@@ -47,6 +47,11 @@ jobs:
       - name: Restore
         run: dotnet restore VoxScribe.sln
 
+      # Whitespace and style only — semantic analysis is the build's job, where
+      # -warnaserror and --no-incremental make it trustworthy.
+      - name: Format gate
+        run: dotnet format VoxScribe.sln --verify-no-changes --no-restore
+
       # --no-incremental is REQUIRED, not tidiness: Roslyn analyzer warnings are not
       # re-emitted on an incremental build, so -warnaserror would pass on cached results
       # and the whole gate would be theatre.
