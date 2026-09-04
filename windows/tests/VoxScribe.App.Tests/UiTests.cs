@@ -1,3 +1,6 @@
+using System.IO;
+using Avalonia.VisualTree;
+using VoxScribe.Core;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
@@ -225,5 +228,34 @@ public sealed class PanelsTests
         toggle.IsChecked = true;
 
         seen.ShouldBe(true);
+    }
+}
+
+/// <summary>The settings window as a whole.</summary>
+public sealed class SettingsWindowTests : IDisposable
+{
+    private readonly string _path = Path.Combine(
+        Path.GetTempPath(), $"voxscribe-settings-{Guid.NewGuid():N}.json");
+
+    /// <inheritdoc />
+    public void Dispose() { if (File.Exists(_path)) File.Delete(_path); }
+
+    [AvaloniaFact]
+    public void Opens_resizable_and_scrollable_with_sections_in_order()
+    {
+        var window = new SettingsWindow(new AppSettings(_path));
+        window.Show();
+
+        window.CanResize.ShouldBeTrue();
+        window.Bounds.Width.ShouldBeGreaterThan(0);
+        window.Content.ShouldBeOfType<ScrollViewer>();
+
+        var labels = window.GetVisualDescendants()
+            .OfType<Silkscreen>()
+            .Where(s => s.IsLarge)
+            .Select(s => s.Text)
+            .ToArray();
+
+        labels.ShouldBe(["SHORTCUTS", "TYPING", "CLEANUP", "SPEECH", "GENERAL", "APPEARANCE"]);
     }
 }
