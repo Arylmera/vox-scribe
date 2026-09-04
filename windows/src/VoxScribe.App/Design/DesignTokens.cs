@@ -373,6 +373,12 @@ public static class Tokens
         /// <summary>Display refresh for the pill — ~30 fps, which is all a readout needs.</summary>
         public static TimeSpan PillFrame { get; } = TimeSpan.FromMilliseconds(33);
 
+        /// <summary>
+        /// How long the pill stays up after a dictation that ended with a failure notice —
+        /// long enough to read one short sentence, short enough not to nag.
+        /// </summary>
+        public static TimeSpan NoticeLinger { get; } = TimeSpan.FromSeconds(3);
+
         /// <summary>Display refresh for the VU movement — ~60 fps, so the needle is smooth.</summary>
         public static TimeSpan MeterFrame { get; } = TimeSpan.FromMilliseconds(16);
 

@@ -97,6 +97,24 @@ public sealed class DictationEngine : IAsyncDisposable
     /// </summary>
     public string PartialText { get; private set; } = string.Empty;
 
+    /// <summary>
+    /// The most recent failure worth telling the user about, or empty. Cleared when the next
+    /// utterance starts.
+    /// </summary>
+    /// <remarks>
+    /// The engine never sets this itself — a transcriber that fails returns an empty string,
+    /// by contract. The composition wires the network layers' failure callbacks here, because
+    /// the HUD watches the engine and nothing else.
+    /// </remarks>
+    public string Notice { get; private set; } = string.Empty;
+
+    /// <summary>Publishes <paramref name="notice"/> to whoever is watching the engine.</summary>
+    public void ReportNotice(string notice)
+    {
+        Notice = notice;
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
     /// <summary>Raised when a dictation completes and produced text.</summary>
     public event EventHandler<DictationResult>? Completed;
 
@@ -326,6 +344,7 @@ public sealed class DictationEngine : IAsyncDisposable
 
             _capturedSamples = 0;
             PartialText = string.Empty;
+            Notice = string.Empty;
             _recording = new CancellationTokenSource();
             SetState(DictationState.Recording);
         }

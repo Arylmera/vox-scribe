@@ -61,15 +61,22 @@ public sealed class TextCleaner
     private readonly Uri _endpoint;
     private readonly string _model;
     private readonly string? _apiKey;
+    private readonly Action<string>? _onFailure;
 
     /// <param name="baseUrl">API base, e.g. <c>http://192.168.1.100:4000/v1</c>.</param>
     /// <param name="model">Alias the gateway routes on, e.g. <c>local-light</c>.</param>
     /// <param name="apiKey">Bearer key, or null for unauthenticated endpoints.</param>
-    public TextCleaner(string baseUrl, string model, string? apiKey)
+    /// <param name="onFailure">
+    /// Told, in one short sentence, why the text came back untidied. The contract does not
+    /// change — every failure still returns the original text — but a misconfigured gateway
+    /// that is never reported stays misconfigured forever.
+    /// </param>
+    public TextCleaner(string baseUrl, string model, string? apiKey, Action<string>? onFailure = null)
     {
         _endpoint = new Uri(baseUrl.TrimEnd('/') + "/chat/completions");
         _model = model;
         _apiKey = apiKey;
+        _onFailure = onFailure;
     }
 
     /// <summary>Repairs <paramref name="text"/>, or returns it unchanged on any failure.</summary>
@@ -104,16 +111,24 @@ public sealed class TextCleaner
             using var response = await Http
                 .SendAsync(request, cancellationToken)
                 .ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode) return text;
+            if (!response.IsSuccessStatusCode)
+            {
+                _onFailure?.Invoke($"Cleanup skipped — gateway answered {(int)response.StatusCode}");
+                return text;
+            }
 
             var answer = await response.Content
                 .ReadAsStringAsync(cancellationToken)
                 .ConfigureAwait(false);
             return Accept(text, Content(answer));
         }
-        catch (Exception)
+        catch (Exception e)
         {
-            // Unreachable gateway, sleeping Mac, timeout, malformed body — all one outcome.
+            // Unreachable gateway, sleeping Mac, timeout, malformed body — all one outcome
+            // for the text, but each worth a line in the log.
+            _onFailure?.Invoke(e is TaskCanceledException
+                ? "Cleanup skipped — gateway did not answer in time"
+                : $"Cleanup skipped — {e.Message}");
             return text;
         }
     }

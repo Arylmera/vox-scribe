@@ -114,6 +114,40 @@ public sealed class DictationEngineTests
     }
 
     [Fact]
+    public async Task ReportNotice_publishes_and_raises_Changed()
+    {
+        var hotkey = new FakeHotkeySource();
+        await using var engine = Build(
+            FakeAudioCapture.Silence(0.1), hotkey, new FakeTranscriber(""), new RecordingTextInjector());
+
+        var raised = false;
+        engine.Changed += (_, _) => raised = true;
+
+        engine.ReportNotice("Transcription failed — gateway answered 500");
+
+        engine.Notice.ShouldBe("Transcription failed — gateway answered 500");
+        raised.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Notice_is_cleared_when_the_next_utterance_starts()
+    {
+        var hotkey = new FakeHotkeySource();
+        var injector = new RecordingTextInjector();
+
+        await using var engine = Build(
+            FakeAudioCapture.Tone(0.5), hotkey, new FakeTranscriber("hello"), injector);
+
+        engine.ReportNotice("Cleanup skipped — gateway did not answer in time");
+        engine.Notice.ShouldNotBeEmpty();
+
+        await DictateAsync(hotkey, engine);
+
+        // A stale notice must not outlive the dictation after the one that failed.
+        engine.Notice.ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task Release_without_press_is_ignored()
     {
         var hotkey = new FakeHotkeySource();

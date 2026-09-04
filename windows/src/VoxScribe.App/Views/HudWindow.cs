@@ -60,6 +60,9 @@ public sealed class HudWindow : Window
     /// <summary>Utterance clock, display-only. Runs while recording, freezes for the tail.</summary>
     private readonly Stopwatch _clock = new();
 
+    /// <summary>Runs while a failure notice is lingering on screen after the engine idles.</summary>
+    private readonly Stopwatch _noticeClock = new();
+
     /// <summary>Last (cleaning, recording) rendered, so brushes are rebuilt only on a flip.</summary>
     private (bool Cleaning, bool Recording)? _shown;
     private readonly DispatcherTimer _timerTick;
@@ -207,6 +210,23 @@ public sealed class HudWindow : Window
 
         if (state == DictationState.Idle)
         {
+            // A failure notice holds the pill up briefly: the moment the user is looking
+            // here is exactly the moment their text failed to appear. The notice is cleared
+            // by the engine at the next press, which also resets the linger clock below.
+            if (_engine.Notice is { Length: > 0 } notice)
+            {
+                if (!_noticeClock.IsRunning) _noticeClock.Restart();
+                if (IsVisible && _noticeClock.Elapsed < Tokens.Motion.NoticeLinger)
+                {
+                    ShowNotice(notice);
+                    return;
+                }
+            }
+            else
+            {
+                _noticeClock.Reset();
+            }
+
             if (IsVisible) Hide();
 
             // Forget the painted state: the accent can change while the pill is hidden, and
@@ -238,6 +258,23 @@ public sealed class HudWindow : Window
             // the topmost band, and nothing tells us it happened. See Overlay.KeepOnTop.
             Overlay.KeepOnTop(this);
         }
+    }
+
+    /// <summary>
+    /// Paints the lingering failure state: neutral ink, idle lamp, plain edge — no colour is
+    /// borrowed, because red means recording and amber means instrumentation, nothing else.
+    /// </summary>
+    private void ShowNotice(string notice)
+    {
+        // Forget the cached mode so the next utterance repaints from scratch.
+        _shown = null;
+
+        _mode.Text = "NOTICE";
+        _mode.Foreground = new SolidColorBrush(Tokens.Colors.Ink, GlassInkOpacity);
+        _lamp.Fill = new SolidColorBrush(Tokens.Colors.RecordIdle);
+        _shell.BorderBrush = new SolidColorBrush(
+            Tokens.Colors.Specular, Tokens.Material.GlassEdgeOpacity);
+        ShowPreview(notice);
     }
 
     /// <summary>Puts the tail of <paramref name="text"/> on the preview line.</summary>

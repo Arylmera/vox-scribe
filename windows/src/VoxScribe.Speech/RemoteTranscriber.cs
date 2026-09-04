@@ -26,14 +26,21 @@ public sealed class RemoteTranscriber : ITranscriber
     private readonly HttpClient _http;
     private readonly Uri _endpoint;
     private readonly string _model;
+    private readonly Action<string>? _onFailure;
 
     /// <param name="baseUrl">API base, e.g. <c>http://192.168.1.100:4000/v1</c>.</param>
     /// <param name="model">Model name the gateway routes on, e.g. <c>stt-mac</c>.</param>
     /// <param name="apiKey">Bearer key, or null for unauthenticated endpoints.</param>
-    public RemoteTranscriber(string baseUrl, string model, string? apiKey)
+    /// <param name="onFailure">
+    /// Told, in one short sentence, why a transcription came back empty. The return contract
+    /// does not change — failure still yields an empty string — but without this a dictation
+    /// lost to a dead gateway is indistinguishable from silence.
+    /// </param>
+    public RemoteTranscriber(string baseUrl, string model, string? apiKey, Action<string>? onFailure = null)
     {
         _endpoint = new Uri(baseUrl.TrimEnd('/') + "/audio/transcriptions");
         _model = model;
+        _onFailure = onFailure;
         _http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
         if (!string.IsNullOrEmpty(apiKey))
             _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
@@ -65,7 +72,11 @@ public sealed class RemoteTranscriber : ITranscriber
         {
             using var response = await _http.PostAsync(_endpoint, content, cancellationToken)
                 .ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode) return string.Empty;
+            if (!response.IsSuccessStatusCode)
+            {
+                _onFailure?.Invoke($"Transcription failed — gateway answered {(int)response.StatusCode}");
+                return string.Empty;
+            }
 
             await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken)
                 .ConfigureAwait(false);
@@ -75,10 +86,16 @@ public sealed class RemoteTranscriber : ITranscriber
                 ? text.GetString()?.Trim() ?? string.Empty
                 : string.Empty;
         }
-        catch (HttpRequestException) { return string.Empty; }
+        catch (HttpRequestException e)
+        {
+            _onFailure?.Invoke($"Transcription failed — gateway unreachable ({e.Message})");
+            return string.Empty;
+        }
         catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            return string.Empty; // HttpClient timeout, not a user cancel
+            // HttpClient timeout, not a user cancel.
+            _onFailure?.Invoke("Transcription failed — gateway did not answer in time");
+            return string.Empty;
         }
     }
 

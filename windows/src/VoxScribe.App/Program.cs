@@ -53,6 +53,13 @@ public static class Program
         Path.GetDirectoryName(VoxScribe.Core.AppSettings.DefaultPath)!, "crash.log");
 
     /// <summary>
+    /// Appends a one-line notice to <see cref="CrashLogPath"/> — network failures the app
+    /// survives but the user should be able to diagnose. Same file as crashes, so "open the
+    /// log" stays one instruction.
+    /// </summary>
+    public static void LogNotice(string message) => Record(message);
+
+    /// <summary>
     /// Appends a crash to <see cref="CrashLogPath"/>. A tray app dies off-screen, and
     /// Windows Error Reporting keeps a method token and an IL offset — enough to know
     /// something broke, not enough to know what. This keeps the stack.

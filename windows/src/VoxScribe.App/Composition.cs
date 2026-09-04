@@ -104,10 +104,20 @@ public sealed class Composition : IAsyncDisposable
         {
             var modelDirectory = settings.Data.ModelDirectory ?? ParakeetTranscriber.Locate();
 
+            // The network layers are built before the engine, so the failure report closes
+            // over a slot that is filled once the engine exists. Every failure goes to the
+            // crash log for diagnosis and to the engine's Notice for the pill.
+            DictationEngine? watching = null;
+            void ReportFailure(string message)
+            {
+                Program.LogNotice(message);
+                watching?.ReportNotice(message);
+            }
+
             // A configured remote endpoint wins over the local model: it is an explicit
             // user choice, and the machines that set it deliberately have no local model.
             ITranscriber transcriber = settings.Data.SttEndpoint is { Length: > 0 } endpoint
-                ? new RemoteTranscriber(endpoint, settings.Data.SttModel, settings.Data.SttApiKey)
+                ? new RemoteTranscriber(endpoint, settings.Data.SttModel, settings.Data.SttApiKey, ReportFailure)
                 : modelDirectory is not null
                     ? new ParakeetTranscriber(modelDirectory)
                     : new UnavailableTranscriber();
@@ -134,10 +144,13 @@ public sealed class Composition : IAsyncDisposable
             engine.IncrementalInjection = settings.Data.IncrementalInjection;
             engine.AnchorFocus = settings.Data.AnchorFocus;
 
+            watching = engine;
+
             if (settings.Data.CleanupEndpoint is { Length: > 0 } cleanupEndpoint)
             {
                 var cleaner = new TextCleaner(
-                    cleanupEndpoint, settings.Data.CleanupModel, settings.Data.CleanupApiKey);
+                    cleanupEndpoint, settings.Data.CleanupModel, settings.Data.CleanupApiKey,
+                    ReportFailure);
                 engine.Cleanup = cleaner.CleanAsync;
             }
 
