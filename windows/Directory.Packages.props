@@ -31,6 +31,10 @@
          11.3.x pairs with xUnit v2, which is what is referenced below. -->
     <PackageVersion Include="Avalonia.Headless.XUnit" Version="11.3.20" />
 
+    <!-- DPAPI for the API keys in settings.json. Windows-only at runtime; Core guards
+         every call with OperatingSystem.IsWindows(). -->
+    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.0" />
+
     <!-- Testing. Not FluentAssertions: 8.x is commercially licensed (~$130/dev/yr). -->
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />

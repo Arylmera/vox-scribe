@@ -9,5 +9,9 @@
   <ItemGroup>
     <ProjectReference Include="..\VoxScribe.Abstractions\VoxScribe.Abstractions.csproj" />
     <ProjectReference Include="..\VoxScribe.Dictionary\VoxScribe.Dictionary.csproj" />
+    <!-- DPAPI for the API keys in settings.json. Windows-only at runtime; every call is
+         behind OperatingSystem.IsWindows(), which is what satisfies CA1416 and keeps the
+         project buildable and testable on macOS. -->
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" />
   </ItemGroup>
 </Project>

@@ -1,4 +1,6 @@
 using VoxScribe.Abstractions;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -138,6 +140,17 @@ public sealed class AppSettings
     {
         _path = path;
         Data = Load(path);
+
+        // A settings file written before keys were protected still carries them in the
+        // clear. Rewriting once here is the whole migration — no subscriber exists yet, so
+        // the Changed event fires into nothing.
+        if (OperatingSystem.IsWindows()
+            && File.Exists(path)
+            && (Data.SttApiKey ?? Data.CleanupApiKey) is not null
+            && !File.ReadAllText(path).Contains(ProtectedPrefix, StringComparison.Ordinal))
+        {
+            Update(Data);
+        }
     }
 
     /// <summary>The default location.</summary>
@@ -150,12 +163,19 @@ public sealed class AppSettings
     public event EventHandler? Changed;
 
     /// <summary>Replaces and persists the settings.</summary>
+    /// <remarks><see cref="Data"/> keeps the keys in the clear; only the file is protected.</remarks>
     public void Update(SettingsData data)
     {
         Data = data;
 
+        var stored = data with
+        {
+            SttApiKey = Protect(data.SttApiKey),
+            CleanupApiKey = Protect(data.CleanupApiKey),
+        };
+
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-        File.WriteAllText(_path, JsonSerializer.Serialize(data, SettingsJsonContext.Default.SettingsData));
+        File.WriteAllText(_path, JsonSerializer.Serialize(stored, SettingsJsonContext.Default.SettingsData));
 
         Changed?.Invoke(this, EventArgs.Empty);
     }
@@ -168,12 +188,56 @@ public sealed class AppSettings
         {
             if (!File.Exists(path)) return new SettingsData();
 
-            return JsonSerializer.Deserialize(File.ReadAllText(path), SettingsJsonContext.Default.SettingsData)
-                   ?? new SettingsData();
+            var data = JsonSerializer.Deserialize(File.ReadAllText(path), SettingsJsonContext.Default.SettingsData)
+                       ?? new SettingsData();
+
+            return data with
+            {
+                SttApiKey = Unprotect(data.SttApiKey),
+                CleanupApiKey = Unprotect(data.CleanupApiKey),
+            };
         }
         catch (Exception e) when (e is JsonException or IOException or UnauthorizedAccessException)
         {
             return new SettingsData();
+        }
+    }
+
+    /// <summary>Marks a DPAPI-protected value in the settings file.</summary>
+    private const string ProtectedPrefix = "dpapi:";
+
+    /// <summary>
+    /// Encrypts an API key for the file, per Windows user. Elsewhere — macOS dev machines,
+    /// the cross-platform tests — the value passes through in the clear, which is what those
+    /// environments had all along.
+    /// </summary>
+    private static string? Protect(string? secret)
+    {
+        if (string.IsNullOrEmpty(secret) || !OperatingSystem.IsWindows()) return secret;
+
+        return ProtectedPrefix + Convert.ToBase64String(
+            ProtectedData.Protect(Encoding.UTF8.GetBytes(secret), null, DataProtectionScope.CurrentUser));
+    }
+
+    /// <summary>
+    /// Decrypts a stored key. A value that cannot be decrypted — another user's profile, a
+    /// copied settings file, a non-Windows machine — becomes null: an unauthenticated
+    /// endpoint is a readable failure, a garbled bearer header is not.
+    /// </summary>
+    private static string? Unprotect(string? stored)
+    {
+        if (stored is null || !stored.StartsWith(ProtectedPrefix, StringComparison.Ordinal)) return stored;
+        if (!OperatingSystem.IsWindows()) return null;
+
+        try
+        {
+            return Encoding.UTF8.GetString(ProtectedData.Unprotect(
+                Convert.FromBase64String(stored[ProtectedPrefix.Length..]),
+                null, DataProtectionScope.CurrentUser));
+        }
+        catch (Exception e) when (e is CryptographicException or FormatException)
+        {
+            return null;
         }
     }
 }

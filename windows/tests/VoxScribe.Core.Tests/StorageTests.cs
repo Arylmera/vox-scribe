@@ -248,4 +248,42 @@ public sealed class AppSettingsTests : IDisposable
 
         new AppSettings(_path).Data.AnchorFocus.ShouldBeFalse();
     }
+
+    [Fact]
+    public void Api_keys_round_trip_and_never_sit_in_the_file_in_the_clear_on_windows()
+    {
+        var settings = new AppSettings(_path);
+        settings.Update(settings.Data with { SttApiKey = "sk-secret-123", CleanupApiKey = "sk-other-456" });
+
+        // The app always sees the real keys, wherever it runs.
+        var reopened = new AppSettings(_path);
+        reopened.Data.SttApiKey.ShouldBe("sk-secret-123");
+        reopened.Data.CleanupApiKey.ShouldBe("sk-other-456");
+
+        // On Windows the file holds DPAPI ciphertext; elsewhere there is no DPAPI and the
+        // clear value is the documented behaviour.
+        if (OperatingSystem.IsWindows())
+        {
+            var file = File.ReadAllText(_path);
+            file.ShouldNotContain("sk-secret-123");
+            file.ShouldNotContain("sk-other-456");
+            file.ShouldContain("dpapi:");
+        }
+    }
+
+    [Fact]
+    public void Plaintext_keys_from_an_old_settings_file_are_migrated_on_load()
+    {
+        File.WriteAllText(_path, """{ "SttApiKey": "sk-legacy-789" }""");
+
+        var settings = new AppSettings(_path);
+        settings.Data.SttApiKey.ShouldBe("sk-legacy-789");
+
+        if (OperatingSystem.IsWindows())
+        {
+            // Loading alone rewrote the file: the key must not wait for the next Update to
+            // leave the clear.
+            File.ReadAllText(_path).ShouldNotContain("sk-legacy-789");
+        }
+    }
 }
