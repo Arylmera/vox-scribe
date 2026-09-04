@@ -23,9 +23,16 @@ namespace VoxScribe.Speech;
 /// </remarks>
 public sealed class RemoteTranscriber : ITranscriber
 {
-    private readonly HttpClient _http;
+    /// <summary>
+    /// Shared across instances, with the bearer sent per request. The transcriber is
+    /// rebuilt on every settings change, and a client per instance leaks its sockets each
+    /// time — same pattern as <c>TextCleaner</c>.
+    /// </summary>
+    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(30) };
+
     private readonly Uri _endpoint;
     private readonly string _model;
+    private readonly string? _apiKey;
     private readonly Action<string>? _onFailure;
 
     /// <param name="baseUrl">API base, e.g. <c>http://192.168.1.100:4000/v1</c>.</param>
@@ -40,10 +47,8 @@ public sealed class RemoteTranscriber : ITranscriber
     {
         _endpoint = new Uri(baseUrl.TrimEnd('/') + "/audio/transcriptions");
         _model = model;
+        _apiKey = apiKey;
         _onFailure = onFailure;
-        _http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-        if (!string.IsNullOrEmpty(apiKey))
-            _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
     }
 
     /// <inheritdoc />
@@ -70,7 +75,11 @@ public sealed class RemoteTranscriber : ITranscriber
 
         try
         {
-            using var response = await _http.PostAsync(_endpoint, content, cancellationToken)
+            using var request = new HttpRequestMessage(HttpMethod.Post, _endpoint) { Content = content };
+            if (!string.IsNullOrEmpty(_apiKey))
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
+
+            using var response = await Http.SendAsync(request, cancellationToken)
                 .ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
@@ -130,9 +139,6 @@ public sealed class RemoteTranscriber : ITranscriber
     }
 
     /// <inheritdoc />
-    public ValueTask DisposeAsync()
-    {
-        _http.Dispose();
-        return ValueTask.CompletedTask;
-    }
+    /// <remarks>The client is shared and outlives any one instance; nothing to release.</remarks>
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }
