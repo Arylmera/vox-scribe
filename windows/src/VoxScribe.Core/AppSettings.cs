@@ -56,6 +56,18 @@ public sealed record SettingsData
     /// </remarks>
     public bool IncrementalInjection { get; init; }
 
+    /// <summary>
+    /// Whether text goes to the field that had focus when the shortcut was pressed, rather
+    /// than wherever focus is at release.
+    /// </summary>
+    /// <remarks>
+    /// On by default: it lets the user switch windows or click elsewhere while speaking.
+    /// While on, it overrides <see cref="IncrementalInjection"/> — phrases are held and typed
+    /// together at release, because typing them as they land would send them to whatever the
+    /// user is clicking on at that moment.
+    /// </remarks>
+    public bool AnchorFocus { get; init; } = true;
+
     /// <summary>Whether to keep a transcript history.</summary>
     public bool KeepHistory { get; init; } = true;
 

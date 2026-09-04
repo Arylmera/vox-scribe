@@ -208,6 +208,10 @@ internal static class PlatformFactory
     public static ITextInjector? CreateTextInjector() =>
         Create<ITextInjector>("SendInputTextInjector", []);
 
+    /// <summary>Creates the UI Automation focus anchor, or null off Windows.</summary>
+    public static IFocusAnchor? CreateFocusAnchor() =>
+        Create<IFocusAnchor>("UiAutomationFocusAnchor", []);
+
     [UnconditionalSuppressMessage(
         "Trimming",
         "IL2026:RequiresUnreferencedCode",

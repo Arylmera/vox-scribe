@@ -73,6 +73,29 @@ public interface ITextInjector
     ValueTask<bool> InjectAsync(string text, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Remembers where dictated text should land, so the user is free to look elsewhere while
+/// speaking.
+/// </summary>
+/// <remarks>
+/// Capture happens at shortcut press, restore just before the text is typed. Both are best
+/// effort: a null capture or a false restore means "type wherever focus is now", which is
+/// the behaviour the app had before anchoring existed.
+/// </remarks>
+public interface IFocusAnchor
+{
+    /// <summary>Captures the current target, or null if there is none or it took too long.</summary>
+    ValueTask<IFocusTarget?> CaptureAsync(CancellationToken cancellationToken);
+}
+
+/// <summary>A captured focus target that can bring itself back.</summary>
+public interface IFocusTarget
+{
+    /// <summary>Brings the window forward and re-focuses the control.</summary>
+    /// <returns>False if the target could not be restored; the caller types anyway.</returns>
+    ValueTask<bool> RestoreAsync(CancellationToken cancellationToken);
+}
+
 /// <summary>Turns audio into text.</summary>
 public interface ITranscriber : IAsyncDisposable
 {

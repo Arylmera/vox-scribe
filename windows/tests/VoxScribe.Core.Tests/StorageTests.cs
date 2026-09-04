@@ -237,4 +237,15 @@ public sealed class AppSettingsTests : IDisposable
 
         new AppSettings(_path).Data.PushToTalkKey.ShouldBe(0xA3);
     }
+
+    [Fact]
+    public void Anchor_focus_defaults_on_and_round_trips()
+    {
+        new AppSettings(_path).Data.AnchorFocus.ShouldBeTrue();
+
+        var settings = new AppSettings(_path);
+        settings.Update(settings.Data with { AnchorFocus = false });
+
+        new AppSettings(_path).Data.AnchorFocus.ShouldBeFalse();
+    }
 }

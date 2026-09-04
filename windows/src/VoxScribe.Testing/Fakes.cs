@@ -195,6 +195,60 @@ public sealed class RecordingTextInjector : ITextInjector
     }
 }
 
+/// <summary>A focus anchor that records when it was captured and restored.</summary>
+public sealed class FakeFocusAnchor : IFocusAnchor
+{
+    private readonly RecordingTextInjector _injector;
+
+    /// <summary>Builds an anchor that watches <paramref name="injector"/> to prove ordering.</summary>
+    public FakeFocusAnchor(RecordingTextInjector injector) => _injector = injector;
+
+    /// <summary>When true, <see cref="CaptureAsync"/> returns null — a failed capture.</summary>
+    public bool CaptureReturnsNull { get; set; }
+
+    /// <summary>How many captures were requested.</summary>
+    public int Captures { get; private set; }
+
+    /// <summary>Every target handed out, in order.</summary>
+    public List<FakeFocusTarget> Targets { get; } = [];
+
+    /// <inheritdoc />
+    public ValueTask<IFocusTarget?> CaptureAsync(CancellationToken cancellationToken)
+    {
+        Captures++;
+        if (CaptureReturnsNull) return ValueTask.FromResult<IFocusTarget?>(null);
+
+        var target = new FakeFocusTarget(_injector);
+        Targets.Add(target);
+        return ValueTask.FromResult<IFocusTarget?>(target);
+    }
+}
+
+/// <summary>A target that notes how much had already been typed when it was restored.</summary>
+public sealed class FakeFocusTarget : IFocusTarget
+{
+    private readonly RecordingTextInjector _injector;
+
+    /// <summary>Builds a target watching <paramref name="injector"/>.</summary>
+    public FakeFocusTarget(RecordingTextInjector injector) => _injector = injector;
+
+    /// <summary>How many times <see cref="RestoreAsync"/> ran.</summary>
+    public int Restores { get; private set; }
+
+    /// <summary>
+    /// Number of strings the injector had received when the first restore ran, or -1 if
+    /// never restored. Zero proves restore happened before typing.
+    /// </summary>
+    public int InjectedWhenRestored { get; private set; } = -1;
+
+    /// <inheritdoc />
+    public ValueTask<bool> RestoreAsync(CancellationToken cancellationToken)
+    {
+        if (Restores++ == 0) InjectedWhenRestored = _injector.Injected.Count;
+        return ValueTask.FromResult(true);
+    }
+}
+
 /// <summary>A clock you advance by hand.</summary>
 public sealed class FakeClock : IClock
 {
