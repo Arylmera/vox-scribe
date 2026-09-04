@@ -244,7 +244,7 @@ public sealed class MainWindow : Window
     {
         var band = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
+            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto"),
             Margin = new Thickness(
                 Tokens.Space.Roomy, Tokens.Space.Snug, Tokens.Space.Roomy, Tokens.Space.Base),
         };
@@ -259,6 +259,21 @@ public sealed class MainWindow : Window
         _counter.VerticalAlignment = VerticalAlignment.Center;
         Grid.SetColumn(_counter, 2);
         band.Children.Add(_counter);
+
+        // ponytail: UNDO lives here, not on a global shortcut — a dedicated undo hotkey
+        // means another IHotkeySource, settings key and chord-blocker plumbing; add when
+        // someone actually asks to undo without opening the window.
+        var undo = Panels.DeckButton("UNDO");
+        undo.Margin = new Thickness(Tokens.Space.Base, 0, 0, 0);
+        undo.VerticalAlignment = VerticalAlignment.Center;
+        ToolTip.SetTip(undo, "Delete the last dictation's text");
+        undo.Click += async (_, _) =>
+        {
+            if (_composition?.Engine is { } engine)
+                await engine.UndoLastDictationAsync(CancellationToken.None);
+        };
+        Grid.SetColumn(undo, 3);
+        band.Children.Add(undo);
 
         return band;
     }
