@@ -63,6 +63,12 @@ public sealed class HudWindow : Window
     /// <summary>Runs while a failure notice is lingering on screen after the engine idles.</summary>
     private readonly Stopwatch _noticeClock = new();
 
+    /// <summary>Runs while the latency readout is lingering after a completed dictation.</summary>
+    private readonly Stopwatch _latencyClock = new();
+
+    /// <summary>Wait the user just felt, from key release to text typed. Null between dictations.</summary>
+    private TimeSpan? _lastLatency;
+
     /// <summary>Last (cleaning, recording) rendered, so brushes are rebuilt only on a flip.</summary>
     private (bool Cleaning, bool Recording)? _shown;
     private readonly DispatcherTimer _timerTick;
@@ -74,6 +80,9 @@ public sealed class HudWindow : Window
     public HudWindow(DictationEngine engine)
     {
         _engine = engine;
+
+        // Raised on a worker thread; a torn TimeSpan? read would only garble one frame's text.
+        engine.Completed += (_, result) => _lastLatency = result.ProcessingTime;
 
         Width = Tokens.Size.PillWidth;
         Height = Tokens.Size.PillCompactHeight;
@@ -227,6 +236,22 @@ public sealed class HudWindow : Window
                 _noticeClock.Reset();
             }
 
+            // After a clean finish, hold the pill just long enough to read the wait the
+            // user felt — the timer slot flips from elapsed time to processing latency.
+            if (_lastLatency is { } latency)
+            {
+                if (!_latencyClock.IsRunning) _latencyClock.Restart();
+                if (IsVisible && _latencyClock.Elapsed < Tokens.Motion.LatencyLinger)
+                {
+                    _timer.Text = $"{latency.TotalSeconds:0.0}s";
+                    return;
+                }
+
+                _lastLatency = null;
+            }
+
+            _latencyClock.Reset();
+
             if (IsVisible) Hide();
 
             // Forget the painted state: the accent can change while the pill is hidden, and
@@ -239,6 +264,12 @@ public sealed class HudWindow : Window
         var recording = state == DictationState.Recording;
         if (recording && !_clock.IsRunning) _clock.Restart();
         if (!recording) _clock.Stop();
+
+        // Completed can fire while the tail is still being shown; the linger must start
+        // counting from the moment the engine actually idles, not from the event. A new
+        // press also forgets the old reading, or an empty dictation would replay it.
+        _latencyClock.Reset();
+        if (recording) _lastLatency = null;
 
         ShowMode(_engine.CleaningThisUtterance, recording);
         _timer.Text = $"{(int)_clock.Elapsed.TotalMinutes}:{_clock.Elapsed.Seconds:00}";

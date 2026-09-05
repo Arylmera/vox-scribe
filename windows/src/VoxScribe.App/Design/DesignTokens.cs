@@ -379,6 +379,12 @@ public static class Tokens
         /// </summary>
         public static TimeSpan NoticeLinger { get; } = TimeSpan.FromSeconds(3);
 
+        /// <summary>
+        /// How long the pill stays up after a successful dictation to show its latency —
+        /// a glance, not a report.
+        /// </summary>
+        public static TimeSpan LatencyLinger { get; } = TimeSpan.FromSeconds(1.5);
+
         /// <summary>Display refresh for the VU movement — ~60 fps, so the needle is smooth.</summary>
         public static TimeSpan MeterFrame { get; } = TimeSpan.FromMilliseconds(16);
 
