@@ -30,6 +30,9 @@ jargon, glued-together compounds. Its behaviour is specified by
 [`shared/dictionary-test-vectors.json`](shared/dictionary-test-vectors.json), not by the
 code.
 
+Every feature — shortcuts, undo, the pill's states, settings — is walked through in the
+**[user guide](docs/GUIDE.md)**.
+
 ---
 
 ## Quick start
