@@ -1,418 +1,329 @@
 <title>Four Rooms for VoxScribe</title>
 <style>
-  /* Committed single-theme page: a neutral warm-dark gallery wall, so each
-     direction plate carries its own world. All colors painted explicitly. */
-  :root {
-    --wall: #191713;
-    --wall-high: #211E19;
-    --ink: #EDE7DC;
-    --ink-mute: #9C948A;
-    --hair: #35302A;
-    --tag: #C9BFAF;
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    background: var(--wall);
-    color: var(--ink);
-    font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
-    line-height: 1.55;
-    padding: 4rem 1.5rem 6rem;
-  }
-  .sheet { max-width: 1060px; margin: 0 auto; }
+  /* Gallery wall — committed single theme, everything painted explicitly. */
+  :root { --wall:#191713; --wall-high:#211E19; --ink:#EDE7DC; --mute:#9C948A; --hair:#35302A; --tag:#C9BFAF; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--wall); color:var(--ink); font-family:"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif; line-height:1.55; padding:4rem 1.5rem 6rem; }
+  .sheet { max-width:1100px; margin:0 auto; }
+  .kicker { font-family:"Cascadia Mono",Consolas,monospace; font-size:.72rem; letter-spacing:.22em; color:var(--mute); text-transform:uppercase; }
+  h1 { font-family:Georgia,serif; font-weight:500; font-size:clamp(2rem,5vw,3.1rem); letter-spacing:-.01em; margin:.4rem 0 1.2rem; text-wrap:balance; }
+  .lede { max-width:64ch; font-size:1.02rem; }
+  .lede em { color:var(--tag); }
 
-  .kicker {
-    font-family: "Cascadia Mono", Consolas, monospace;
-    font-size: .72rem; letter-spacing: .22em; color: var(--ink-mute);
-    text-transform: uppercase;
-  }
-  h1 {
-    font-family: Georgia, "Times New Roman", serif;
-    font-weight: 500; font-size: clamp(2rem, 5vw, 3.1rem);
-    letter-spacing: -.01em; margin: .4rem 0 1.2rem; text-wrap: balance;
-  }
-  .lede { max-width: 62ch; color: var(--ink); font-size: 1.02rem; }
-  .lede + .lede { margin-top: .8rem; }
-  .lede em { color: var(--tag); }
+  .plate { margin-top:5rem; border-top:1px solid var(--hair); padding-top:2.2rem; }
+  .plate-head { display:flex; align-items:baseline; gap:1rem; flex-wrap:wrap; }
+  .plate-no { font-family:"Cascadia Mono",Consolas,monospace; font-size:.72rem; letter-spacing:.2em; color:var(--mute); }
+  .plate h2 { font-family:Georgia,serif; font-weight:500; font-size:1.9rem; }
+  .thesis { margin:.6rem 0 1.8rem; max-width:70ch; color:var(--mute); }
+  .thesis strong { color:var(--ink); font-weight:600; }
 
-  .diagnosis {
-    margin: 2.5rem 0 0; padding: 1.4rem 1.6rem;
-    border-left: 2px solid var(--tag); background: var(--wall-high);
-    max-width: 70ch;
-  }
-  .diagnosis .kicker { display: block; margin-bottom: .5rem; }
-  .diagnosis p { font-size: .95rem; color: var(--ink); max-width: 62ch; }
-  .diagnosis p + p { margin-top: .6rem; }
+  .specrow { display:flex; gap:2.2rem; flex-wrap:wrap; margin:0 0 1.6rem; }
+  .spec { font-size:.85rem; }
+  .spec .k { font-family:"Cascadia Mono",Consolas,monospace; font-size:.65rem; letter-spacing:.18em; text-transform:uppercase; color:var(--mute); display:block; margin-bottom:.4rem; }
+  .chips { display:flex; gap:.4rem; }
+  .chip { width:38px; height:26px; border-radius:4px; border:1px solid rgba(255,255,255,.14); }
+  .cost b { color:var(--tag); }
 
-  /* ---- Plates ---- */
-  .plate {
-    margin-top: 4.5rem; border-top: 1px solid var(--hair); padding-top: 2.2rem;
-  }
-  .plate-head { display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
-  .plate-no {
-    font-family: "Cascadia Mono", Consolas, monospace;
-    font-size: .72rem; letter-spacing: .2em; color: var(--ink-mute);
-  }
-  .plate h2 {
-    font-family: Georgia, serif; font-weight: 500;
-    font-size: 1.9rem; letter-spacing: -.01em;
-  }
-  .plate .thesis { margin: .6rem 0 1.6rem; max-width: 66ch; color: var(--ink-mute); }
-  .plate .thesis strong { color: var(--ink); font-weight: 600; }
+  .stage { border-radius:12px; overflow:hidden; box-shadow:0 28px 70px rgba(0,0,0,.5); }
+  .pilllab { margin-top:1.6rem; }
+  .pilllab .k { font-family:"Cascadia Mono",Consolas,monospace; font-size:.65rem; letter-spacing:.18em; color:var(--mute); text-transform:uppercase; }
+  .desk { margin-top:.6rem; border-radius:10px; padding:26px 20px 20px; display:flex; gap:26px; justify-content:center; flex-wrap:wrap; align-items:flex-end; }
+  .pillstate { display:flex; flex-direction:column; align-items:center; gap:10px; }
+  .pillstate .lab { font-family:Consolas,monospace; font-size:.62rem; letter-spacing:.16em; color:rgba(255,255,255,.55); }
+  .lamp { width:8px; height:8px; border-radius:50%; background:#E5484D; box-shadow:0 0 8px rgba(229,72,77,.8); }
+  .mono { font-family:"Cascadia Mono",Consolas,monospace; font-variant-numeric:tabular-nums; }
 
-  .plate-body { display: grid; grid-template-columns: 300px 1fr; gap: 2rem; align-items: start; }
-  @media (max-width: 860px) { .plate-body { grid-template-columns: 1fr; } }
+  .closing { margin-top:5rem; border-top:1px solid var(--hair); padding-top:2rem; max-width:72ch; }
+  .closing h2 { font-family:Georgia,serif; font-weight:500; font-size:1.4rem; margin-bottom:.8rem; }
+  .closing p { font-size:.95rem; color:var(--mute); }
+  .closing p+p { margin-top:.6rem; }
+  .closing b { color:var(--ink); }
+  .sources { margin-top:1.4rem; font-size:.8rem; }
+  .sources a { color:var(--tag); }
+  @media (prefers-reduced-motion:reduce){ *{ animation:none !important; transition:none !important; } }
 
-  .spec dt {
-    font-family: "Cascadia Mono", Consolas, monospace;
-    font-size: .68rem; letter-spacing: .18em; text-transform: uppercase;
-    color: var(--ink-mute); margin-top: 1.1rem;
-  }
-  .spec dt:first-child { margin-top: 0; }
-  .spec dd { font-size: .9rem; margin-top: .35rem; color: var(--ink); }
-  .chips { display: flex; gap: .45rem; flex-wrap: wrap; margin-top: .45rem; }
-  .chip {
-    width: 44px; height: 30px; border-radius: 4px; border: 1px solid rgba(255,255,255,.12);
-    position: relative;
-  }
-  .chip span {
-    position: absolute; top: 34px; left: 0; white-space: nowrap;
-    font-family: Consolas, monospace; font-size: .6rem; color: var(--ink-mute);
-  }
-  .chips { margin-bottom: 1.4rem; }
-  .verdict { font-size: .85rem; color: var(--ink-mute); }
-  .verdict b { color: var(--tag); font-weight: 600; }
+  /* ================= A · SIGNAL HOUSE ================= */
+  .stA { background:#241E18; border:1px solid #3E362C; }
+  .stA .face { background:linear-gradient(#26201A,#211B16); padding:18px 22px 22px; position:relative; }
+  .stA .screw { position:absolute; width:7px; height:7px; border-radius:50%; background:#171310; box-shadow:inset 0 1px 1px rgba(255,230,190,.25); }
+  .stA .takes { display:flex; flex-direction:column; gap:2px; margin:14px 0 18px; }
+  .stA .take { display:grid; grid-template-columns:86px 1fr auto; gap:14px; padding:11px 14px; background:#1C1712; border:1px solid #322A21; align-items:baseline; }
+  .stA .take:first-child { border-radius:8px 8px 0 0; }
+  .stA .take:last-child { border-radius:0 0 8px 8px; }
+  .stA .tno { font-family:"Cascadia Mono",Consolas,monospace; font-size:.66rem; letter-spacing:.14em; color:#A38F6F; }
+  .stA .tno small { display:block; color:#6E6353; letter-spacing:.06em; }
+  .stA .ttx { font-size:.84rem; color:#EBE1CC; }
+  .stA .tact { font-family:Consolas,monospace; font-size:.6rem; letter-spacing:.12em; color:#8A7B64; }
+  .stA .deck { display:flex; align-items:center; gap:20px; background:#16110D; border:1px solid #3E362C; border-radius:12px; padding:14px 20px; box-shadow:inset 0 2px 6px rgba(0,0,0,.6); }
+  .stA .bigrec { width:52px; height:52px; border-radius:50%; background:radial-gradient(circle at 35% 30%, #33291F, #1A140F); border:2px solid #4A3F31; display:grid; place-items:center; box-shadow:0 3px 8px rgba(0,0,0,.5); }
+  .stA .bigrec i { width:16px; height:16px; border-radius:50%; background:#E5484D; box-shadow:0 0 14px rgba(229,72,77,.7); }
+  .stA .gauge { flex:1; height:58px; position:relative; background:#0F0C09; border-radius:8px; border:1px solid #322A21; overflow:hidden; }
+  .stA .gauge .arc { position:absolute; inset:10px 14px -30px; border-radius:50%; border:1px dashed #4A3F31; }
+  .stA .gauge .needle { position:absolute; bottom:6px; left:50%; width:2px; height:44px; background:#EBD9B4; transform-origin:bottom center; transform:rotate(28deg); box-shadow:0 0 6px rgba(235,217,180,.5); }
+  .stA .gauge .glab { position:absolute; top:6px; left:10px; font-family:Consolas,monospace; font-size:.58rem; letter-spacing:.2em; color:#6E6353; }
+  .stA .counter { font-family:"Cascadia Mono",Consolas,monospace; font-size:1.5rem; color:#F0E3C4; background:#0F0C09; border:1px solid #322A21; border-radius:6px; padding:8px 14px; text-shadow:0 0 10px rgba(240,227,196,.35); }
+  .stA .hardkey { font-family:Consolas,monospace; font-size:.62rem; letter-spacing:.16em; color:#D9CBA8; background:linear-gradient(#2B241C,#211B15); border:1px solid #4A3F31; border-bottom:3px solid #14100C; border-radius:6px; padding:10px 16px; }
+  .stA .facehead { display:flex; align-items:baseline; gap:14px; }
+  .stA .facehead .brand { font-family:"Cascadia Mono",Consolas,monospace; letter-spacing:.3em; font-size:.72rem; color:#A38F6F; }
+  .stA .facehead .sub { font-family:Consolas,monospace; font-size:.6rem; letter-spacing:.14em; color:#6E6353; }
+  .deskA { background:linear-gradient(160deg,#2A241C,#171310); }
+  .pA { display:flex; align-items:center; gap:12px; background:linear-gradient(#221C15,#171208); border:1px solid #4A3F31; border-bottom:3px solid #0E0B08; border-radius:999px; padding:9px 18px; color:#D9CBA8; font-family:Consolas,monospace; font-size:.66rem; letter-spacing:.12em; box-shadow:0 12px 26px rgba(0,0,0,.55); }
+  .pA .vu { display:flex; align-items:flex-end; gap:2px; height:14px; }
+  .pA .vu i { width:3px; background:#EBD9B4; display:block; border-radius:1px; }
+  .pA .amber { color:#D9A441; }
+  .pA .jewel-off { width:8px; height:8px; border-radius:50%; background:#4A3F31; }
 
-  /* ---- Shared mockup skeleton ---- */
-  .mock { border-radius: 10px; overflow: hidden; box-shadow: 0 24px 60px rgba(0,0,0,.45); }
-  .mk-title { height: 34px; display: flex; align-items: center; padding: 0 14px; font-size: .72rem; letter-spacing: .08em; }
-  .mk-dots { margin-left: auto; display: flex; gap: 6px; }
-  .mk-dots i { width: 9px; height: 9px; border-radius: 50%; display: block; }
-  .mk-frame { display: grid; grid-template-columns: 56px 1fr; min-height: 330px; }
-  .mk-rail { display: flex; flex-direction: column; align-items: center; padding: 14px 0; gap: 14px; }
-  .mk-rail .ric { width: 26px; height: 26px; border-radius: 7px; }
-  .mk-rail .ric.gear { margin-top: auto; }
-  .mk-main { padding: 16px 18px 20px; }
-  .mk-band { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 10px; }
-  .mk-rec { width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center; }
-  .mk-rec i { width: 10px; height: 10px; border-radius: 50%; background: #E5484D; display: block; }
-  .mk-meter { flex: 1; display: flex; align-items: center; gap: 3px; height: 22px; }
-  .mk-meter i { width: 3px; border-radius: 2px; display: block; }
-  .mk-count { font-family: "Cascadia Mono", Consolas, monospace; font-size: .78rem; font-variant-numeric: tabular-nums; }
-  .mk-undo { font-family: "Cascadia Mono", Consolas, monospace; font-size: .62rem; letter-spacing: .14em; padding: 5px 12px; border-radius: 6px; }
-  .mk-rows { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
-  .mk-row { padding: 12px 14px; border-radius: 10px; }
-  .mk-meta { display: flex; gap: 10px; font-family: Consolas, monospace; font-size: .62rem; letter-spacing: .06em; margin-bottom: 6px; }
-  .mk-meta .act { margin-left: auto; }
-  .mk-text { font-size: .82rem; line-height: 1.45; }
-  .mk-pillwrap { display: flex; justify-content: center; padding: 18px 0 4px; }
-  .mk-pill { display: flex; align-items: center; gap: 10px; padding: 8px 18px; border-radius: 999px; font-family: Consolas, monospace; font-size: .66rem; letter-spacing: .1em; }
-  .mk-pill .lamp { width: 8px; height: 8px; border-radius: 50%; background: #E5484D; }
-  .mock figcaption { display: none; }
+  /* ================= B · THE MANUSCRIPT ================= */
+  .stB { background:#B9B2A4; }
+  .stB .deskbg { background:linear-gradient(150deg,#C4BDAF,#A9A292); padding:30px 34px; }
+  .stB .page { background:#F7F5EF; max-width:640px; margin:0 auto; padding:26px 34px 30px; box-shadow:0 14px 40px rgba(60,55,45,.35); position:relative; }
+  .stB .lethead { display:flex; justify-content:space-between; align-items:baseline; border-bottom:2px solid #23262B; padding-bottom:10px; }
+  .stB .lethead .name { font-family:Georgia,serif; font-style:italic; font-size:1.1rem; color:#23262B; }
+  .stB .lethead nav { font-family:Consolas,monospace; font-size:.6rem; letter-spacing:.16em; color:#8A8578; }
+  .stB .day { font-family:Georgia,serif; font-style:italic; font-size:.85rem; color:#8A8578; margin:18px 0 4px; }
+  .stB .entry { display:grid; grid-template-columns:64px 1fr; gap:14px; padding:10px 0; border-bottom:1px solid #E2DED2; }
+  .stB .etime { font-family:Consolas,monospace; font-size:.62rem; color:#A29C8C; padding-top:5px; }
+  .stB .etime small { display:block; color:#C0BAAA; }
+  .stB .etx { font-family:Georgia,"Times New Roman",serif; font-size:.95rem; color:#23262B; line-height:1.5; }
+  .stB .etx u { text-decoration-color:#C98A3D; text-underline-offset:3px; }
+  .stB .seal { position:absolute; right:-20px; bottom:-20px; width:64px; height:64px; border-radius:50%; background:radial-gradient(circle at 35% 30%, #2E3238, #16181C); display:grid; place-items:center; box-shadow:0 10px 24px rgba(30,30,35,.5); border:2px solid #3A3E45; }
+  .stB .seal i { width:18px; height:18px; border-radius:50%; background:#E5484D; box-shadow:0 0 12px rgba(229,72,77,.6); }
+  .deskB { background:linear-gradient(150deg,#C4BDAF,#A9A292); }
+  .pB { display:flex; align-items:center; gap:12px; background:#F7F5EF; border-radius:3px; padding:9px 16px; box-shadow:0 8px 22px rgba(60,55,45,.4); font-family:Georgia,serif; font-size:.8rem; color:#23262B; border-left:3px solid #E5484D; }
+  .pB .caret { width:1.5px; height:14px; background:#23262B; }
+  .pB.working { border-left-color:#C98A3D; }
+  .pB.done { border-left-color:#23262B; }
+  .pB .mono { font-size:.66rem; color:#8A8578; }
+  .pB .lab2 { font-family:Consolas,monospace; font-size:.6rem; letter-spacing:.14em; color:#8A8578; }
 
-  /* =========================================================
-     A · SIGNAL HOUSE — warm broadcast hardware
-     ========================================================= */
-  .dA .mock { background: #211C17; border: 1px solid #3A322A; }
-  .dA .mk-title { background: #191512; color: #B8AB98; font-family: "Cascadia Mono", Consolas, monospace; }
-  .dA .mk-dots i { background: #4A4038; }
-  .dA .mk-rail { background: #191512; border-right: 1px solid #322B24; }
-  .dA .mk-rail .ric { background: #2B241E; border: 1px solid #3E362D; }
-  .dA .mk-rail .ric.on { background: #3E362D; border-color: #6B5F4E; }
-  .dA .mk-main { background: #211C17; }
-  .dA .mk-band { background: #191512; border: 1px solid #3A322A; border-bottom-color: #14110E; box-shadow: inset 0 1px 0 rgba(255,235,200,.05); }
-  .dA .mk-rec { background: #14110E; border: 1px solid #4A4038; }
-  .dA .mk-meter i { background: #E8DFC9; }
-  .dA .mk-count { color: #E8DFC9; }
-  .dA .mk-undo { color: #CBBFA8; background: #2B241E; border: 1px solid #4A4038; border-bottom-color: #14110E; }
-  .dA .mk-row { background: #262019; border: 1px solid #352D25; }
-  .dA .mk-meta { color: #8F8371; }
-  .dA .mk-text { color: #E8DFC9; font-family: "Segoe UI", sans-serif; }
-  .dA .mk-pill { background: #191512; border: 1px solid #4A4038; color: #CBBFA8; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+  /* ================= C · THE TICKER ================= */
+  .stC { background:#101014; border:1px solid #26262E; }
+  .stC .lanes { padding:20px 22px 8px; }
+  .stC .lhead { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:16px; }
+  .stC .lhead .brand { font-family:"Cascadia Mono",Consolas,monospace; font-size:.7rem; letter-spacing:.28em; color:#7A7A8C; }
+  .stC .lhead .hour { font-family:Consolas,monospace; font-size:.62rem; color:#55555F; letter-spacing:.14em; }
+  .stC .lane { position:relative; height:74px; border-top:1px dashed #26262E; }
+  .stC .lane .ltag { position:absolute; left:0; top:6px; font-family:Consolas,monospace; font-size:.58rem; color:#55555F; letter-spacing:.1em; }
+  .stC .clip { position:absolute; top:14px; height:52px; border-radius:8px; background:#1A1A21; border:1px solid #2E2E3A; padding:6px 10px; overflow:hidden; }
+  .stC .clip .wave { display:flex; align-items:center; gap:2px; height:16px; margin-bottom:3px; }
+  .stC .clip .wave i { width:2.5px; border-radius:2px; background:#8F7BE8; display:block; }
+  .stC .clip .ctx { font-size:.62rem; color:#B9B9C9; white-space:nowrap; }
+  .stC .clip .cdur { position:absolute; top:5px; right:8px; font-family:Consolas,monospace; font-size:.55rem; color:#6C5FB0; }
+  .stC .scrub { position:relative; height:34px; margin:6px 22px 18px; border-radius:6px; background:#0B0B0E; border:1px solid #26262E; }
+  .stC .scrub .cursor { position:absolute; top:-4px; bottom:-4px; left:62%; width:2px; background:#E5484D; box-shadow:0 0 8px rgba(229,72,77,.7); }
+  .stC .scrub .mini { position:absolute; top:10px; height:14px; border-radius:3px; background:#2E2E3A; }
+  .deskC { background:linear-gradient(160deg,#1B1B22,#0B0B0E); flex-direction:column; align-items:stretch; gap:14px; }
+  .tick { position:relative; height:34px; border-radius:6px; overflow:hidden; background:#141419; border:1px solid #2E2E3A; display:flex; align-items:center; gap:12px; padding:0 14px; font-family:Consolas,monospace; font-size:.64rem; letter-spacing:.1em; color:#B9B9C9; }
+  .tick .twave { flex:1; display:flex; align-items:center; gap:2px; height:18px; overflow:hidden; }
+  .tick .twave i { width:2.5px; border-radius:2px; background:#8F7BE8; display:block; flex-shrink:0; }
+  .tick .fade { color:#55555F; }
+  .tickstate { display:flex; flex-direction:column; gap:6px; }
+  .tickstate .lab { font-family:Consolas,monospace; font-size:.6rem; letter-spacing:.16em; color:rgba(255,255,255,.45); }
 
-  /* =========================================================
-     B · THE MANUSCRIPT — dictation as writing, on paper
-     ========================================================= */
-  .dB .mock { background: #F4F2ED; border: 1px solid #DAD5CA; }
-  .dB .mk-title { background: #EDEAE3; color: #6B675E; border-bottom: 1px solid #DAD5CA; font-family: Georgia, serif; font-style: italic; letter-spacing: .02em; }
-  .dB .mk-dots i { background: #C9C3B6; }
-  .dB .mk-rail { background: #EDEAE3; border-right: 1px solid #DAD5CA; }
-  .dB .mk-rail .ric { background: transparent; border: 1px solid #C9C3B6; border-radius: 50%; }
-  .dB .mk-rail .ric.on { background: #23262B; border-color: #23262B; }
-  .dB .mk-main { background: #F4F2ED; }
-  .dB .mk-band { background: transparent; border: none; border-bottom: 1px solid #23262B; border-radius: 0; padding-left: 2px; padding-right: 2px; }
-  .dB .mk-rec { background: transparent; border: 1.5px solid #23262B; }
-  .dB .mk-meter i { background: #23262B; }
-  .dB .mk-count { color: #23262B; }
-  .dB .mk-undo { color: #F4F2ED; background: #23262B; border-radius: 999px; }
-  .dB .mk-row { background: transparent; border: none; border-radius: 0; padding: 10px 2px; border-bottom: 1px solid #DAD5CA; }
-  .dB .mk-meta { color: #8A8578; }
-  .dB .mk-text { color: #23262B; font-family: Georgia, "Times New Roman", serif; font-size: .92rem; }
-  .dB .mk-pill { background: #23262B; color: #F4F2ED; box-shadow: 0 10px 30px rgba(35,38,43,.35); }
-
-  /* =========================================================
-     C · BENCH INSTRUMENT — flat, Swiss, measurement-grade
-     ========================================================= */
-  .dC .mock { background: #E4E6E7; border: 1px solid #C6CACC; border-radius: 4px; }
-  .dC .mk-title { background: #D6D9DB; color: #43484C; font-family: "Segoe UI", sans-serif; font-weight: 600; }
-  .dC .mk-dots i { background: #AEB4B7; border-radius: 1px; }
-  .dC .mk-rail { background: #D6D9DB; border-right: 1px solid #C6CACC; }
-  .dC .mk-rail .ric { background: #FFFFFF; border: 1px solid #C6CACC; border-radius: 3px; }
-  .dC .mk-rail .ric.on { background: #16181A; border-color: #16181A; }
-  .dC .mk-main { background: #E4E6E7; }
-  .dC .mk-band { background: #FFFFFF; border: 1px solid #C6CACC; border-radius: 4px; }
-  .dC .mk-rec { background: #F2F3F4; border: 1px solid #C6CACC; border-radius: 3px; }
-  .dC .mk-meter i { background: #16181A; border-radius: 0; }
-  .dC .mk-count { color: #16181A; }
-  .dC .mk-undo { color: #16181A; background: #FFFFFF; border: 1px solid #16181A; border-radius: 3px; }
-  .dC .mk-row { background: #FFFFFF; border: 1px solid #C6CACC; border-radius: 4px; }
-  .dC .mk-meta { color: #6E7478; }
-  .dC .mk-meta .tagc { color: #0F5FDE; }
-  .dC .mk-text { color: #16181A; }
-  .dC .mk-pill { background: #16181A; color: #E4E6E7; border-radius: 4px; }
-
-  /* =========================================================
-     D · OBSIDIAN — Void Glass, solidified
-     ========================================================= */
-  .dD .mock { background: #0E1116; border: 1px solid #232A33; }
-  .dD .mk-title { background: #0A0D11; color: #7E8994; font-family: "Cascadia Mono", Consolas, monospace; }
-  .dD .mk-dots i { background: #2C343E; }
-  .dD .mk-rail { background: #0A0D11; border-right: 1px solid #1B212A; }
-  .dD .mk-rail .ric { background: #161B22; border: 1px solid #232A33; }
-  .dD .mk-rail .ric.on { background: #1E2630; border-color: #3D4854; }
-  .dD .mk-main { background: #0E1116; }
-  .dD .mk-band { background: #141922; border: 1px solid #232A33; }
-  .dD .mk-rec { background: #0A0D11; border: 1px solid #2C343E; }
-  .dD .mk-meter i { background: #7FB4C4; }
-  .dD .mk-count { color: #C7D0D9; }
-  .dD .mk-undo { color: #9FB6BF; background: #161B22; border: 1px solid #2C343E; }
-  .dD .mk-row { background: #12161D; border: 1px solid #1E252E; }
-  .dD .mk-meta { color: #66717C; }
-  .dD .mk-text { color: #C7D0D9; }
-  .dD .mk-pill { background: #12161D; border: 1px solid #2C343E; color: #9FB6BF; }
-
-  .closing { margin-top: 4.5rem; border-top: 1px solid var(--hair); padding-top: 2rem; max-width: 70ch; }
-  .closing h2 { font-family: Georgia, serif; font-weight: 500; font-size: 1.4rem; margin-bottom: .8rem; }
-  .closing p { font-size: .95rem; color: var(--ink-mute); }
-  .closing p + p { margin-top: .6rem; }
-  .closing b { color: var(--ink); }
-  .sources { margin-top: 1.6rem; font-size: .8rem; color: var(--ink-mute); }
-  .sources a { color: var(--tag); }
-  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  /* ================= D · DEEP FIELD ================= */
+  .stD { background:#0E1116; border:1px solid #232A33; }
+  .stD .hero { position:relative; padding:26px 26px 18px; background:linear-gradient(#10141A,#0E1116); border-bottom:1px solid #1B212A; }
+  .stD .hero .bignum { font-family:"Cascadia Mono",Consolas,monospace; font-size:3.4rem; line-height:1; color:#DCE4EC; letter-spacing:-.02em; }
+  .stD .hero .bignum small { font-size:1.1rem; color:#5C6875; letter-spacing:.1em; }
+  .stD .hero .stat { position:absolute; right:26px; top:30px; text-align:right; font-family:Consolas,monospace; font-size:.62rem; letter-spacing:.14em; color:#5C6875; }
+  .stD .hero .stat b { display:block; color:#7FB4C4; font-size:.85rem; letter-spacing:.06em; }
+  .stD .herowave { display:flex; align-items:center; gap:3px; height:44px; margin-top:14px; }
+  .stD .herowave i { width:4px; border-radius:2px; background:#7FB4C4; display:block; }
+  .stD .herowave i:nth-child(odd){ opacity:.55; }
+  .stD .list { padding:14px 26px 22px; display:flex; flex-direction:column; gap:0; }
+  .stD .item { display:grid; grid-template-columns:1fr auto; gap:12px; padding:12px 2px; border-bottom:1px solid #1B212A; align-items:baseline; }
+  .stD .itx { font-size:.84rem; color:#C7D0D9; }
+  .stD .imeta { font-family:Consolas,monospace; font-size:.6rem; letter-spacing:.1em; color:#5C6875; }
+  .stD .imeta em { font-style:normal; color:#7FB4C4; }
+  .deskD { background:linear-gradient(160deg,#1A2029,#0A0D11); }
+  .pD { display:flex; align-items:center; gap:12px; background:#12161D; border:1px solid #2C343E; border-radius:10px; padding:9px 16px; color:#9FB6BF; font-family:Consolas,monospace; font-size:.64rem; letter-spacing:.12em; box-shadow:0 14px 30px rgba(0,0,0,.55), inset 0 1px 0 rgba(199,208,217,.06); }
+  .pD .wv { display:flex; align-items:center; gap:2px; height:14px; }
+  .pD .wv i { width:2.5px; border-radius:2px; background:#7FB4C4; display:block; }
+  .pD .amber { color:#D9A441; }
+  .pD .off { width:8px; height:8px; border-radius:50%; background:#2C343E; }
 </style>
 
 <div class="sheet">
-  <p class="kicker">VoxScribe · design directions · September 2026</p>
-  <h1>Four rooms the app could live in</h1>
-  <p class="lede">The brief: the current look feels <em>flimsy and a bit too AI-like</em>. Below are four
-  directions, each shown on the same three surfaces — the voice band, two transcript rows, and the
-  pill. The red lamp stays red in all four; that rule is not up for debate.</p>
+  <p class="kicker">VoxScribe · design directions · round two</p>
+  <h1>Four rooms, rebuilt from the floor</h1>
+  <p class="lede">Round-one feedback: <em>too close to the current app — same skeleton, new paint.</em>
+  So this round changes the furniture, not just the walls: each direction rethinks the main window's
+  layout, and each shows its pill in the three states you actually see — recording, working, done.
+  Bench Instrument is dropped. The red lamp stays red everywhere.</p>
 
-  <div class="diagnosis">
-    <span class="kicker">Why it reads as “AI-like”</span>
-    <p>Void Glass is cool near-black + translucent cards + a lone cyan accent — which is, almost
-    exactly, the default look AI tools ship with in 2026. It isn't badly executed; it's
-    <b>over-represented</b>. Translucency also reads as lightweight: glass panels have no visual
-    mass, so the app feels like an overlay rather than an instrument.</p>
-    <p>What the well-regarded apps in this space do differently: Wispr Flow's polish comes from
-    restraint and motion, not effects; superwhisper and Aqua Voice stay almost invisible. The trend
-    literature says the same thing — heavy glassmorphism is out, solidity and warmth are in.</p>
-  </div>
-
-  <!-- ============ A ============ -->
-  <section class="plate dA">
+  <!-- ================= A ================= -->
+  <section class="plate">
     <div class="plate-head"><span class="plate-no">DIRECTION A</span><h2>Signal House</h2></div>
-    <p class="thesis">A warm broadcast console. Dictation is a <strong>recording</strong> act, so the app borrows
-    from studio hardware: warm charcoal instead of blue-black, panels with visible edges and inset
-    shadows, cream ink, mono labels. <strong>The accent colour is deleted</strong> — hardware shows state with
-    lamps, and the red lamp becomes the only saturated thing on screen.</p>
-    <div class="plate-body">
-      <dl class="spec">
-        <dt>Palette</dt>
-        <dd class="chips">
-          <div class="chip" style="background:#211C17"><span>#211C17</span></div>
-          <div class="chip" style="background:#191512"><span>#191512</span></div>
-          <div class="chip" style="background:#E8DFC9"><span>#E8DFC9</span></div>
-          <div class="chip" style="background:#4A4038"><span>#4A4038</span></div>
-          <div class="chip" style="background:#E5484D"><span>#E5484D</span></div>
-        </dd>
-        <dt>Type</dt><dd>Cascadia Mono for every label and number; Segoe UI for transcripts. The mono does the talking.</dd>
-        <dt>Feel</dt><dd>Heavy, tactile, owned. The opposite of flimsy.</dd>
-        <dt>Cost</dt><dd class="verdict"><b>Medium.</b> New token values + bevel treatment on controls. Kills the accent-colour setting.</dd>
-      </dl>
-      <figure class="mock">
-        <div class="mk-title">VOX-SCRIBE<div class="mk-dots"><i></i><i></i><i></i></div></div>
-        <div class="mk-frame">
-          <div class="mk-rail"><div class="ric on"></div><div class="ric"></div><div class="ric gear"></div></div>
-          <div class="mk-main">
-            <div class="mk-band">
-              <div class="mk-rec"><i></i></div>
-              <div class="mk-meter"><i style="height:30%"></i><i style="height:55%"></i><i style="height:80%"></i><i style="height:65%"></i><i style="height:90%"></i><i style="height:45%"></i><i style="height:70%"></i><i style="height:35%"></i><i style="height:60%"></i><i style="height:85%"></i><i style="height:50%"></i><i style="height:25%"></i><i style="height:40%"></i><i style="height:65%"></i><i style="height:30%"></i></div>
-              <span class="mk-count">00:12</span>
-              <span class="mk-undo">UNDO</span>
-            </div>
-            <div class="mk-rows">
-              <div class="mk-row"><div class="mk-meta"><span>14:32:08</span><span>1.2s</span><span class="act">COPY · DELETE</span></div>
-                <p class="mk-text">Send the revised installer to the beta group before Friday, and note that the model download is six hundred megabytes.</p></div>
-              <div class="mk-row"><div class="mk-meta"><span>14:28:41</span><span>0.8s</span><span class="act">COPY · DELETE</span></div>
-                <p class="mk-text">The latency readout should appear right after the key is released.</p></div>
-            </div>
-            <div class="mk-pillwrap"><div class="mk-pill"><span class="lamp"></span>REC · RAW <span style="opacity:.6">0:07</span></div></div>
-          </div>
+    <p class="thesis">A rack unit, not a window. The transport moves to the <strong>bottom deck</strong> like a tape
+    machine: oversized record key, a real <strong>needle VU meter</strong>, a glowing counter, hardware UNDO key.
+    Dictations become numbered <strong>takes</strong> on a tape log. No accent colour — lamps and cream ink carry
+    all state; the red jewel is the only saturated object.</p>
+    <div class="specrow">
+      <div class="spec"><span class="k">Palette</span><div class="chips">
+        <div class="chip" style="background:#241E18"></div><div class="chip" style="background:#16110D"></div>
+        <div class="chip" style="background:#EBD9B4"></div><div class="chip" style="background:#A38F6F"></div>
+        <div class="chip" style="background:#E5484D"></div></div></div>
+      <div class="spec"><span class="k">Type</span>Cascadia Mono everywhere it counts; Segoe UI for takes.</div>
+      <div class="spec cost"><span class="k">Cost</span><b>Medium-high.</b> New deck layout + needle gauge control. Retires the accent setting.</div>
+    </div>
+    <figure class="stage stA">
+      <div class="face">
+        <span class="screw" style="top:8px;left:8px"></span><span class="screw" style="top:8px;right:8px"></span>
+        <span class="screw" style="bottom:8px;left:8px"></span><span class="screw" style="bottom:8px;right:8px"></span>
+        <div class="facehead"><span class="brand">VOX·SCRIBE</span><span class="sub">DICTATION UNIT — 3 TAKES TODAY</span></div>
+        <div class="takes">
+          <div class="take"><span class="tno">TAKE 014<small>14:32 · 1.2s</small></span><span class="ttx">Send the revised installer to the beta group before Friday, and note that the model download is six hundred megabytes.</span><span class="tact">COPY · CUT</span></div>
+          <div class="take"><span class="tno">TAKE 013<small>14:28 · 0.8s</small></span><span class="ttx">The latency readout should appear right after the key is released.</span><span class="tact">COPY · CUT</span></div>
+          <div class="take"><span class="tno">TAKE 012<small>11:04 · 2.1s</small></span><span class="ttx">Remember to check the dictionary suggestions before the next wave.</span><span class="tact">COPY · CUT</span></div>
         </div>
-      </figure>
+        <div class="deck">
+          <div class="bigrec"><i></i></div>
+          <div class="gauge"><span class="glab">VU</span><div class="arc"></div><div class="needle"></div></div>
+          <span class="counter">00:12</span>
+          <span class="hardkey">UNDO</span>
+        </div>
+      </div>
+    </figure>
+    <div class="pilllab"><span class="k">The pill · three states</span>
+      <div class="desk deskA">
+        <div class="pillstate"><div class="pA"><span class="lamp"></span>REC <span class="vu"><i style="height:40%"></i><i style="height:80%"></i><i style="height:55%"></i><i style="height:95%"></i><i style="height:60%"></i><i style="height:30%"></i><i style="height:70%"></i></span><span class="mono">0:07</span></div><span class="lab">RECORDING</span></div>
+        <div class="pillstate"><div class="pA"><span class="jewel-off"></span><span class="amber">PRINTING…</span><span class="mono amber">·—·—·</span></div><span class="lab">WORKING</span></div>
+        <div class="pillstate"><div class="pA"><span class="jewel-off"></span>TAKE 015 <span class="mono">1.2s</span></div><span class="lab">DONE · LATENCY</span></div>
+      </div>
     </div>
   </section>
 
-  <!-- ============ B ============ -->
-  <section class="plate dB">
+  <!-- ================= B ================= -->
+  <section class="plate">
     <div class="plate-head"><span class="plate-no">DIRECTION B</span><h2>The Manuscript</h2></div>
-    <p class="thesis">Dictation is <strong>writing</strong>, so the app becomes a writing tool: cool paper, blue-black
-    ink, a serif for the words you spoke, rules instead of cards. Transcripts stop being rows in a
-    database and read like a manuscript with margin notes. The only dark surface left is the pill —
-    an ink stamp at the bottom of the screen.</p>
-    <div class="plate-body">
-      <dl class="spec">
-        <dt>Palette</dt>
-        <dd class="chips">
-          <div class="chip" style="background:#F4F2ED"><span>#F4F2ED</span></div>
-          <div class="chip" style="background:#EDEAE3"><span>#EDEAE3</span></div>
-          <div class="chip" style="background:#23262B"><span>#23262B</span></div>
-          <div class="chip" style="background:#8A8578"><span>#8A8578</span></div>
-          <div class="chip" style="background:#E5484D"><span>#E5484D</span></div>
-        </dd>
-        <dt>Type</dt><dd>Georgia (or Charter) for transcript text; Segoe UI for controls; Consolas for timestamps.</dd>
-        <dt>Feel</dt><dd>Literary, calm, distinctly un-AI. Nobody else in the category is light-mode.</dd>
-        <dt>Cost</dt><dd class="verdict"><b>High.</b> Full light theme — every token, every lamp colour re-checked for contrast, both UiTests doctrine rules re-pinned.</dd>
-      </dl>
-      <figure class="mock">
-        <div class="mk-title">Vox-Scribe<div class="mk-dots"><i></i><i></i><i></i></div></div>
-        <div class="mk-frame">
-          <div class="mk-rail"><div class="ric on"></div><div class="ric"></div><div class="ric gear"></div></div>
-          <div class="mk-main">
-            <div class="mk-band">
-              <div class="mk-rec"><i></i></div>
-              <div class="mk-meter"><i style="height:30%"></i><i style="height:55%"></i><i style="height:80%"></i><i style="height:65%"></i><i style="height:90%"></i><i style="height:45%"></i><i style="height:70%"></i><i style="height:35%"></i><i style="height:60%"></i><i style="height:85%"></i><i style="height:50%"></i><i style="height:25%"></i><i style="height:40%"></i><i style="height:65%"></i><i style="height:30%"></i></div>
-              <span class="mk-count">00:12</span>
-              <span class="mk-undo">UNDO</span>
-            </div>
-            <div class="mk-rows">
-              <div class="mk-row"><div class="mk-meta"><span>14:32:08</span><span>1.2s</span><span class="act">copy · delete</span></div>
-                <p class="mk-text">Send the revised installer to the beta group before Friday, and note that the model download is six hundred megabytes.</p></div>
-              <div class="mk-row"><div class="mk-meta"><span>14:28:41</span><span>0.8s</span><span class="act">copy · delete</span></div>
-                <p class="mk-text">The latency readout should appear right after the key is released.</p></div>
-            </div>
-            <div class="mk-pillwrap"><div class="mk-pill"><span class="lamp"></span>REC · RAW <span style="opacity:.6">0:07</span></div></div>
-          </div>
+    <p class="thesis">The window disappears; a <strong>sheet of paper on a desk</strong> remains. No icon rail, no cards
+    — navigation is a letterhead, dictations flow as a <strong>day-by-day journal</strong> with times in the margin,
+    dictionary corrections shown as amber underlines. The record control is a dark <strong>wax seal</strong> riding
+    the page's corner. The pill is a strip of the same paper with a red seal-dot while recording.</p>
+    <div class="specrow">
+      <div class="spec"><span class="k">Palette</span><div class="chips">
+        <div class="chip" style="background:#F7F5EF"></div><div class="chip" style="background:#B9B2A4"></div>
+        <div class="chip" style="background:#23262B"></div><div class="chip" style="background:#C98A3D"></div>
+        <div class="chip" style="background:#E5484D"></div></div></div>
+      <div class="spec"><span class="k">Type</span>Georgia for every spoken word; Consolas margin times; Segoe UI controls.</div>
+      <div class="spec cost"><span class="k">Cost</span><b>High.</b> Full light theme, new journal layout, doctrine re-pinned.</div>
+    </div>
+    <figure class="stage stB">
+      <div class="deskbg">
+        <div class="page">
+          <div class="lethead"><span class="name">Vox-Scribe</span><nav>JOURNAL · DICTIONARY · SETTINGS</nav></div>
+          <p class="day">Friday 5 September</p>
+          <div class="entry"><span class="etime">14:32<small>1.2s</small></span><p class="etx">Send the revised installer to the beta group before Friday, and note that the model download is six hundred megabytes.</p></div>
+          <div class="entry"><span class="etime">14:28<small>0.8s</small></span><p class="etx">The latency readout should appear right after the <u>key</u> is released.</p></div>
+          <p class="day">Thursday 4 September</p>
+          <div class="entry" style="border-bottom:none"><span class="etime">18:11<small>2.1s</small></span><p class="etx">Remember to check the dictionary suggestions before the next wave.</p></div>
+          <div class="seal"><i></i></div>
         </div>
-      </figure>
+      </div>
+    </figure>
+    <div class="pilllab"><span class="k">The pill · three states</span>
+      <div class="desk deskB">
+        <div class="pillstate"><div class="pB">…download is six hundred<span class="caret"></span></div><span class="lab" style="color:#5A554A">RECORDING — INK LINE WRITES AS YOU SPEAK</span></div>
+        <div class="pillstate"><div class="pB working"><span class="lab2">SETTING TYPE…</span></div><span class="lab" style="color:#5A554A">WORKING</span></div>
+        <div class="pillstate"><div class="pB done"><span class="lab2">DELIVERED</span><span class="mono">— 1.2s</span></div><span class="lab" style="color:#5A554A">DONE · LATENCY</span></div>
+      </div>
     </div>
   </section>
 
-  <!-- ============ C ============ -->
-  <section class="plate dC">
-    <div class="plate-head"><span class="plate-no">DIRECTION C</span><h2>Bench Instrument</h2></div>
-    <p class="thesis">Flat, Swiss, measurement-grade — an oscilloscope, not a chat app. Light-grey
-    chassis, white panels with 1px borders, near-square corners, black bars in the meter, tabular
-    numerals everywhere. One cold <strong>signal blue</strong> for interactive emphasis. No glass, no glow, no
-    radius over 4px. Precision instead of atmosphere.</p>
-    <div class="plate-body">
-      <dl class="spec">
-        <dt>Palette</dt>
-        <dd class="chips">
-          <div class="chip" style="background:#E4E6E7"><span>#E4E6E7</span></div>
-          <div class="chip" style="background:#FFFFFF"><span>#FFFFFF</span></div>
-          <div class="chip" style="background:#16181A"><span>#16181A</span></div>
-          <div class="chip" style="background:#0F5FDE"><span>#0F5FDE</span></div>
-          <div class="chip" style="background:#E5484D"><span>#E5484D</span></div>
-        </dd>
-        <dt>Type</dt><dd>Segoe UI semibold for headings, regular for body, Consolas for every number. Tight scale, no italics.</dd>
-        <dt>Feel</dt><dd>Serious lab equipment. Ages the slowest of the four.</dd>
-        <dt>Cost</dt><dd class="verdict"><b>High.</b> Light theme + the generous-radii doctrine test inverted (the current tests pin big radii; this direction repeals that law deliberately).</dd>
-      </dl>
-      <figure class="mock">
-        <div class="mk-title">VOX-SCRIBE — DICTATION<div class="mk-dots"><i></i><i></i><i></i></div></div>
-        <div class="mk-frame">
-          <div class="mk-rail"><div class="ric on"></div><div class="ric"></div><div class="ric gear"></div></div>
-          <div class="mk-main">
-            <div class="mk-band">
-              <div class="mk-rec"><i></i></div>
-              <div class="mk-meter"><i style="height:30%"></i><i style="height:55%"></i><i style="height:80%"></i><i style="height:65%"></i><i style="height:90%"></i><i style="height:45%"></i><i style="height:70%"></i><i style="height:35%"></i><i style="height:60%"></i><i style="height:85%"></i><i style="height:50%"></i><i style="height:25%"></i><i style="height:40%"></i><i style="height:65%"></i><i style="height:30%"></i></div>
-              <span class="mk-count">00:12.4</span>
-              <span class="mk-undo">UNDO</span>
-            </div>
-            <div class="mk-rows">
-              <div class="mk-row"><div class="mk-meta"><span>14:32:08</span><span class="tagc">1.20 s</span><span class="act">COPY | DELETE</span></div>
-                <p class="mk-text">Send the revised installer to the beta group before Friday, and note that the model download is six hundred megabytes.</p></div>
-              <div class="mk-row"><div class="mk-meta"><span>14:28:41</span><span class="tagc">0.80 s</span><span class="act">COPY | DELETE</span></div>
-                <p class="mk-text">The latency readout should appear right after the key is released.</p></div>
-            </div>
-            <div class="mk-pillwrap"><div class="mk-pill"><span class="lamp"></span>REC · RAW <span style="opacity:.6">0:07</span></div></div>
-          </div>
+  <!-- ================= C ================= -->
+  <section class="plate">
+    <div class="plate-head"><span class="plate-no">DIRECTION C</span><h2>The Ticker</h2></div>
+    <p class="thesis">Sound is the subject, so sound is the interface. The main window is an
+    <strong>audio timeline</strong>: each dictation is a clip with its own waveform, laid on hour lanes like a
+    session in an audio editor, with a scrubber that doubles as the day's map. And the pill stops
+    being a pill — it becomes a <strong>full-width ticker</strong> hugging the bottom edge of the screen, the
+    waveform streaming through it while you speak, the transcript chasing it. Violet, not cyan.</p>
+    <div class="specrow">
+      <div class="spec"><span class="k">Palette</span><div class="chips">
+        <div class="chip" style="background:#101014"></div><div class="chip" style="background:#1A1A21"></div>
+        <div class="chip" style="background:#B9B9C9"></div><div class="chip" style="background:#8F7BE8"></div>
+        <div class="chip" style="background:#E5484D"></div></div></div>
+      <div class="spec"><span class="k">Type</span>Segoe UI + Consolas; the waveforms are the display face.</div>
+      <div class="spec cost"><span class="k">Cost</span><b>Highest.</b> Timeline view, waveform thumbnails per transcript, new ticker overlay window.</div>
+    </div>
+    <figure class="stage stC">
+      <div class="lanes">
+        <div class="lhead"><span class="brand">VOX·SCRIBE</span><span class="hour">FRI 05 SEP — 09:00 ··· 15:00</span></div>
+        <div class="lane"><span class="ltag">14:00</span>
+          <div class="clip" style="left:16%;width:46%"><span class="cdur">0:12</span>
+            <div class="wave"><i style="height:30%"></i><i style="height:70%"></i><i style="height:50%"></i><i style="height:90%"></i><i style="height:40%"></i><i style="height:75%"></i><i style="height:55%"></i><i style="height:85%"></i><i style="height:35%"></i><i style="height:60%"></i><i style="height:80%"></i><i style="height:45%"></i></div>
+            <p class="ctx">Send the revised installer to the beta group before Friday…</p></div>
+          <div class="clip" style="left:66%;width:26%"><span class="cdur">0:05</span>
+            <div class="wave"><i style="height:50%"></i><i style="height:80%"></i><i style="height:35%"></i><i style="height:65%"></i><i style="height:90%"></i><i style="height:40%"></i></div>
+            <p class="ctx">The latency readout should…</p></div>
         </div>
-      </figure>
+        <div class="lane"><span class="ltag">11:00</span>
+          <div class="clip" style="left:8%;width:34%"><span class="cdur">0:09</span>
+            <div class="wave"><i style="height:45%"></i><i style="height:70%"></i><i style="height:55%"></i><i style="height:85%"></i><i style="height:30%"></i><i style="height:60%"></i><i style="height:75%"></i></div>
+            <p class="ctx">Remember to check the dictionary suggestions…</p></div>
+        </div>
+      </div>
+      <div class="scrub"><div class="mini" style="left:12%;width:10%"></div><div class="mini" style="left:30%;width:16%"></div><div class="mini" style="left:58%;width:9%"></div><div class="cursor"></div></div>
+    </figure>
+    <div class="pilllab"><span class="k">The ticker · three states (full screen width)</span>
+      <div class="desk deskC">
+        <div class="tickstate"><div class="tick"><span class="lamp"></span>REC<span class="twave"><i style="height:30%"></i><i style="height:65%"></i><i style="height:45%"></i><i style="height:90%"></i><i style="height:55%"></i><i style="height:75%"></i><i style="height:35%"></i><i style="height:80%"></i><i style="height:50%"></i><i style="height:60%"></i><i style="height:40%"></i><i style="height:85%"></i><i style="height:30%"></i><i style="height:70%"></i><i style="height:55%"></i><i style="height:45%"></i><i style="height:90%"></i><i style="height:35%"></i><i style="height:65%"></i><i style="height:50%"></i></span><span class="fade">…installer to the beta group before Friday</span><span class="mono">0:07</span></div><span class="lab">RECORDING — WAVEFORM STREAMS RIGHT-TO-LEFT, TRANSCRIPT CHASES IT</span></div>
+        <div class="tickstate"><div class="tick"><span style="color:#8F7BE8">◈ RESOLVING TAIL…</span><span class="twave" style="opacity:.35"><i style="height:40%"></i><i style="height:60%"></i><i style="height:50%"></i><i style="height:70%"></i><i style="height:45%"></i><i style="height:55%"></i><i style="height:65%"></i><i style="height:35%"></i></span></div><span class="lab">WORKING</span></div>
+        <div class="tickstate"><div class="tick"><span style="color:#B9B9C9">DELIVERED</span><span class="fade">wait felt:</span><span class="mono" style="color:#8F7BE8">1.2s</span></div><span class="lab">DONE · LATENCY — THEN THE BAR SINKS BELOW THE SCREEN EDGE</span></div>
+      </div>
     </div>
   </section>
 
-  <!-- ============ D ============ -->
-  <section class="plate dD">
-    <div class="plate-head"><span class="plate-no">DIRECTION D</span><h2>Obsidian</h2></div>
-    <p class="thesis">Void Glass, <strong>solidified</strong> — the evolution, not the revolution. Keep the dark room
-    and the layered depth, but make every surface opaque, tighten the radii one step, desaturate
-    the cyan to a steel tone, and let borders (not translucency) do the separation. The pill keeps
-    its glass; the main window gains mass. Fixes “flimsy” without changing the app's identity.</p>
-    <div class="plate-body">
-      <dl class="spec">
-        <dt>Palette</dt>
-        <dd class="chips">
-          <div class="chip" style="background:#0E1116"><span>#0E1116</span></div>
-          <div class="chip" style="background:#141922"><span>#141922</span></div>
-          <div class="chip" style="background:#C7D0D9"><span>#C7D0D9</span></div>
-          <div class="chip" style="background:#7FB4C4"><span>#7FB4C4</span></div>
-          <div class="chip" style="background:#E5484D"><span>#E5484D</span></div>
-        </dd>
-        <dt>Type</dt><dd>Unchanged — Segoe UI Variable + Cascadia Mono already fit this direction.</dd>
-        <dt>Feel</dt><dd>Same room, better furniture. Least distinctive, least risky.</dd>
-        <dt>Cost</dt><dd class="verdict"><b>Low.</b> Almost entirely token edits in DesignTokens.cs; accent swatches survive; every doctrine test keeps passing.</dd>
-      </dl>
-      <figure class="mock">
-        <div class="mk-title">VOX-SCRIBE<div class="mk-dots"><i></i><i></i><i></i></div></div>
-        <div class="mk-frame">
-          <div class="mk-rail"><div class="ric on"></div><div class="ric"></div><div class="ric gear"></div></div>
-          <div class="mk-main">
-            <div class="mk-band">
-              <div class="mk-rec"><i></i></div>
-              <div class="mk-meter"><i style="height:30%"></i><i style="height:55%"></i><i style="height:80%"></i><i style="height:65%"></i><i style="height:90%"></i><i style="height:45%"></i><i style="height:70%"></i><i style="height:35%"></i><i style="height:60%"></i><i style="height:85%"></i><i style="height:50%"></i><i style="height:25%"></i><i style="height:40%"></i><i style="height:65%"></i><i style="height:30%"></i></div>
-              <span class="mk-count">00:12</span>
-              <span class="mk-undo">UNDO</span>
-            </div>
-            <div class="mk-rows">
-              <div class="mk-row"><div class="mk-meta"><span>14:32:08</span><span>1.2s</span><span class="act">COPY · DELETE</span></div>
-                <p class="mk-text">Send the revised installer to the beta group before Friday, and note that the model download is six hundred megabytes.</p></div>
-              <div class="mk-row"><div class="mk-meta"><span>14:28:41</span><span>0.8s</span><span class="act">COPY · DELETE</span></div>
-                <p class="mk-text">The latency readout should appear right after the key is released.</p></div>
-            </div>
-            <div class="mk-pillwrap"><div class="mk-pill"><span class="lamp"></span>REC · RAW <span style="opacity:.6">0:07</span></div></div>
-          </div>
-        </div>
-      </figure>
+  <!-- ================= D ================= -->
+  <section class="plate">
+    <div class="plate-head"><span class="plate-no">DIRECTION D</span><h2>Deep Field</h2></div>
+    <p class="thesis">The dark room kept, but recomposed. The rail and the voice band are gone; a
+    <strong>hero instrument panel</strong> owns the top of the window — a huge counter, today's stats, the live
+    waveform stretched wide — and transcripts hang under it as a bare, borderless list separated by
+    hairlines. Opaque surfaces, steel-cyan, no translucency anywhere except the pill itself, which
+    keeps its glass as the one artefact of the old identity.</p>
+    <div class="specrow">
+      <div class="spec"><span class="k">Palette</span><div class="chips">
+        <div class="chip" style="background:#0E1116"></div><div class="chip" style="background:#12161D"></div>
+        <div class="chip" style="background:#DCE4EC"></div><div class="chip" style="background:#7FB4C4"></div>
+        <div class="chip" style="background:#E5484D"></div></div></div>
+      <div class="spec"><span class="k">Type</span>Cascadia Mono display numerals; Segoe UI list; unchanged tokens elsewhere.</div>
+      <div class="spec cost"><span class="k">Cost</span><b>Low-medium.</b> Token edits + one new hero panel; accent swatches survive.</div>
+    </div>
+    <figure class="stage stD">
+      <div class="hero">
+        <div class="bignum">00:12<small> · REC</small></div>
+        <div class="stat">TODAY<b>14 takes · 9.4 min</b></div>
+        <div class="herowave"><i style="height:20%"></i><i style="height:45%"></i><i style="height:70%"></i><i style="height:55%"></i><i style="height:90%"></i><i style="height:65%"></i><i style="height:35%"></i><i style="height:80%"></i><i style="height:50%"></i><i style="height:25%"></i><i style="height:60%"></i><i style="height:85%"></i><i style="height:40%"></i><i style="height:70%"></i><i style="height:30%"></i><i style="height:55%"></i><i style="height:75%"></i><i style="height:45%"></i><i style="height:65%"></i><i style="height:35%"></i><i style="height:50%"></i><i style="height:80%"></i><i style="height:60%"></i><i style="height:40%"></i></div>
+      </div>
+      <div class="list">
+        <div class="item"><p class="itx">Send the revised installer to the beta group before Friday, and note that the model download is six hundred megabytes.</p><span class="imeta">14:32 · <em>1.2s</em></span></div>
+        <div class="item"><p class="itx">The latency readout should appear right after the key is released.</p><span class="imeta">14:28 · <em>0.8s</em></span></div>
+        <div class="item" style="border-bottom:none"><p class="itx">Remember to check the dictionary suggestions before the next wave.</p><span class="imeta">11:04 · <em>2.1s</em></span></div>
+      </div>
+    </figure>
+    <div class="pilllab"><span class="k">The pill · three states</span>
+      <div class="desk deskD">
+        <div class="pillstate"><div class="pD"><span class="lamp"></span>REC · RAW <span class="wv"><i style="height:40%"></i><i style="height:75%"></i><i style="height:55%"></i><i style="height:95%"></i><i style="height:60%"></i><i style="height:35%"></i><i style="height:70%"></i></span><span class="mono">0:07</span></div><span class="lab">RECORDING</span></div>
+        <div class="pillstate"><div class="pD"><span class="off"></span><span class="amber">RAW</span><span class="wv" style="opacity:.4"><i style="height:50%"></i><i style="height:60%"></i><i style="height:45%"></i><i style="height:65%"></i><i style="height:55%"></i></span></div><span class="lab">WORKING</span></div>
+        <div class="pillstate"><div class="pD"><span class="off"></span>DONE <span class="mono" style="color:#7FB4C4">1.2s</span></div><span class="lab">DONE · LATENCY</span></div>
+      </div>
     </div>
   </section>
 
   <div class="closing">
-    <h2>Recommendation</h2>
-    <p><b>Obsidian (D) now, Signal House (A) if you want a personality.</b> D fixes the specific
-    complaint — flimsiness — for a token-file-sized diff and keeps every pinned design law intact.
-    A is the direction none of the competitors occupy: warm, physical, recording-studio instead of
-    AI-tool; it costs more and retires the accent-colour setting, but it is the one people would
-    remember. B and C are strong but flip to light mode, which is a rewrite of the design doctrine,
-    not a restyle.</p>
-    <p>The pill is nearly invisible in daily use, so whichever direction wins, the main window is
-    where the change is felt — Wispr Flow's lesson is that the overlay should stay quiet and the
-    polish should live in restraint.</p>
-    <p class="sources">Research: <a href="https://tldv.io/blog/wisprflow/">Wispr Flow review</a> ·
-    <a href="https://efficient.app/apps/wispr-flow">Efficient App on Wispr Flow</a> ·
+    <h2>Recommendation, round two</h2>
+    <p><b>Signal House is now the pick for personality; Deep Field for pragmatism.</b> A's bottom
+    transport deck and take-log are a genuine re-architecture that no dictation app on the market
+    looks like, and the needle VU meter gives the app the physical mass the current glass lacks.
+    Deep Field gets 70% of the solidity for a fraction of the work. The Ticker is the wild card —
+    the full-width bar is the most original overlay concept of the four, and it could be adopted
+    by <b>any</b> of the other directions even if its timeline window never ships.</p>
+    <p>All three keep red = recording, keep amber for instrumentation, and keep the overlay
+    non-focusable — the doctrine survives every direction except where a plate says it doesn't.</p>
+    <p class="sources">Research (round one): <a href="https://tldv.io/blog/wisprflow/">Wispr Flow review</a> ·
+    <a href="https://efficient.app/apps/wispr-flow">Efficient App</a> ·
     <a href="https://superwhisper.com/vs/aqua-voice">superwhisper vs Aqua Voice</a> ·
-    <a href="https://www.designstudiouiux.com/blog/what-is-glassmorphism-ui-trend/">glassmorphism in 2026</a> ·
-    <a href="https://midrocket.com/en/guides/ui-design-trends-2026/">UI trends 2026</a></p>
+    <a href="https://www.designstudiouiux.com/blog/what-is-glassmorphism-ui-trend/">glassmorphism 2026</a></p>
   </div>
 </div>
