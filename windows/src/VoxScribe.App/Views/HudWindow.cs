@@ -127,7 +127,7 @@ public sealed class HudWindow : Window
         _preview = new TextBlock
         {
             Margin = new Thickness(Tokens.Space.Tight, Tokens.Space.Hair, Tokens.Space.Tight, 0),
-            FontFamily = Tokens.Fonts.Grotesque,
+            FontFamily = Tokens.Fonts.Prose,
             FontSize = Tokens.Fonts.Body,
             Foreground = Tokens.Brushes.InkOnDeck,
             TextAlignment = TextAlignment.Center,

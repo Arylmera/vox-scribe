@@ -109,7 +109,7 @@ public sealed class TranscriptionsView : UserControl
                 new TextBlock
                 {
                     Text = record.Text,
-                    FontFamily = Tokens.Fonts.Grotesque,
+                    FontFamily = Tokens.Fonts.Prose,
                     FontSize = Tokens.Fonts.Body,
                     Foreground = Tokens.Brushes.InkOnDeck,
                     TextWrapping = TextWrapping.Wrap,

@@ -85,6 +85,10 @@ public sealed class Composition : IAsyncDisposable
     {
         var settings = new AppSettings(AppSettings.DefaultPath);
 
+        // Theme first, before any window exists — views cache brushes at build time, so the
+        // theme is a next-start setting, unlike the live accent below.
+        Themes.Apply(settings.Data.Theme);
+
         // The accent is live everywhere the moment it changes — same promise as the hotkey.
         ApplyAccent(settings.Data.AccentColor);
         settings.Changed += (_, _) => ApplyAccent(settings.Data.AccentColor);

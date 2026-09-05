@@ -173,6 +173,37 @@ public sealed class DesignSystemTests
     }
 
     [AvaloniaFact]
+    public void Every_theme_keeps_the_record_red_and_stays_readable()
+    {
+        try
+        {
+            foreach (var (id, _) in Themes.Choices)
+            {
+                Themes.Apply(id);
+
+                // The one non-negotiable: no theme may touch the record red.
+                Tokens.Colors.Record.R.ShouldBe((byte)0xE8, $"theme {id}");
+
+                // Ink must actually contrast its ground, whichever way the theme leans.
+                var contrast = Math.Abs(
+                    Luminance(Tokens.Colors.Ink) - Luminance(Tokens.Colors.Chassis));
+                contrast.ShouldBeGreaterThan(0.5, $"theme {id}");
+            }
+
+            // An unknown id — an old or hand-edited settings file — lands on the default.
+            Themes.Apply("no-such-theme");
+            Tokens.Colors.Chassis.ShouldBe(Avalonia.Media.Color.FromRgb(0x0E, 0x11, 0x16));
+        }
+        finally
+        {
+            Themes.Apply(Themes.Default);
+        }
+    }
+
+    private static double Luminance(Avalonia.Media.Color c) =>
+        ((0.299 * c.R) + (0.587 * c.G) + (0.114 * c.B)) / 255.0;
+
+    [AvaloniaFact]
     public void Spacing_stays_on_the_four_point_grid()
     {
         double[] steps =

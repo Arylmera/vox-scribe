@@ -28,44 +28,47 @@ public static class Tokens
 {
     // ---- Colour ----
 
-    /// <summary>Surfaces, from the window ground inward.</summary>
+    /// <summary>
+    /// Surfaces, from the window ground inward. Settable values belong to the active theme
+    /// and are written once at startup by <see cref="Themes.Apply"/>; the rest are law.
+    /// </summary>
     public static class Colors
     {
-        /// <summary>The window ground. Cool near-black; frames everything.</summary>
-        public static Color Chassis => Rgb(0x0A0D12);
+        /// <summary>The window ground. Frames everything.</summary>
+        public static Color Chassis { get; internal set; } = Rgb(0x0A0D12);
 
-        /// <summary>A glass card resting on the ground.</summary>
-        public static Color Panel => Rgb(0x12161D);
+        /// <summary>A card resting on the ground.</summary>
+        public static Color Panel { get; internal set; } = Rgb(0x12161D);
 
         /// <summary>The darkest readout surface (counters, inputs, lists).</summary>
-        public static Color Deck => Rgb(0x0B0F14);
+        public static Color Deck { get; internal set; } = Rgb(0x0B0F14);
 
         /// <summary>Buttons and interactive chips.</summary>
-        public static Color Cap => Rgb(0x1A212B);
+        public static Color Cap { get; internal set; } = Rgb(0x1A212B);
 
         /// <summary>Hairline border between surfaces.</summary>
-        public static Color Seam => Rgb(0x232A35);
+        public static Color Seam { get; internal set; } = Rgb(0x232A35);
 
         /// <summary>Row under the pointer, before selection.</summary>
-        public static Color Hover => Rgb(0x171D26);
+        public static Color Hover { get; internal set; } = Rgb(0x171D26);
 
         /// <summary>Primary readable text.</summary>
-        public static Color Ink => Rgb(0xE9EDF2);
+        public static Color Ink { get; internal set; } = Rgb(0xE9EDF2);
 
         /// <summary>Supporting text.</summary>
-        public static Color InkSecondary => Rgb(0x8B96A5);
+        public static Color InkSecondary { get; internal set; } = Rgb(0x8B96A5);
 
         /// <summary>Section labels and captions.</summary>
-        public static Color Silkscreen => Rgb(0x8B96A5);
+        public static Color Silkscreen { get; internal set; } = Rgb(0x8B96A5);
 
         /// <summary>Text on the darkest readout surface.</summary>
-        public static Color InkOnDeck => Rgb(0xE9EDF2);
+        public static Color InkOnDeck { get; internal set; } = Rgb(0xE9EDF2);
 
-        /// <summary>The record indicator. The only red in the app.</summary>
+        /// <summary>The record indicator. The only red in the app — themes may not touch it.</summary>
         public static Color Record => Rgb(0xE85656);
 
         /// <summary>The record indicator unlit — a dark lens, not an absence.</summary>
-        public static Color RecordIdle => Rgb(0x3D2426);
+        public static Color RecordIdle { get; internal set; } = Rgb(0x3D2426);
 
         /// <summary>
         /// The dictation pill's fill: near-black at ~55% alpha, so the desktop shows through.
@@ -74,10 +77,10 @@ public static class Tokens
         /// Carries its own alpha rather than taking one from <see cref="Emphasis"/>: this is a
         /// material, not a de-emphasised ink, and the pill is the only thing wearing it.
         /// </remarks>
-        public static Color Glass => Color.FromArgb(0x8C, 0x0C, 0x10, 0x16);
+        public static Color Glass { get; internal set; } = Color.FromArgb(0x8C, 0x0C, 0x10, 0x16);
 
         /// <summary>Lens highlights and glass edges. Always used with an opacity.</summary>
-        public static Color Specular => Avalonia.Media.Colors.White;
+        public static Color Specular { get; internal set; } = Avalonia.Media.Colors.White;
 
         /// <summary>
         /// The user's accent, from settings. Mutable on purpose: set at startup and whenever
@@ -93,18 +96,18 @@ public static class Tokens
         // correction that fired — and never UI chrome.
 
         /// <summary>The level strip's dark backing.</summary>
-        public static Color MeterFace => Rgb(0x0B0F14);
+        public static Color MeterFace { get; internal set; } = Rgb(0x0B0F14);
 
         /// <summary>Healthy / nominal.</summary>
-        public static Color MeterGreen => Rgb(0x4FE8A0);
+        public static Color MeterGreen { get; internal set; } = Rgb(0x4FE8A0);
 
         /// <summary>Attention / approaching peak.</summary>
-        public static Color MeterAmber => Rgb(0xE8B44F);
+        public static Color MeterAmber { get; internal set; } = Rgb(0xE8B44F);
 
         /// <summary>Over / error.</summary>
         public static Color MeterRed => Rgb(0xE85656);
 
-        private static Color Rgb(uint hex) => Color.FromRgb(
+        internal static Color Rgb(uint hex) => Color.FromRgb(
             (byte)((hex >> 16) & 0xFF), (byte)((hex >> 8) & 0xFF), (byte)(hex & 0xFF));
     }
 
@@ -180,6 +183,12 @@ public static class Tokens
         /// <summary>The interface typeface.</summary>
         public static FontFamily Grotesque { get; } =
             new("Segoe UI Variable Display, Segoe UI, Helvetica Neue, Arial, sans-serif");
+
+        /// <summary>
+        /// The spoken word — transcript rows and the pill's preview line. Follows the theme:
+        /// the Manuscript sets it in a serif, the others keep the grotesque.
+        /// </summary>
+        public static FontFamily Prose { get; internal set; } = Grotesque;
 
         /// <summary>Readouts and timings. Monospaced so digits don't shift as they tick.</summary>
         public static FontFamily Mono { get; } =

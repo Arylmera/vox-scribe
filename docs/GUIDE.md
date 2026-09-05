@@ -87,7 +87,7 @@ the underlying file directly.
 | CLEANUP | OpenAI-compatible endpoint, model (`local-light`), API key, TEST CONNECTION |
 | SPEECH | Microphone, local model status, or a remote OpenAI-compatible transcription endpoint + model + API key |
 | GENERAL | Keep history, start at login (minimised to tray) |
-| APPEARANCE | Accent colour — five swatches, applies immediately |
+| APPEARANCE | Theme — Deep Field (dark), Signal House (warm hardware), Manuscript (paper-light, serif transcripts), next start. Accent colour — five swatches, applies immediately |
 
 Speech settings (microphone, remote server) and a first-time cleanup binding take effect
 at next start; the rest is immediate.

@@ -7,7 +7,7 @@ using VoxScribe.Core;
 
 namespace VoxScribe.App.Views.Settings;
 
-/// <summary>The accent swatches.</summary>
+/// <summary>The theme keys and the accent swatches.</summary>
 internal static class AppearanceSection
 {
     /// <summary>The curated accent swatches — Void Glass cyan first, its default.</summary>
@@ -47,10 +47,49 @@ internal static class AppearanceSection
             Spacing = Tokens.Space.Snug,
             Children =
             {
+                BuildThemeRow(settings, save),
+                Panels.Note("Theme — takes effect at next start."),
                 row,
                 Panels.Note("Accent colour — tints the dictation pill and highlights. Applies immediately."),
             },
         });
+    }
+
+    /// <summary>One key per theme; the saved one is engaged.</summary>
+    private static StackPanel BuildThemeRow(AppSettings settings, Action<SettingsData> save)
+    {
+        var keys = new List<(string Id, Button Key)>();
+
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = Tokens.Space.Snug };
+        foreach (var (id, label) in Themes.Choices)
+        {
+            var key = Panels.DeckButton(label);
+            key.Click += (_, _) =>
+            {
+                save(settings.Data with { Theme = id });
+                MarkSelectedTheme(settings, keys);
+            };
+            keys.Add((id, key));
+            row.Children.Add(key);
+        }
+
+        MarkSelectedTheme(settings, keys);
+        return row;
+    }
+
+    /// <summary>Full ink and a solid edge on the saved theme's key; the others recede.</summary>
+    private static void MarkSelectedTheme(AppSettings settings, List<(string Id, Button Key)> keys)
+    {
+        foreach (var (id, key) in keys)
+        {
+            var selected = string.Equals(id, settings.Data.Theme, StringComparison.OrdinalIgnoreCase);
+            key.Foreground = selected
+                ? Tokens.Brushes.Ink
+                : Tokens.Brushes.InkOnDeckAt(Tokens.Emphasis.Muted);
+            key.BorderBrush = selected
+                ? Tokens.Brushes.Ink
+                : Tokens.Brushes.InkOnDeckAt(Tokens.Emphasis.Outline);
+        }
     }
 
     /// <summary>Rings the swatch matching the saved accent; clears the others.</summary>

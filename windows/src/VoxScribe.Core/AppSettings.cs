@@ -128,6 +128,13 @@ public sealed record SettingsData
     /// the Void Glass redesign; the default is its cyan.
     /// </summary>
     public string AccentColor { get; init; } = "#4FD8E8";
+
+    /// <summary>
+    /// Visual theme id ("deep-field", "signal-house", "manuscript"). Applied once at
+    /// startup; changing it takes effect at next start. Unknown values fall back to the
+    /// default, so old or hand-edited files keep working.
+    /// </summary>
+    public string Theme { get; init; } = "deep-field";
 }
 
 /// <summary>Settings, persisted as JSON.</summary>
