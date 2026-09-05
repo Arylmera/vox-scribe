@@ -48,17 +48,24 @@ internal static class AppearanceSection
             Children =
             {
                 BuildThemeRow(settings, save),
-                Panels.Note("Theme — takes effect at next start."),
+                Panels.Note("Theme — pick one, then APPLY restarts Vox-Scribe with it."),
                 row,
                 Panels.Note("Accent colour — tints the dictation pill and highlights. Applies immediately."),
             },
         });
     }
 
-    /// <summary>One key per theme; the saved one is engaged.</summary>
+    /// <summary>One key per theme; the saved one is engaged. Picking a theme other than the
+    /// one on screen reveals an apply key that restarts the app.</summary>
     private static StackPanel BuildThemeRow(AppSettings settings, Action<SettingsData> save)
     {
         var keys = new List<(string Id, Button Key)>();
+
+        var apply = Panels.DeckButton("APPLY — RESTARTS VOX-SCRIBE");
+        apply.Click += (_, _) => (Application.Current as App)?.Restart();
+
+        void SyncApply() => apply.IsVisible =
+            !string.Equals(settings.Data.Theme, Themes.ActiveId, StringComparison.OrdinalIgnoreCase);
 
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = Tokens.Space.Snug };
         foreach (var (id, label) in Themes.Choices)
@@ -68,12 +75,15 @@ internal static class AppearanceSection
             {
                 save(settings.Data with { Theme = id });
                 MarkSelectedTheme(settings, keys);
+                SyncApply();
             };
             keys.Add((id, key));
             row.Children.Add(key);
         }
 
+        row.Children.Add(apply);
         MarkSelectedTheme(settings, keys);
+        SyncApply();
         return row;
     }
 

@@ -25,6 +25,9 @@ public static class Themes
         ("manuscript", "MANUSCRIPT"),
     ];
 
+    /// <summary>The theme currently painted, so Settings can tell "saved" from "running".</summary>
+    public static string ActiveId { get; private set; } = Default;
+
     /// <summary>Installs the theme named in settings; an unknown id gets the default.</summary>
     public static void Apply(string? id)
     {
@@ -32,8 +35,10 @@ public static class Themes
         {
             case "signal-house": SignalHouse(); break;
             case "manuscript": Manuscript(); break;
-            default: DeepField(); break;
+            default: id = Default; DeepField(); break;
         }
+
+        ActiveId = id;
     }
 
     /// <summary>

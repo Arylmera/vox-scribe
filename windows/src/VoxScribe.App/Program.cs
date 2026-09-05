@@ -35,7 +35,21 @@ public static class Program
         // character. Launching again after a rebuild, or from the Start menu while the tray
         // icon is still there, is the normal way to end up with two.
         _single = new Mutex(initiallyOwned: true, "VoxScribe.SingleInstance", out var first);
-        if (!first) return 0;
+        if (!first)
+        {
+            // A theme restart launches the new copy while the old one is still tearing
+            // down, so this copy is allowed to wait its turn instead of bowing out.
+            if (!args.Contains("--restarted", StringComparer.OrdinalIgnoreCase)) return 0;
+
+            try
+            {
+                if (!_single.WaitOne(TimeSpan.FromSeconds(10))) return 0;
+            }
+            catch (AbandonedMutexException)
+            {
+                // The old process died without releasing — the mutex is ours anyway.
+            }
+        }
 
         return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }

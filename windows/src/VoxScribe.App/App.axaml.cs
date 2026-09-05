@@ -64,6 +64,22 @@ public partial class App : Application
         }
     }
 
+    /// <summary>
+    /// Quits and relaunches, so a next-start setting (the theme) applies now. The new copy
+    /// is started first with <c>--restarted</c>, which lets it wait for the single-instance
+    /// mutex this process still holds while tearing down.
+    /// </summary>
+    public void Restart()
+    {
+        if (Environment.ProcessPath is { } exe)
+        {
+            System.Diagnostics.Process.Start(
+                new System.Diagnostics.ProcessStartInfo(exe, "--restarted"));
+        }
+
+        OnTrayQuit(this, EventArgs.Empty);
+    }
+
     private void OnTrayQuit(object? sender, EventArgs e)
     {
         // Lift the hide-to-tray guard first, or Shutdown's window close gets cancelled
