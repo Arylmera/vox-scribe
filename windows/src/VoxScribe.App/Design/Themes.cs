@@ -12,10 +12,51 @@ namespace VoxScribe.App.Design;
 /// "takes effect at next start"). The doctrine survives every theme: red means recording,
 /// green and amber are instrumentation readings, the pill never takes focus.
 /// </remarks>
+/// <summary>Where the transport (record key, meter, counter, undo) lives in the window.</summary>
+public enum TransportDock
+{
+    /// <summary>A hero instrument panel at the top: oversized counter, stats, wide meter.</summary>
+    Hero,
+
+    /// <summary>A hardware deck docked at the bottom, tape-machine style.</summary>
+    Bottom,
+}
+
+/// <summary>How past dictations are presented.</summary>
+public enum TranscriptStyle
+{
+    /// <summary>A bare list separated by hairlines.</summary>
+    Bare,
+
+    /// <summary>Numbered takes on a tape log.</summary>
+    TakeLog,
+
+    /// <summary>A day-by-day journal with times in the margin.</summary>
+    Journal,
+}
+
+/// <summary>
+/// The three visual themes, applied once at startup: palette, prose face, and layout traits.
+/// </summary>
 public static class Themes
 {
     /// <summary>Settings value of the default theme.</summary>
     public const string Default = "deep-field";
+
+    /// <summary>Where the active theme docks the transport.</summary>
+    public static TransportDock Transport { get; private set; } = TransportDock.Hero;
+
+    /// <summary>How the active theme presents past dictations.</summary>
+    public static TranscriptStyle Transcripts { get; private set; } = TranscriptStyle.Bare;
+
+    /// <summary>Whether the navigation rail is shown; the Manuscript navigates by letterhead.</summary>
+    public static bool ShowRail { get; private set; } = true;
+
+    /// <summary>Whether the meter is a needle gauge rather than a segment strip.</summary>
+    public static bool NeedleGauge { get; private set; }
+
+    /// <summary>Corner radius of the dictation pill — a paper strip is barely rounded.</summary>
+    public static double PillRadius { get; private set; } = 30;
 
     /// <summary>The selectable themes, in display order: settings id and label.</summary>
     public static readonly (string Id, string Label)[] Choices =
@@ -56,6 +97,12 @@ public static class Themes
         Tokens.Colors.Glass = Color.FromArgb(0x8C, 0x0C, 0x10, 0x16);
         Tokens.Colors.Specular = Colors.White;
         Tokens.Fonts.Prose = Tokens.Fonts.Grotesque;
+
+        Transport = TransportDock.Hero;
+        Transcripts = TranscriptStyle.Bare;
+        ShowRail = true;
+        NeedleGauge = false;
+        PillRadius = 12;
     }
 
     /// <summary>Warm broadcast hardware: charcoal panels, cream ink, tape-machine mood.</summary>
@@ -70,6 +117,12 @@ public static class Themes
         Tokens.Colors.Glass = Color.FromArgb(0x9E, 0x17, 0x12, 0x0D);
         Tokens.Colors.Specular = Color.FromRgb(0xFF, 0xF3, 0xDC);
         Tokens.Fonts.Prose = Tokens.Fonts.Grotesque;
+
+        Transport = TransportDock.Bottom;
+        Transcripts = TranscriptStyle.TakeLog;
+        ShowRail = true;
+        NeedleGauge = true;
+        PillRadius = 30;
     }
 
     /// <summary>Paper and ink: the one light theme, with transcripts set in a serif.</summary>
@@ -85,6 +138,12 @@ public static class Themes
         // Dark specular: on paper, edges and lens highlights are drawn in ink.
         Tokens.Colors.Specular = Color.FromRgb(0x23, 0x26, 0x2B);
         Tokens.Fonts.Prose = new FontFamily("Georgia, Times New Roman, serif");
+
+        Transport = TransportDock.Bottom;
+        Transcripts = TranscriptStyle.Journal;
+        ShowRail = false;
+        NeedleGauge = false;
+        PillRadius = 4;
     }
 
     private static void Set(

@@ -139,7 +139,8 @@ public sealed class HudWindow : Window
         _shell = new Border
         {
             // Transparent glass: the desktop shows through the pill.
-            CornerRadius = new CornerRadius(Tokens.Material.PillRadius),
+            // The theme decides how round the pill is — a paper strip is barely rounded.
+            CornerRadius = new CornerRadius(Themes.PillRadius),
             Background = new SolidColorBrush(Tokens.Colors.Glass),
             BorderThickness = new Thickness(Tokens.Border.Hairline),
             Padding = new Thickness(Tokens.Space.Wide, 0),

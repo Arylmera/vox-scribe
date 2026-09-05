@@ -204,6 +204,28 @@ public sealed class DesignSystemTests
         ((0.299 * c.R) + (0.587 * c.G) + (0.114 * c.B)) / 255.0;
 
     [AvaloniaFact]
+    public void Every_theme_builds_its_own_window_layout()
+    {
+        try
+        {
+            foreach (var (id, _) in Themes.Choices)
+            {
+                Themes.Apply(id);
+
+                // Each theme re-architects the window; all of them must still build, keep
+                // the record lamp red, and expose the meter the tests poke.
+                var window = new MainWindow();
+                window.RecordLamp.LampColor.ShouldBe(Tokens.Colors.Record, $"theme {id}");
+                window.Meter.ShouldNotBeNull($"theme {id}");
+            }
+        }
+        finally
+        {
+            Themes.Apply(Themes.Default);
+        }
+    }
+
+    [AvaloniaFact]
     public void Spacing_stays_on_the_four_point_grid()
     {
         double[] steps =

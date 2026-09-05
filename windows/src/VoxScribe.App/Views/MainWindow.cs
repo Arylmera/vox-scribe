@@ -52,6 +52,9 @@ public sealed class MainWindow : Window
     private Control? _transcriptionsView;
     private Control? _dictionaryView;
     private DateTimeOffset? _startedAt;
+    private TextBlock? _heroStats;
+    private Button? _journalKey;
+    private Button? _dictionaryTextKey;
 
     /// <summary>Set just before an explicit quit so the hide-to-tray guard steps aside.</summary>
     public bool ExitAllowed { get; set; }
@@ -148,13 +151,23 @@ public sealed class MainWindow : Window
 
     private DockPanel BuildLayout()
     {
-        // Edge to edge: the rail owns the left, the content column owns the rest.
+        // Edge to edge: the rail owns the left (when the theme has one), the content column
+        // owns the rest. The theme also decides where the transport lives: the Deep Field
+        // puts a hero instrument panel on top, the hardware themes dock a deck at the bottom.
         var root = new DockPanel();
-        root.Children.Add(Panels.Docked(BuildRail(), Dock.Left));
+        if (Themes.ShowRail) root.Children.Add(Panels.Docked(BuildRail(), Dock.Left));
 
         var content = new DockPanel();
         content.Children.Add(Panels.Docked(BuildTitleStrip(), Dock.Top));
-        content.Children.Add(Panels.Docked(BuildVoiceBand(), Dock.Top));
+
+        if (Themes.Transport == TransportDock.Bottom)
+        {
+            content.Children.Add(Panels.Docked(BuildTransportDeck(), Dock.Bottom));
+        }
+        else
+        {
+            content.Children.Add(Panels.Docked(BuildHeroPanel(), Dock.Top));
+        }
 
         if (_composition is not null && !Composition.IsModelInstalled)
         {
@@ -221,33 +234,181 @@ public sealed class MainWindow : Window
     /// <summary>
     /// The custom title strip. Sits inside the extended chrome region, so empty space here
     /// is the window's drag handle; the system overlays its caption buttons on the right.
+    /// Without a rail (the Manuscript), the strip is a letterhead and carries the navigation.
     /// </summary>
-    private static Border BuildTitleStrip() => new()
+    private Border BuildTitleStrip()
     {
-        Height = Tokens.Material.TitleBarHeight,
-        Padding = new Thickness(
-            Tokens.Space.Roomy, 0, Tokens.Material.CaptionButtonsReserve, 0),
-        Child = new TextBlock
+        var name = new TextBlock
         {
             Text = "Vox-Scribe",
-            FontFamily = Tokens.Fonts.Grotesque,
+            FontFamily = Themes.ShowRail ? Tokens.Fonts.Grotesque : Tokens.Fonts.Prose,
             FontSize = Tokens.Fonts.Body,
             FontWeight = FontWeight.SemiBold,
+            FontStyle = Themes.ShowRail ? FontStyle.Normal : FontStyle.Italic,
             Foreground = Tokens.Brushes.Ink,
             VerticalAlignment = VerticalAlignment.Center,
             IsHitTestVisible = false,
-        },
+        };
+
+        var strip = new Border
+        {
+            Height = Tokens.Material.TitleBarHeight,
+            Padding = new Thickness(
+                Tokens.Space.Roomy, 0, Tokens.Material.CaptionButtonsReserve, 0),
+        };
+
+        if (Themes.ShowRail)
+        {
+            strip.Child = name;
+            return strip;
+        }
+
+        _journalKey = Panels.DeckButton("JOURNAL");
+        _dictionaryTextKey = Panels.DeckButton("DICTIONARY");
+        var settingsKey = Panels.DeckButton("SETTINGS");
+        _journalKey.Click += (_, _) => ShowSection(transcriptions: true);
+        _dictionaryTextKey.Click += (_, _) => ShowSection(transcriptions: false);
+        settingsKey.Click += (_, _) => ShowSettings();
+
+        var nav = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = Tokens.Space.Snug,
+            VerticalAlignment = VerticalAlignment.Center,
+            Children = { _journalKey, _dictionaryTextKey, settingsKey },
+        };
+
+        var letterhead = new DockPanel();
+        letterhead.Children.Add(Panels.Docked(nav, Dock.Right));
+        letterhead.Children.Add(name);
+
+        // The letterhead rules off like a printed page head.
+        strip.BorderBrush = new SolidColorBrush(Tokens.Colors.Ink);
+        strip.BorderThickness = new Thickness(0, 0, 0, Tokens.Border.Ring);
+        strip.Margin = new Thickness(Tokens.Space.Roomy, 0, Tokens.Space.Roomy, Tokens.Space.Snug);
+        strip.Padding = new Thickness(0, 0, Tokens.Material.CaptionButtonsReserve, 0);
+        strip.Child = letterhead;
+        return strip;
+    }
+
+    /// <summary>Builds the shared UNDO key.</summary>
+    private Button BuildUndoKey()
+    {
+        // ponytail: UNDO lives here, not on a global shortcut — a dedicated undo hotkey
+        // means another IHotkeySource, settings key and chord-blocker plumbing; add when
+        // someone actually asks to undo without opening the window.
+        var undo = Panels.DeckButton("UNDO");
+        undo.VerticalAlignment = VerticalAlignment.Center;
+        ToolTip.SetTip(undo, "Delete the last dictation's text");
+        undo.Click += async (_, _) =>
+        {
+            if (_composition?.Engine is { } engine)
+                await engine.UndoLastDictationAsync(CancellationToken.None);
+        };
+        return undo;
+    }
+
+    /// <summary>
+    /// The Deep Field hero: an oversized counter with today's numbers beside it, and the
+    /// meter stretched wide underneath. The transport is part of the instrument.
+    /// </summary>
+    private Border BuildHeroPanel()
+    {
+        _counter.FontSize = Tokens.Fonts.CounterHero;
+
+        _heroStats = new TextBlock
+        {
+            FontFamily = Tokens.Fonts.Mono,
+            FontSize = Tokens.Fonts.Label,
+            Foreground = new SolidColorBrush(Tokens.Colors.Accent),
+            TextAlignment = TextAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+
+        var stats = new StackPanel
+        {
+            Spacing = Tokens.Space.Hair,
+            VerticalAlignment = VerticalAlignment.Center,
+            Children =
+            {
+                new Silkscreen { Text = "TODAY", TextAlignment = TextAlignment.Right },
+                _heroStats,
+            },
+        };
+
+        var undo = BuildUndoKey();
+        undo.Margin = new Thickness(Tokens.Space.Roomy, 0, 0, 0);
+
+        var top = new DockPanel();
+        _recordKey.Margin = new Thickness(0, 0, Tokens.Space.Roomy, 0);
+        _recordKey.VerticalAlignment = VerticalAlignment.Center;
+        top.Children.Add(Panels.Docked(_recordKey, Dock.Left));
+        top.Children.Add(Panels.Docked(undo, Dock.Right));
+        top.Children.Add(Panels.Docked(stats, Dock.Right));
+        _counter.VerticalAlignment = VerticalAlignment.Center;
+        top.Children.Add(_counter);
+
+        _meter.Height = Tokens.Material.RecordKeySize;
+        _meter.Margin = new Thickness(0, Tokens.Space.Base, 0, 0);
+
+        var hero = new StackPanel { Children = { top, _meter } };
+
+        if (_composition is not null)
+        {
+            _composition.Transcripts.Changed += (_, _) =>
+                Avalonia.Threading.Dispatcher.UIThread.Post(UpdateHeroStats);
+        }
+        UpdateHeroStats();
+
+        return new Border
+        {
+            Background = Tokens.Brushes.Panel,
+            BorderBrush = new SolidColorBrush(Tokens.Colors.Seam),
+            BorderThickness = new Thickness(0, 0, 0, Tokens.Border.Seam),
+            Padding = new Thickness(Tokens.Space.Wide, Tokens.Space.Base, Tokens.Space.Wide, Tokens.Space.Roomy),
+            Child = hero,
+        };
+    }
+
+    /// <summary>Today's takes and minutes, on the hero panel.</summary>
+    private void UpdateHeroStats()
+    {
+        if (_heroStats is null) return;
+
+        var today = DateTimeOffset.Now.Date;
+        var takes = 0;
+        var seconds = 0.0;
+        if (_composition is not null)
+        {
+            foreach (var r in _composition.Transcripts.Records)
+            {
+                if (r.At.ToLocalTime().Date != today) continue;
+                takes++;
+                seconds += r.AudioSeconds;
+            }
+        }
+
+        _heroStats.Text = string.Create(
+            CultureInfo.InvariantCulture, $"{takes} takes · {seconds / 60:0.0} min");
+    }
+
+    /// <summary>
+    /// The bottom transport deck — the tape-machine framing the hardware themes use. The
+    /// meter inside is a needle gauge when the theme says so.
+    /// </summary>
+    private Border BuildTransportDeck() => new()
+    {
+        Background = Tokens.Brushes.Deck,
+        BorderBrush = new SolidColorBrush(Tokens.Colors.Seam),
+        BorderThickness = new Thickness(0, Tokens.Border.Seam, 0, 0),
+        Padding = new Thickness(Tokens.Space.Roomy, Tokens.Space.Base),
+        Child = BuildVoiceBand(),
     };
 
-    /// <summary>The voice band: record button, full-width level bars, tape counter.</summary>
+    /// <summary>The voice band: record button, full-width meter, tape counter, undo.</summary>
     private Grid BuildVoiceBand()
     {
-        var band = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto"),
-            Margin = new Thickness(
-                Tokens.Space.Roomy, Tokens.Space.Snug, Tokens.Space.Roomy, Tokens.Space.Base),
-        };
+        var band = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto") };
 
         Grid.SetColumn(_recordKey, 0);
         band.Children.Add(_recordKey);
@@ -260,18 +421,8 @@ public sealed class MainWindow : Window
         Grid.SetColumn(_counter, 2);
         band.Children.Add(_counter);
 
-        // ponytail: UNDO lives here, not on a global shortcut — a dedicated undo hotkey
-        // means another IHotkeySource, settings key and chord-blocker plumbing; add when
-        // someone actually asks to undo without opening the window.
-        var undo = Panels.DeckButton("UNDO");
+        var undo = BuildUndoKey();
         undo.Margin = new Thickness(Tokens.Space.Base, 0, 0, 0);
-        undo.VerticalAlignment = VerticalAlignment.Center;
-        ToolTip.SetTip(undo, "Delete the last dictation's text");
-        undo.Click += async (_, _) =>
-        {
-            if (_composition?.Engine is { } engine)
-                await engine.UndoLastDictationAsync(CancellationToken.None);
-        };
         Grid.SetColumn(undo, 3);
         band.Children.Add(undo);
 
@@ -320,6 +471,17 @@ public sealed class MainWindow : Window
     {
         _transcriptionsKey.IsEngaged = transcriptions;
         _dictionaryKey.IsEngaged = !transcriptions;
+
+        // Letterhead navigation, when the theme has no rail: the open page is inked solid.
+        if (_journalKey is not null && _dictionaryTextKey is not null)
+        {
+            _journalKey.Foreground = transcriptions
+                ? Tokens.Brushes.Ink
+                : Tokens.Brushes.InkOnDeckAt(Tokens.Emphasis.Muted);
+            _dictionaryTextKey.Foreground = transcriptions
+                ? Tokens.Brushes.InkOnDeckAt(Tokens.Emphasis.Muted)
+                : Tokens.Brushes.Ink;
+        }
 
         if (_composition is null)
         {

@@ -497,6 +497,15 @@ public sealed class VuMeter : Control
         _needle = Math.Clamp(_needle + _velocity, 0, 1 + Tokens.Motion.NeedleOvershoot);
     }
 
+    /// <summary>Angular sweep of the needle, degrees off vertical to each side.</summary>
+    private const double NeedleSweep = 48;
+
+    /// <summary>Needle pivot below the face bottom, as a fraction of the face height.</summary>
+    private const double PivotDrop = 0.55;
+
+    /// <summary>Tick marks across the gauge arc.</summary>
+    private const int GaugeTicks = 9;
+
     /// <inheritdoc />
     public override void Render(DrawingContext context)
     {
@@ -506,6 +515,14 @@ public sealed class VuMeter : Control
         // Dark glass backing.
         var shape = new RoundedRect(bounds, Tokens.Radius.Chip);
         context.DrawRectangle(Tokens.Brushes.MeterFace, null, shape);
+
+        if (Themes.NeedleGauge)
+        {
+            RenderNeedle(context, bounds);
+            var rim = new Pen(new SolidColorBrush(Tokens.Colors.Seam), Tokens.Border.Hairline);
+            context.DrawRectangle(null, rim, shape);
+            return;
+        }
 
         // Rounded segments rise with the damped level; the last few are the red zone.
         // The accent is read per frame, never cached: it is a live user setting.
@@ -535,5 +552,52 @@ public sealed class VuMeter : Control
 
         var frame = new Pen(new SolidColorBrush(Tokens.Colors.Seam), Tokens.Border.Hairline);
         context.DrawRectangle(null, frame, shape);
+    }
+
+    /// <summary>
+    /// The Signal House movement: a real needle swinging over an arc of ticks, driven by
+    /// the same damped physics as the segment strip.
+    /// </summary>
+    private void RenderNeedle(DrawingContext context, Rect bounds)
+    {
+        // The pivot sits below the face, so only the top of the swing is visible — the
+        // classic bench-meter framing.
+        var pivot = new Point(bounds.Width / 2, bounds.Height * (1 + PivotDrop));
+        var reach = bounds.Height * (PivotDrop + 0.85);
+
+        // Tick marks along the arc; the last two live in the red zone.
+        for (var i = 0; i < GaugeTicks; i++)
+        {
+            var fraction = i / (double)(GaugeTicks - 1);
+            var angle = (-NeedleSweep + (2 * NeedleSweep * fraction)) * Math.PI / 180;
+            var over = i >= GaugeTicks - OverSegments;
+
+            var outer = new Point(
+                pivot.X + (reach * Math.Sin(angle)), pivot.Y - (reach * Math.Cos(angle)));
+            var inner = new Point(
+                pivot.X + (reach * 0.92 * Math.Sin(angle)), pivot.Y - (reach * 0.92 * Math.Cos(angle)));
+
+            var tick = new Pen(
+                new SolidColorBrush(
+                    over ? Tokens.Colors.MeterRed : Tokens.Colors.InkOnDeck,
+                    over ? 1.0 : Tokens.Emphasis.Outline),
+                Tokens.Border.Hairline);
+            context.DrawLine(tick, inner, outer);
+        }
+
+        // The needle itself, in ink — the accent stays out of the instrument.
+        var needleAngle = (-NeedleSweep + (2 * NeedleSweep * Math.Min(_needle, 1)))
+            * Math.PI / 180;
+        var tip = new Point(
+            pivot.X + (reach * 0.97 * Math.Sin(needleAngle)),
+            pivot.Y - (reach * 0.97 * Math.Cos(needleAngle)));
+
+        var needle = new Pen(
+            new SolidColorBrush(Tokens.Colors.InkOnDeck, IsActive ? 1.0 : Tokens.Emphasis.Soft),
+            Tokens.Border.Ring);
+        using (context.PushClip(bounds))
+        {
+            context.DrawLine(needle, pivot, tip);
+        }
     }
 }

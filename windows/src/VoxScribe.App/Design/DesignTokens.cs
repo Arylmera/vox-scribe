@@ -212,6 +212,9 @@ public static class Tokens
         /// <summary>The big transport counter.</summary>
         public const double CounterLarge = 26;
 
+        /// <summary>The oversized counter on the Deep Field hero panel.</summary>
+        public const double CounterHero = 44;
+
         /// <summary>Letter spacing for silkscreen labels, in device-independent pixels.</summary>
         public const double SilkscreenTracking = 1.1;
     }
