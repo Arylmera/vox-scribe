@@ -1,0 +1,418 @@
+<title>Four Rooms for VoxScribe</title>
+<style>
+  /* Committed single-theme page: a neutral warm-dark gallery wall, so each
+     direction plate carries its own world. All colors painted explicitly. */
+  :root {
+    --wall: #191713;
+    --wall-high: #211E19;
+    --ink: #EDE7DC;
+    --ink-mute: #9C948A;
+    --hair: #35302A;
+    --tag: #C9BFAF;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--wall);
+    color: var(--ink);
+    font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+    line-height: 1.55;
+    padding: 4rem 1.5rem 6rem;
+  }
+  .sheet { max-width: 1060px; margin: 0 auto; }
+
+  .kicker {
+    font-family: "Cascadia Mono", Consolas, monospace;
+    font-size: .72rem; letter-spacing: .22em; color: var(--ink-mute);
+    text-transform: uppercase;
+  }
+  h1 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-weight: 500; font-size: clamp(2rem, 5vw, 3.1rem);
+    letter-spacing: -.01em; margin: .4rem 0 1.2rem; text-wrap: balance;
+  }
+  .lede { max-width: 62ch; color: var(--ink); font-size: 1.02rem; }
+  .lede + .lede { margin-top: .8rem; }
+  .lede em { color: var(--tag); }
+
+  .diagnosis {
+    margin: 2.5rem 0 0; padding: 1.4rem 1.6rem;
+    border-left: 2px solid var(--tag); background: var(--wall-high);
+    max-width: 70ch;
+  }
+  .diagnosis .kicker { display: block; margin-bottom: .5rem; }
+  .diagnosis p { font-size: .95rem; color: var(--ink); max-width: 62ch; }
+  .diagnosis p + p { margin-top: .6rem; }
+
+  /* ---- Plates ---- */
+  .plate {
+    margin-top: 4.5rem; border-top: 1px solid var(--hair); padding-top: 2.2rem;
+  }
+  .plate-head { display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+  .plate-no {
+    font-family: "Cascadia Mono", Consolas, monospace;
+    font-size: .72rem; letter-spacing: .2em; color: var(--ink-mute);
+  }
+  .plate h2 {
+    font-family: Georgia, serif; font-weight: 500;
+    font-size: 1.9rem; letter-spacing: -.01em;
+  }
+  .plate .thesis { margin: .6rem 0 1.6rem; max-width: 66ch; color: var(--ink-mute); }
+  .plate .thesis strong { color: var(--ink); font-weight: 600; }
+
+  .plate-body { display: grid; grid-template-columns: 300px 1fr; gap: 2rem; align-items: start; }
+  @media (max-width: 860px) { .plate-body { grid-template-columns: 1fr; } }
+
+  .spec dt {
+    font-family: "Cascadia Mono", Consolas, monospace;
+    font-size: .68rem; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--ink-mute); margin-top: 1.1rem;
+  }
+  .spec dt:first-child { margin-top: 0; }
+  .spec dd { font-size: .9rem; margin-top: .35rem; color: var(--ink); }
+  .chips { display: flex; gap: .45rem; flex-wrap: wrap; margin-top: .45rem; }
+  .chip {
+    width: 44px; height: 30px; border-radius: 4px; border: 1px solid rgba(255,255,255,.12);
+    position: relative;
+  }
+  .chip span {
+    position: absolute; top: 34px; left: 0; white-space: nowrap;
+    font-family: Consolas, monospace; font-size: .6rem; color: var(--ink-mute);
+  }
+  .chips { margin-bottom: 1.4rem; }
+  .verdict { font-size: .85rem; color: var(--ink-mute); }
+  .verdict b { color: var(--tag); font-weight: 600; }
+
+  /* ---- Shared mockup skeleton ---- */
+  .mock { border-radius: 10px; overflow: hidden; box-shadow: 0 24px 60px rgba(0,0,0,.45); }
+  .mk-title { height: 34px; display: flex; align-items: center; padding: 0 14px; font-size: .72rem; letter-spacing: .08em; }
+  .mk-dots { margin-left: auto; display: flex; gap: 6px; }
+  .mk-dots i { width: 9px; height: 9px; border-radius: 50%; display: block; }
+  .mk-frame { display: grid; grid-template-columns: 56px 1fr; min-height: 330px; }
+  .mk-rail { display: flex; flex-direction: column; align-items: center; padding: 14px 0; gap: 14px; }
+  .mk-rail .ric { width: 26px; height: 26px; border-radius: 7px; }
+  .mk-rail .ric.gear { margin-top: auto; }
+  .mk-main { padding: 16px 18px 20px; }
+  .mk-band { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 10px; }
+  .mk-rec { width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center; }
+  .mk-rec i { width: 10px; height: 10px; border-radius: 50%; background: #E5484D; display: block; }
+  .mk-meter { flex: 1; display: flex; align-items: center; gap: 3px; height: 22px; }
+  .mk-meter i { width: 3px; border-radius: 2px; display: block; }
+  .mk-count { font-family: "Cascadia Mono", Consolas, monospace; font-size: .78rem; font-variant-numeric: tabular-nums; }
+  .mk-undo { font-family: "Cascadia Mono", Consolas, monospace; font-size: .62rem; letter-spacing: .14em; padding: 5px 12px; border-radius: 6px; }
+  .mk-rows { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .mk-row { padding: 12px 14px; border-radius: 10px; }
+  .mk-meta { display: flex; gap: 10px; font-family: Consolas, monospace; font-size: .62rem; letter-spacing: .06em; margin-bottom: 6px; }
+  .mk-meta .act { margin-left: auto; }
+  .mk-text { font-size: .82rem; line-height: 1.45; }
+  .mk-pillwrap { display: flex; justify-content: center; padding: 18px 0 4px; }
+  .mk-pill { display: flex; align-items: center; gap: 10px; padding: 8px 18px; border-radius: 999px; font-family: Consolas, monospace; font-size: .66rem; letter-spacing: .1em; }
+  .mk-pill .lamp { width: 8px; height: 8px; border-radius: 50%; background: #E5484D; }
+  .mock figcaption { display: none; }
+
+  /* =========================================================
+     A · SIGNAL HOUSE — warm broadcast hardware
+     ========================================================= */
+  .dA .mock { background: #211C17; border: 1px solid #3A322A; }
+  .dA .mk-title { background: #191512; color: #B8AB98; font-family: "Cascadia Mono", Consolas, monospace; }
+  .dA .mk-dots i { background: #4A4038; }
+  .dA .mk-rail { background: #191512; border-right: 1px solid #322B24; }
+  .dA .mk-rail .ric { background: #2B241E; border: 1px solid #3E362D; }
+  .dA .mk-rail .ric.on { background: #3E362D; border-color: #6B5F4E; }
+  .dA .mk-main { background: #211C17; }
+  .dA .mk-band { background: #191512; border: 1px solid #3A322A; border-bottom-color: #14110E; box-shadow: inset 0 1px 0 rgba(255,235,200,.05); }
+  .dA .mk-rec { background: #14110E; border: 1px solid #4A4038; }
+  .dA .mk-meter i { background: #E8DFC9; }
+  .dA .mk-count { color: #E8DFC9; }
+  .dA .mk-undo { color: #CBBFA8; background: #2B241E; border: 1px solid #4A4038; border-bottom-color: #14110E; }
+  .dA .mk-row { background: #262019; border: 1px solid #352D25; }
+  .dA .mk-meta { color: #8F8371; }
+  .dA .mk-text { color: #E8DFC9; font-family: "Segoe UI", sans-serif; }
+  .dA .mk-pill { background: #191512; border: 1px solid #4A4038; color: #CBBFA8; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+
+  /* =========================================================
+     B · THE MANUSCRIPT — dictation as writing, on paper
+     ========================================================= */
+  .dB .mock { background: #F4F2ED; border: 1px solid #DAD5CA; }
+  .dB .mk-title { background: #EDEAE3; color: #6B675E; border-bottom: 1px solid #DAD5CA; font-family: Georgia, serif; font-style: italic; letter-spacing: .02em; }
+  .dB .mk-dots i { background: #C9C3B6; }
+  .dB .mk-rail { background: #EDEAE3; border-right: 1px solid #DAD5CA; }
+  .dB .mk-rail .ric { background: transparent; border: 1px solid #C9C3B6; border-radius: 50%; }
+  .dB .mk-rail .ric.on { background: #23262B; border-color: #23262B; }
+  .dB .mk-main { background: #F4F2ED; }
+  .dB .mk-band { background: transparent; border: none; border-bottom: 1px solid #23262B; border-radius: 0; padding-left: 2px; padding-right: 2px; }
+  .dB .mk-rec { background: transparent; border: 1.5px solid #23262B; }
+  .dB .mk-meter i { background: #23262B; }
+  .dB .mk-count { color: #23262B; }
+  .dB .mk-undo { color: #F4F2ED; background: #23262B; border-radius: 999px; }
+  .dB .mk-row { background: transparent; border: none; border-radius: 0; padding: 10px 2px; border-bottom: 1px solid #DAD5CA; }
+  .dB .mk-meta { color: #8A8578; }
+  .dB .mk-text { color: #23262B; font-family: Georgia, "Times New Roman", serif; font-size: .92rem; }
+  .dB .mk-pill { background: #23262B; color: #F4F2ED; box-shadow: 0 10px 30px rgba(35,38,43,.35); }
+
+  /* =========================================================
+     C · BENCH INSTRUMENT — flat, Swiss, measurement-grade
+     ========================================================= */
+  .dC .mock { background: #E4E6E7; border: 1px solid #C6CACC; border-radius: 4px; }
+  .dC .mk-title { background: #D6D9DB; color: #43484C; font-family: "Segoe UI", sans-serif; font-weight: 600; }
+  .dC .mk-dots i { background: #AEB4B7; border-radius: 1px; }
+  .dC .mk-rail { background: #D6D9DB; border-right: 1px solid #C6CACC; }
+  .dC .mk-rail .ric { background: #FFFFFF; border: 1px solid #C6CACC; border-radius: 3px; }
+  .dC .mk-rail .ric.on { background: #16181A; border-color: #16181A; }
+  .dC .mk-main { background: #E4E6E7; }
+  .dC .mk-band { background: #FFFFFF; border: 1px solid #C6CACC; border-radius: 4px; }
+  .dC .mk-rec { background: #F2F3F4; border: 1px solid #C6CACC; border-radius: 3px; }
+  .dC .mk-meter i { background: #16181A; border-radius: 0; }
+  .dC .mk-count { color: #16181A; }
+  .dC .mk-undo { color: #16181A; background: #FFFFFF; border: 1px solid #16181A; border-radius: 3px; }
+  .dC .mk-row { background: #FFFFFF; border: 1px solid #C6CACC; border-radius: 4px; }
+  .dC .mk-meta { color: #6E7478; }
+  .dC .mk-meta .tagc { color: #0F5FDE; }
+  .dC .mk-text { color: #16181A; }
+  .dC .mk-pill { background: #16181A; color: #E4E6E7; border-radius: 4px; }
+
+  /* =========================================================
+     D · OBSIDIAN — Void Glass, solidified
+     ========================================================= */
+  .dD .mock { background: #0E1116; border: 1px solid #232A33; }
+  .dD .mk-title { background: #0A0D11; color: #7E8994; font-family: "Cascadia Mono", Consolas, monospace; }
+  .dD .mk-dots i { background: #2C343E; }
+  .dD .mk-rail { background: #0A0D11; border-right: 1px solid #1B212A; }
+  .dD .mk-rail .ric { background: #161B22; border: 1px solid #232A33; }
+  .dD .mk-rail .ric.on { background: #1E2630; border-color: #3D4854; }
+  .dD .mk-main { background: #0E1116; }
+  .dD .mk-band { background: #141922; border: 1px solid #232A33; }
+  .dD .mk-rec { background: #0A0D11; border: 1px solid #2C343E; }
+  .dD .mk-meter i { background: #7FB4C4; }
+  .dD .mk-count { color: #C7D0D9; }
+  .dD .mk-undo { color: #9FB6BF; background: #161B22; border: 1px solid #2C343E; }
+  .dD .mk-row { background: #12161D; border: 1px solid #1E252E; }
+  .dD .mk-meta { color: #66717C; }
+  .dD .mk-text { color: #C7D0D9; }
+  .dD .mk-pill { background: #12161D; border: 1px solid #2C343E; color: #9FB6BF; }
+
+  .closing { margin-top: 4.5rem; border-top: 1px solid var(--hair); padding-top: 2rem; max-width: 70ch; }
+  .closing h2 { font-family: Georgia, serif; font-weight: 500; font-size: 1.4rem; margin-bottom: .8rem; }
+  .closing p { font-size: .95rem; color: var(--ink-mute); }
+  .closing p + p { margin-top: .6rem; }
+  .closing b { color: var(--ink); }
+  .sources { margin-top: 1.6rem; font-size: .8rem; color: var(--ink-mute); }
+  .sources a { color: var(--tag); }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="sheet">
+  <p class="kicker">VoxScribe · design directions · September 2026</p>
+  <h1>Four rooms the app could live in</h1>
+  <p class="lede">The brief: the current look feels <em>flimsy and a bit too AI-like</em>. Below are four
+  directions, each shown on the same three surfaces — the voice band, two transcript rows, and the
+  pill. The red lamp stays red in all four; that rule is not up for debate.</p>
+
+  <div class="diagnosis">
+    <span class="kicker">Why it reads as “AI-like”</span>
+    <p>Void Glass is cool near-black + translucent cards + a lone cyan accent — which is, almost
+    exactly, the default look AI tools ship with in 2026. It isn't badly executed; it's
+    <b>over-represented</b>. Translucency also reads as lightweight: glass panels have no visual
+    mass, so the app feels like an overlay rather than an instrument.</p>
+    <p>What the well-regarded apps in this space do differently: Wispr Flow's polish comes from
+    restraint and motion, not effects; superwhisper and Aqua Voice stay almost invisible. The trend
+    literature says the same thing — heavy glassmorphism is out, solidity and warmth are in.</p>
+  </div>
+
+  <!-- ============ A ============ -->
+  <section class="plate dA">
+    <div class="plate-head"><span class="plate-no">DIRECTION A</span><h2>Signal House</h2></div>
+    <p class="thesis">A warm broadcast console. Dictation is a <strong>recording</strong> act, so the app borrows
+    from studio hardware: warm charcoal instead of blue-black, panels with visible edges and inset
+    shadows, cream ink, mono labels. <strong>The accent colour is deleted</strong> — hardware shows state with
+    lamps, and the red lamp becomes the only saturated thing on screen.</p>
+    <div class="plate-body">
+      <dl class="spec">
+        <dt>Palette</dt>
+        <dd class="chips">
+          <div class="chip" style="background:#211C17"><span>#211C17</span></div>
+          <div class="chip" style="background:#191512"><span>#191512</span></div>
+          <div class="chip" style="background:#E8DFC9"><span>#E8DFC9</span></div>
+          <div class="chip" style="background:#4A4038"><span>#4A4038</span></div>
+          <div class="chip" style="background:#E5484D"><span>#E5484D</span></div>
+        </dd>
+        <dt>Type</dt><dd>Cascadia Mono for every label and number; Segoe UI for transcripts. The mono does the talking.</dd>
+        <dt>Feel</dt><dd>Heavy, tactile, owned. The opposite of flimsy.</dd>
+        <dt>Cost</dt><dd class="verdict"><b>Medium.</b> New token values + bevel treatment on controls. Kills the accent-colour setting.</dd>
+      </dl>
+      <figure class="mock">
+        <div class="mk-title">VOX-SCRIBE<div class="mk-dots"><i></i><i></i><i></i></div></div>
+        <div class="mk-frame">
+          <div class="mk-rail"><div class="ric on"></div><div class="ric"></div><div class="ric gear"></div></div>
+          <div class="mk-main">
+            <div class="mk-band">
+              <div class="mk-rec"><i></i></div>
+              <div class="mk-meter"><i style="height:30%"></i><i style="height:55%"></i><i style="height:80%"></i><i style="height:65%"></i><i style="height:90%"></i><i style="height:45%"></i><i style="height:70%"></i><i style="height:35%"></i><i style="height:60%"></i><i style="height:85%"></i><i style="height:50%"></i><i style="height:25%"></i><i style="height:40%"></i><i style="height:65%"></i><i style="height:30%"></i></div>
+              <span class="mk-count">00:12</span>
+              <span class="mk-undo">UNDO</span>
+            </div>
+            <div class="mk-rows">
+              <div class="mk-row"><div class="mk-meta"><span>14:32:08</span><span>1.2s</span><span class="act">COPY · DELETE</span></div>
+                <p class="mk-text">Send the revised installer to the beta group before Friday, and note that the model download is six hundred megabytes.</p></div>
+              <div class="mk-row"><div class="mk-meta"><span>14:28:41</span><span>0.8s</span><span class="act">COPY · DELETE</span></div>
+                <p class="mk-text">The latency readout should appear right after the key is released.</p></div>
+            </div>
+            <div class="mk-pillwrap"><div class="mk-pill"><span class="lamp"></span>REC · RAW <span style="opacity:.6">0:07</span></div></div>
+          </div>
+        </div>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ============ B ============ -->
+  <section class="plate dB">
+    <div class="plate-head"><span class="plate-no">DIRECTION B</span><h2>The Manuscript</h2></div>
+    <p class="thesis">Dictation is <strong>writing</strong>, so the app becomes a writing tool: cool paper, blue-black
+    ink, a serif for the words you spoke, rules instead of cards. Transcripts stop being rows in a
+    database and read like a manuscript with margin notes. The only dark surface left is the pill —
+    an ink stamp at the bottom of the screen.</p>
+    <div class="plate-body">
+      <dl class="spec">
+        <dt>Palette</dt>
+        <dd class="chips">
+          <div class="chip" style="background:#F4F2ED"><span>#F4F2ED</span></div>
+          <div class="chip" style="background:#EDEAE3"><span>#EDEAE3</span></div>
+          <div class="chip" style="background:#23262B"><span>#23262B</span></div>
+          <div class="chip" style="background:#8A8578"><span>#8A8578</span></div>
+          <div class="chip" style="background:#E5484D"><span>#E5484D</span></div>
+        </dd>
+        <dt>Type</dt><dd>Georgia (or Charter) for transcript text; Segoe UI for controls; Consolas for timestamps.</dd>
+        <dt>Feel</dt><dd>Literary, calm, distinctly un-AI. Nobody else in the category is light-mode.</dd>
+        <dt>Cost</dt><dd class="verdict"><b>High.</b> Full light theme — every token, every lamp colour re-checked for contrast, both UiTests doctrine rules re-pinned.</dd>
+      </dl>
+      <figure class="mock">
+        <div class="mk-title">Vox-Scribe<div class="mk-dots"><i></i><i></i><i></i></div></div>
+        <div class="mk-frame">
+          <div class="mk-rail"><div class="ric on"></div><div class="ric"></div><div class="ric gear"></div></div>
+          <div class="mk-main">
+            <div class="mk-band">
+              <div class="mk-rec"><i></i></div>
+              <div class="mk-meter"><i style="height:30%"></i><i style="height:55%"></i><i style="height:80%"></i><i style="height:65%"></i><i style="height:90%"></i><i style="height:45%"></i><i style="height:70%"></i><i style="height:35%"></i><i style="height:60%"></i><i style="height:85%"></i><i style="height:50%"></i><i style="height:25%"></i><i style="height:40%"></i><i style="height:65%"></i><i style="height:30%"></i></div>
+              <span class="mk-count">00:12</span>
+              <span class="mk-undo">UNDO</span>
+            </div>
+            <div class="mk-rows">
+              <div class="mk-row"><div class="mk-meta"><span>14:32:08</span><span>1.2s</span><span class="act">copy · delete</span></div>
+                <p class="mk-text">Send the revised installer to the beta group before Friday, and note that the model download is six hundred megabytes.</p></div>
+              <div class="mk-row"><div class="mk-meta"><span>14:28:41</span><span>0.8s</span><span class="act">copy · delete</span></div>
+                <p class="mk-text">The latency readout should appear right after the key is released.</p></div>
+            </div>
+            <div class="mk-pillwrap"><div class="mk-pill"><span class="lamp"></span>REC · RAW <span style="opacity:.6">0:07</span></div></div>
+          </div>
+        </div>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ============ C ============ -->
+  <section class="plate dC">
+    <div class="plate-head"><span class="plate-no">DIRECTION C</span><h2>Bench Instrument</h2></div>
+    <p class="thesis">Flat, Swiss, measurement-grade — an oscilloscope, not a chat app. Light-grey
+    chassis, white panels with 1px borders, near-square corners, black bars in the meter, tabular
+    numerals everywhere. One cold <strong>signal blue</strong> for interactive emphasis. No glass, no glow, no
+    radius over 4px. Precision instead of atmosphere.</p>
+    <div class="plate-body">
+      <dl class="spec">
+        <dt>Palette</dt>
+        <dd class="chips">
+          <div class="chip" style="background:#E4E6E7"><span>#E4E6E7</span></div>
+          <div class="chip" style="background:#FFFFFF"><span>#FFFFFF</span></div>
+          <div class="chip" style="background:#16181A"><span>#16181A</span></div>
+          <div class="chip" style="background:#0F5FDE"><span>#0F5FDE</span></div>
+          <div class="chip" style="background:#E5484D"><span>#E5484D</span></div>
+        </dd>
+        <dt>Type</dt><dd>Segoe UI semibold for headings, regular for body, Consolas for every number. Tight scale, no italics.</dd>
+        <dt>Feel</dt><dd>Serious lab equipment. Ages the slowest of the four.</dd>
+        <dt>Cost</dt><dd class="verdict"><b>High.</b> Light theme + the generous-radii doctrine test inverted (the current tests pin big radii; this direction repeals that law deliberately).</dd>
+      </dl>
+      <figure class="mock">
+        <div class="mk-title">VOX-SCRIBE — DICTATION<div class="mk-dots"><i></i><i></i><i></i></div></div>
+        <div class="mk-frame">
+          <div class="mk-rail"><div class="ric on"></div><div class="ric"></div><div class="ric gear"></div></div>
+          <div class="mk-main">
+            <div class="mk-band">
+              <div class="mk-rec"><i></i></div>
+              <div class="mk-meter"><i style="height:30%"></i><i style="height:55%"></i><i style="height:80%"></i><i style="height:65%"></i><i style="height:90%"></i><i style="height:45%"></i><i style="height:70%"></i><i style="height:35%"></i><i style="height:60%"></i><i style="height:85%"></i><i style="height:50%"></i><i style="height:25%"></i><i style="height:40%"></i><i style="height:65%"></i><i style="height:30%"></i></div>
+              <span class="mk-count">00:12.4</span>
+              <span class="mk-undo">UNDO</span>
+            </div>
+            <div class="mk-rows">
+              <div class="mk-row"><div class="mk-meta"><span>14:32:08</span><span class="tagc">1.20 s</span><span class="act">COPY | DELETE</span></div>
+                <p class="mk-text">Send the revised installer to the beta group before Friday, and note that the model download is six hundred megabytes.</p></div>
+              <div class="mk-row"><div class="mk-meta"><span>14:28:41</span><span class="tagc">0.80 s</span><span class="act">COPY | DELETE</span></div>
+                <p class="mk-text">The latency readout should appear right after the key is released.</p></div>
+            </div>
+            <div class="mk-pillwrap"><div class="mk-pill"><span class="lamp"></span>REC · RAW <span style="opacity:.6">0:07</span></div></div>
+          </div>
+        </div>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ============ D ============ -->
+  <section class="plate dD">
+    <div class="plate-head"><span class="plate-no">DIRECTION D</span><h2>Obsidian</h2></div>
+    <p class="thesis">Void Glass, <strong>solidified</strong> — the evolution, not the revolution. Keep the dark room
+    and the layered depth, but make every surface opaque, tighten the radii one step, desaturate
+    the cyan to a steel tone, and let borders (not translucency) do the separation. The pill keeps
+    its glass; the main window gains mass. Fixes “flimsy” without changing the app's identity.</p>
+    <div class="plate-body">
+      <dl class="spec">
+        <dt>Palette</dt>
+        <dd class="chips">
+          <div class="chip" style="background:#0E1116"><span>#0E1116</span></div>
+          <div class="chip" style="background:#141922"><span>#141922</span></div>
+          <div class="chip" style="background:#C7D0D9"><span>#C7D0D9</span></div>
+          <div class="chip" style="background:#7FB4C4"><span>#7FB4C4</span></div>
+          <div class="chip" style="background:#E5484D"><span>#E5484D</span></div>
+        </dd>
+        <dt>Type</dt><dd>Unchanged — Segoe UI Variable + Cascadia Mono already fit this direction.</dd>
+        <dt>Feel</dt><dd>Same room, better furniture. Least distinctive, least risky.</dd>
+        <dt>Cost</dt><dd class="verdict"><b>Low.</b> Almost entirely token edits in DesignTokens.cs; accent swatches survive; every doctrine test keeps passing.</dd>
+      </dl>
+      <figure class="mock">
+        <div class="mk-title">VOX-SCRIBE<div class="mk-dots"><i></i><i></i><i></i></div></div>
+        <div class="mk-frame">
+          <div class="mk-rail"><div class="ric on"></div><div class="ric"></div><div class="ric gear"></div></div>
+          <div class="mk-main">
+            <div class="mk-band">
+              <div class="mk-rec"><i></i></div>
+              <div class="mk-meter"><i style="height:30%"></i><i style="height:55%"></i><i style="height:80%"></i><i style="height:65%"></i><i style="height:90%"></i><i style="height:45%"></i><i style="height:70%"></i><i style="height:35%"></i><i style="height:60%"></i><i style="height:85%"></i><i style="height:50%"></i><i style="height:25%"></i><i style="height:40%"></i><i style="height:65%"></i><i style="height:30%"></i></div>
+              <span class="mk-count">00:12</span>
+              <span class="mk-undo">UNDO</span>
+            </div>
+            <div class="mk-rows">
+              <div class="mk-row"><div class="mk-meta"><span>14:32:08</span><span>1.2s</span><span class="act">COPY · DELETE</span></div>
+                <p class="mk-text">Send the revised installer to the beta group before Friday, and note that the model download is six hundred megabytes.</p></div>
+              <div class="mk-row"><div class="mk-meta"><span>14:28:41</span><span>0.8s</span><span class="act">COPY · DELETE</span></div>
+                <p class="mk-text">The latency readout should appear right after the key is released.</p></div>
+            </div>
+            <div class="mk-pillwrap"><div class="mk-pill"><span class="lamp"></span>REC · RAW <span style="opacity:.6">0:07</span></div></div>
+          </div>
+        </div>
+      </figure>
+    </div>
+  </section>
+
+  <div class="closing">
+    <h2>Recommendation</h2>
+    <p><b>Obsidian (D) now, Signal House (A) if you want a personality.</b> D fixes the specific
+    complaint — flimsiness — for a token-file-sized diff and keeps every pinned design law intact.
+    A is the direction none of the competitors occupy: warm, physical, recording-studio instead of
+    AI-tool; it costs more and retires the accent-colour setting, but it is the one people would
+    remember. B and C are strong but flip to light mode, which is a rewrite of the design doctrine,
+    not a restyle.</p>
+    <p>The pill is nearly invisible in daily use, so whichever direction wins, the main window is
+    where the change is felt — Wispr Flow's lesson is that the overlay should stay quiet and the
+    polish should live in restraint.</p>
+    <p class="sources">Research: <a href="https://tldv.io/blog/wisprflow/">Wispr Flow review</a> ·
+    <a href="https://efficient.app/apps/wispr-flow">Efficient App on Wispr Flow</a> ·
+    <a href="https://superwhisper.com/vs/aqua-voice">superwhisper vs Aqua Voice</a> ·
+    <a href="https://www.designstudiouiux.com/blog/what-is-glassmorphism-ui-trend/">glassmorphism in 2026</a> ·
+    <a href="https://midrocket.com/en/guides/ui-design-trends-2026/">UI trends 2026</a></p>
+  </div>
+</div>
