@@ -43,6 +43,15 @@ your text still lands where the caret is.
 - **Latency readout** — after a clean finish the pill holds for a moment and the timer slot
   shows the wait you just felt, e.g. `1.2s` (from key release to text typed).
 
+## Cancelling a dictation
+
+Changed your mind mid-sentence: press **Escape** while the pill is recording (it shows a
+small `ESC` next to the timer as a reminder). The microphone stops, nothing is typed, and
+anything incremental mode had already typed is backspaced away. The pill lingers a moment
+saying *Cancelled*. Outside a recording Escape is not touched, so it keeps its usual
+meaning in whatever app you are in — which also means the app behind still receives the
+key during a recording.
+
 ## Undoing the last dictation
 
 Wrong window, mangled sentence, accidental press: open the main window and click **UNDO**

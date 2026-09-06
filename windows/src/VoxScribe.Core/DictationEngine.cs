@@ -55,7 +55,11 @@ public sealed class DictationEngine : IAsyncDisposable
     private readonly IClock _clock;
     private readonly Func<IReadOnlyList<DictionaryEntry>> _dictionary;
     private readonly IHotkeySource? _cleanupHotkey;
+    private readonly IHotkeySource? _cancelHotkey;
     private readonly IFocusAnchor? _focusAnchor;
+
+    /// <summary>Set by <see cref="CancelAsync"/>; segments still in flight then stay untyped.</summary>
+    private volatile bool _cancelled;
 
     private readonly SemaphoreSlim _gate = new(1, 1);
 
@@ -149,6 +153,11 @@ public sealed class DictationEngine : IAsyncDisposable
     /// Optional. Remembers the focused field at press so the text can be typed there at
     /// release even if the user has moved on. Null means text goes wherever focus is.
     /// </param>
+    /// <param name="cancelHotkey">
+    /// Optional. Its press while recording throws the utterance away — see
+    /// <see cref="CancelAsync"/>. Ignored in every other state, so the key keeps its
+    /// ordinary meaning outside a dictation.
+    /// </param>
     public DictationEngine(
         IAudioCapture capture,
         IHotkeySource hotkey,
@@ -157,7 +166,8 @@ public sealed class DictationEngine : IAsyncDisposable
         Func<IReadOnlyList<DictionaryEntry>> dictionary,
         IClock? clock = null,
         IHotkeySource? cleanupHotkey = null,
-        IFocusAnchor? focusAnchor = null)
+        IFocusAnchor? focusAnchor = null,
+        IHotkeySource? cancelHotkey = null)
     {
         _capture = capture;
         _hotkey = hotkey;
@@ -176,6 +186,12 @@ public sealed class DictationEngine : IAsyncDisposable
             cleanupHotkey.Pressed += OnCleanupPressed;
             cleanupHotkey.Released += OnReleased;
         }
+
+        if (cancelHotkey is not null)
+        {
+            _cancelHotkey = cancelHotkey;
+            cancelHotkey.Pressed += OnCancelPressed;
+        }
     }
 
     /// <summary>Arms the hotkey.</summary>
@@ -185,6 +201,7 @@ public sealed class DictationEngine : IAsyncDisposable
         // The second shortcut is a convenience: if its hook fails to install, dictation must
         // still work from the first.
         _cleanupHotkey?.Start();
+        _cancelHotkey?.Start();
         return _hotkey.Start();
     }
 
@@ -220,6 +237,12 @@ public sealed class DictationEngine : IAsyncDisposable
         var text = Journal.InjectedText;
         if (text.Length == 0) return false;
 
+        return await BackspaceAsync(text, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Takes <paramref name="text"/> back out of the target, one backspace per grapheme.</summary>
+    private async Task<bool> BackspaceAsync(string text, CancellationToken cancellationToken)
+    {
         var keystrokes = new StringInfo(text).LengthInTextElements;
         for (var i = 0; i < keystrokes; i++)
         {
@@ -232,6 +255,59 @@ public sealed class DictationEngine : IAsyncDisposable
 
         Journal.Retract(text.Length);
         return true;
+    }
+
+    /// <summary>
+    /// Throws the utterance in progress away: stops the microphone, drops every segment
+    /// still in flight, and takes back whatever incremental mode already typed. Nothing is
+    /// reported to <see cref="Completed"/>. No-op unless recording.
+    /// </summary>
+    public async Task CancelAsync()
+    {
+        await _gate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            if (State != DictationState.Recording) return;
+
+            _cancelled = true;
+            await _recording!.CancelAsync().ConfigureAwait(false);
+            Level = 0;
+            // Transcribing, not Idle yet: a release arriving now must not start a second
+            // end, and the pill keeps showing "working" until the typed text is gone.
+            SetState(DictationState.Transcribing);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+
+        try
+        {
+            Task<Segment>[] pending;
+            lock (_segments)
+            {
+                _segmenter = null;
+                pending = [.. _queued];
+                _queued = [];
+            }
+
+            // Segments already past the transcriber may have typed before the flag was
+            // seen; wait for the chain so the journal is final before it is replayed.
+            await Task.WhenAll(pending).ConfigureAwait(false);
+
+            var typed = Journal.InjectedText;
+            if (typed.Length > 0)
+                await BackspaceAsync(typed, CancellationToken.None).ConfigureAwait(false);
+
+            PartialText = string.Empty;
+            ReportNotice("Cancelled");
+        }
+        finally
+        {
+            _recording?.Dispose();
+            _recording = null;
+            SetState(DictationState.Idle);
+        }
     }
 
     private void Toggle()
@@ -348,6 +424,8 @@ public sealed class DictationEngine : IAsyncDisposable
         else _ = BeginAsync();
     }
 
+    private void OnCancelPressed(object? sender, EventArgs e) => _ = CancelAsync();
+
     private void OnReleased(object? sender, EventArgs e)
     {
         // In toggle mode the release of the starting press must not stop the recording.
@@ -380,6 +458,7 @@ public sealed class DictationEngine : IAsyncDisposable
                 : null;
 
             _capturedSamples = 0;
+            _cancelled = false;
             PartialText = string.Empty;
             Notice = string.Empty;
             Journal.BeginDictation();
@@ -537,7 +616,7 @@ public sealed class DictationEngine : IAsyncDisposable
                 .ConfigureAwait(false);
 
             var trimmed = raw?.Trim() ?? string.Empty;
-            if (trimmed.Length == 0) return Segment.Empty;
+            if (trimmed.Length == 0 || _cancelled) return Segment.Empty;
 
             // The dictionary runs on every segment and unconditionally. Biasing only raises
             // the odds of the right word; this is the pass that guarantees it.
@@ -590,6 +669,12 @@ public sealed class DictationEngine : IAsyncDisposable
             _cleanupHotkey.Pressed -= OnCleanupPressed;
             _cleanupHotkey.Released -= OnReleased;
             _cleanupHotkey.Dispose();
+        }
+
+        if (_cancelHotkey is not null)
+        {
+            _cancelHotkey.Pressed -= OnCancelPressed;
+            _cancelHotkey.Dispose();
         }
 
         if (_recording is not null)

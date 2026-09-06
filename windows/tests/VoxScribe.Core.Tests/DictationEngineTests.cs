@@ -158,6 +158,50 @@ public sealed class DictationEngineTests
     }
 
     [Fact]
+    public async Task Cancel_hotkey_while_recording_discards_the_utterance()
+    {
+        var hotkey = new FakeHotkeySource();
+        var cancel = new FakeHotkeySource();
+        var injector = new RecordingTextInjector();
+        var completed = 0;
+        await using var engine = new DictationEngine(
+            FakeAudioCapture.Tone(2.0), hotkey, new FakeTranscriber("hello world"), injector,
+            () => [], new FakeClock(), cancelHotkey: cancel);
+        engine.Completed += (_, _) => completed++;
+
+        hotkey.Press();
+        for (var i = 0; i < 20000 && engine.Level == 0; i++) await Task.Yield();
+
+        cancel.Press();
+        for (var i = 0; i < 20000 && engine.State != DictationState.Idle; i++) await Task.Yield();
+        hotkey.Release();
+        for (var i = 0; i < 2000; i++) await Task.Yield();
+
+        engine.State.ShouldBe(DictationState.Idle);
+        injector.Injected.ShouldBeEmpty("a cancelled dictation must type nothing");
+        completed.ShouldBe(0);
+        engine.Notice.ShouldBe("Cancelled");
+    }
+
+    [Fact]
+    public async Task Cancel_outside_recording_is_a_no_op()
+    {
+        var hotkey = new FakeHotkeySource();
+        var cancel = new FakeHotkeySource();
+        var injector = new RecordingTextInjector();
+        await using var engine = new DictationEngine(
+            FakeAudioCapture.Tone(2.0), hotkey, new FakeTranscriber("hi"), injector,
+            () => [], new FakeClock(), cancelHotkey: cancel);
+
+        await DictateAsync(hotkey, engine);
+        await engine.CancelAsync();
+
+        injector.Injected.ShouldBe(["hi"]);
+        injector.Backspaces.ShouldBe(0);
+        engine.Notice.ShouldBe(string.Empty);
+    }
+
+    [Fact]
     public async Task Undo_with_nothing_injected_does_nothing()
     {
         var hotkey = new FakeHotkeySource();

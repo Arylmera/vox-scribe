@@ -55,6 +55,7 @@ public sealed class HudWindow : Window
     private readonly HudBars _bars;
     private readonly TextBlock _mode;
     private readonly TextBlock _timer;
+    private readonly TextBlock _hint;
     private readonly TextBlock _preview;
 
     /// <summary>Utterance clock, display-only. Runs while recording, freezes for the tail.</summary>
@@ -124,6 +125,18 @@ public sealed class HudWindow : Window
             VerticalAlignment = VerticalAlignment.Center,
         };
 
+        // The one thing the pill teaches: Escape throws the utterance away. Only shown
+        // while recording, because that is the only time the key means that.
+        _hint = new TextBlock
+        {
+            Text = "ESC",
+            FontFamily = Tokens.Fonts.Mono,
+            FontSize = Tokens.Fonts.Caption,
+            LetterSpacing = Tokens.Fonts.SilkscreenTracking,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(Tokens.Space.Snug, 0, 0, 0),
+        };
+
         _preview = new TextBlock
         {
             Margin = new Thickness(Tokens.Space.Tight, Tokens.Space.Hair, Tokens.Space.Tight, 0),
@@ -165,7 +178,7 @@ public sealed class HudWindow : Window
     {
         var row = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
+            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto"),
             Height = Tokens.Size.PillCompactHeight,
         };
 
@@ -180,9 +193,11 @@ public sealed class HudWindow : Window
         Grid.SetColumn(readout, 0);
         Grid.SetColumn(_bars, 1);
         Grid.SetColumn(_timer, 2);
+        Grid.SetColumn(_hint, 3);
         row.Children.Add(readout);
         row.Children.Add(_bars);
         row.Children.Add(_timer);
+        row.Children.Add(_hint);
 
         return row;
     }
@@ -204,6 +219,8 @@ public sealed class HudWindow : Window
             : new SolidColorBrush(Tokens.Colors.MeterAmber);
 
         _lamp.Fill = recording ? Tokens.Brushes.Record : new SolidColorBrush(Tokens.Colors.RecordIdle);
+        _hint.IsVisible = recording;
+        _hint.Foreground = new SolidColorBrush(Tokens.Colors.Ink, GlassInkOpacity * 0.6);
         _timer.Foreground = recording
             ? new SolidColorBrush(Tokens.Colors.Accent)
             : new SolidColorBrush(Tokens.Colors.Ink, GlassInkOpacity);
@@ -302,6 +319,7 @@ public sealed class HudWindow : Window
         _shown = null;
 
         _mode.Text = "NOTICE";
+        _hint.IsVisible = false;
         _mode.Foreground = new SolidColorBrush(Tokens.Colors.Ink, GlassInkOpacity);
         _lamp.Fill = new SolidColorBrush(Tokens.Colors.RecordIdle);
         _shell.BorderBrush = new SolidColorBrush(

@@ -1,4 +1,4 @@
-using Avalonia.Media;
+﻿using Avalonia.Media;
 using VoxScribe.Abstractions;
 using VoxScribe.App.Design;
 using VoxScribe.Core;
@@ -138,11 +138,17 @@ public sealed class Composition : IAsyncDisposable
             PlatformFactory.UpdateHotkeyBlockers(
                 hotkey!, Blockers(settings.Data.ResolvedPushToTalkKeys, cleanupKeys));
 
+            // Escape throws a dictation away. The hook never swallows keys, so outside a
+            // recording Escape still reaches whatever app has it — the engine ignores it.
+            const int VkEscape = 0x1B;
+            var cancelHotkey = PlatformFactory.CreateHotkeySource(VkEscape);
+
             engine = new DictationEngine(
                 capture!, hotkey!, transcriber, injector!,
                 () => dictionary.Entries,
                 cleanupHotkey: cleanupHotkey,
-                focusAnchor: focusAnchor);
+                focusAnchor: focusAnchor,
+                cancelHotkey: cancelHotkey);
 
             engine.ToggleMode = settings.Data.PushToTalkToggle;
             engine.IncrementalInjection = settings.Data.IncrementalInjection;
