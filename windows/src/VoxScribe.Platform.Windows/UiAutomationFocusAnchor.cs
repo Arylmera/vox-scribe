@@ -99,6 +99,62 @@ public sealed class UiAutomationFocusAnchor : IFocusAnchor
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool AttachThreadInput(uint attach, uint attachTo, [MarshalAs(UnmanagedType.Bool)] bool doAttach);
 
+    private delegate bool EnumWindowsProc(IntPtr hwnd, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool EnumWindows(EnumWindowsProc callback, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsWindowVisible(IntPtr hwnd);
+
+    [DllImport("user32.dll", EntryPoint = "GetWindowTextW", CharSet = CharSet.Unicode)]
+    private static extern int GetWindowText(IntPtr hwnd, [Out] char[] text, int max);
+
+    [DllImport("user32.dll", EntryPoint = "GetWindowThreadProcessId")]
+    private static extern uint GetWindowProcess(IntPtr hwnd, out uint processId);
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// First visible top-level window whose title contains the fragment, our own windows
+    /// excluded. Element null: the window's own last-focused control is what we want — in
+    /// a terminal or a chat app that is the input line.
+    /// </remarks>
+    public async ValueTask<IFocusTarget?> FindAsync(string titleContains, CancellationToken cancellationToken)
+    {
+        var work = Task.Run(() =>
+        {
+            var found = IntPtr.Zero;
+            var buffer = new char[512];
+            var self = (uint)Environment.ProcessId;
+
+            EnumWindows((hwnd, lParam) =>
+            {
+                if (!IsWindowVisible(hwnd)) return true;
+
+                var thread = GetWindowProcess(hwnd, out var owner);
+                if (thread == 0 || owner == self) return true;
+
+                var length = GetWindowText(hwnd, buffer, buffer.Length);
+                if (length <= 0) return true;
+
+                if (!buffer.AsSpan(0, length).Contains(titleContains, StringComparison.OrdinalIgnoreCase))
+                    return true;
+
+                found = hwnd;
+                return false;   // stop enumerating
+            }, IntPtr.Zero);
+
+            return found == IntPtr.Zero ? null : new Target(found, null);
+        }, cancellationToken);
+
+        var finished = await Task.WhenAny(work, Task.Delay(CaptureTimeout, cancellationToken))
+            .ConfigureAwait(false);
+
+        return finished == work && work.Status == TaskStatus.RanToCompletion ? work.Result : null;
+    }
+
     // Built on first use from inside the pool-thread work below, never from the app's STA UI
     // thread: UI Automation clients belong in an MTA. An object created on the STA would have
     // every call marshalled back to it, so a hung target would freeze the window instead of

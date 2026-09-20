@@ -57,10 +57,17 @@ every phrase is typed the moment it is transcribed, so by the end of the utteran
 nothing left to improve. The pill's badge reads RAW rather than CLEAN, because it reports
 what will actually happen and not which key was pressed.
 
-**Two shortcuts, and the longer one wins.** Binding Right Shift for raw and Left Shift +
-Right Shift for cleanup means both chords are satisfied by the second gesture. The plain
-hook is given the keys that belong only to the cleanup chord and stands aside while any of
-them is held. Remove that and the raw shortcut silently eats every cleanup dictation.
+**Four chords, and the longer one wins.** Binding Right Shift for raw and Left Shift +
+Right Shift for cleanup means both chords are satisfied by the second gesture. Each hook is
+given the keys that belong only to a longer chord containing its own (`Composition.Blockers`)
+and stands aside while any of them is held. Remove that and the shorter shortcut silently
+eats every dictation meant for the longer. Unbound chords are empty arrays on live hooks,
+not null hooks, so binding one for the first time needs no restart.
+
+**Command mode types nowhere if it cannot find its window.** The command chord's text goes
+to the first visible window whose title contains `CommandWindowTitle`, then Return. If no
+window matches, or it will not come forward, the engine posts a notice and types nothing —
+a prompt meant for Claude landing in the focused spreadsheet is the worse failure.
 
 **One `WH_KEYBOARD_LL` hook per process, in `KeyboardHook`.** Every shortcut is a listener on
 it, not a hook of its own. `PushToTalkHook` once kept a callback and a "current instance" in
@@ -153,10 +160,11 @@ lookahead, `\p{L}`, and `$1`–`$9` in replacements. Nothing else.
 
 ## What isn't built
 
-1. **Command Mode** — dictate at a Claude Code session instead of at a text field.
-2. **Onboarding** — a first-run window, and model download from inside the app rather than
+1. **Onboarding** — a first-run window, and model download from inside the app rather than
    by following `docs/PARAKEET-WINDOWS.md` by hand.
-3. **Code signing.** The installer is unsigned, so users meet SmartScreen.
+2. **Code signing.** The installer is unsigned, so users meet SmartScreen.
+3. **Release automation** — CI builds the installer but publishes no release; the version is
+   typed in two places (`VoxScribe.App.csproj`, `installer/voxscribe.iss`).
 
 ## What no amount of CI can verify
 

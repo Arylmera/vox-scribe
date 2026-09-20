@@ -104,6 +104,22 @@ public sealed record SettingsData
     public int[]? CleanupPushToTalkKeys { get; init; }
 
     /// <summary>
+    /// Chord that deletes the last dictation's text from wherever it landed, without opening
+    /// the window. Null or empty leaves undo on the UNDO key only.
+    /// </summary>
+    public int[]? UndoKeys { get; init; }
+
+    /// <summary>
+    /// Command-mode chord: the dictation (tidied when a cleanup endpoint is set) is typed into
+    /// the first window whose title contains <see cref="CommandWindowTitle"/>, then submitted
+    /// with Return — a Claude Code session, wherever it is. Null or empty disables it.
+    /// </summary>
+    public int[]? CommandKeys { get; init; }
+
+    /// <summary>Title fragment that identifies the command-mode target window.</summary>
+    public string CommandWindowTitle { get; init; } = "Claude";
+
+    /// <summary>
     /// OpenAI-compatible chat API base used to tidy the transcript before it is typed, or
     /// null to type it as transcribed.
     /// </summary>

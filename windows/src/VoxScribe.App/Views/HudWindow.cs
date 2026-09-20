@@ -71,7 +71,7 @@ public sealed class HudWindow : Window
     private TimeSpan? _lastLatency;
 
     /// <summary>Last (cleaning, recording) rendered, so brushes are rebuilt only on a flip.</summary>
-    private (bool Cleaning, bool Recording)? _shown;
+    private (string Mode, bool Recording)? _shown;
     private readonly DispatcherTimer _timerTick;
 
     /// <summary>Display frames since the pill appeared, used to pace the topmost re-assert.</summary>
@@ -207,12 +207,11 @@ public sealed class HudWindow : Window
     /// the app), a dark lens for the tail; the mode label goes amber while the tail is
     /// worked on, echoing the shimmer.
     /// </summary>
-    private void ShowMode(bool cleaning, bool recording)
+    private void ShowMode(string mode, bool recording)
     {
-        if (_shown == (cleaning, recording)) return;
-        _shown = (cleaning, recording);
+        if (_shown == (mode, recording)) return;
+        _shown = (mode, recording);
 
-        var mode = cleaning ? "CLEAN" : "RAW";
         _mode.Text = recording ? "REC · " + mode : mode;
         _mode.Foreground = recording
             ? new SolidColorBrush(Tokens.Colors.Ink, GlassInkOpacity)
@@ -289,7 +288,9 @@ public sealed class HudWindow : Window
         _latencyClock.Reset();
         if (recording) _lastLatency = null;
 
-        ShowMode(_engine.CleaningThisUtterance, recording);
+        ShowMode(
+            _engine.CommandThisUtterance ? "CMD" : _engine.CleaningThisUtterance ? "CLEAN" : "RAW",
+            recording);
         _timer.Text = $"{(int)_clock.Elapsed.TotalMinutes}:{_clock.Elapsed.Seconds:00}";
         _bars.Push(state, _engine.Level);
         ShowPreview(_engine.PartialText);

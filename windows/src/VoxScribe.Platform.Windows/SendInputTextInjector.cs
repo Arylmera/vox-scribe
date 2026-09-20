@@ -151,6 +151,15 @@ public sealed class SendInputTextInjector : ITextInjector
         return ValueTask.FromResult(SendInput(2, backspace, InputSize) == 2);
     }
 
+    /// <inheritdoc />
+    public ValueTask<bool> EnterAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        INPUT[] enter = [KeyInput(VK_RETURN, up: false), KeyInput(VK_RETURN, up: true)];
+        return ValueTask.FromResult(SendInput(2, enter, InputSize) == 2);
+    }
+
     /// <summary>Types arbitrary text as Unicode packets.</summary>
     /// <remarks>
     /// <para>

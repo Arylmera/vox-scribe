@@ -1,4 +1,4 @@
-﻿using Avalonia;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Media;
@@ -19,12 +19,11 @@ public sealed class SettingsWindow : Window
     private const int VkRightAlt = 0xA5;
 
     private readonly AppSettings _settings;
-    private readonly TransportKey _hotkeyButton;
-    private readonly TransportKey _cleanupHotkeyButton;
+    private readonly Dictionary<ShortcutSlot, TransportKey> _keys = [];
     private readonly TextBlock _keyWarning;
 
     /// <summary>Which shortcut the live recorder is binding.</summary>
-    private bool _recordingCleanupChord;
+    private ShortcutSlot _recordingSlot;
 
     /// <summary>The live recorder hook, non-null only while recording.</summary>
     private IDisposable? _recorder;
@@ -50,17 +49,15 @@ public sealed class SettingsWindow : Window
         Background = Tokens.Brushes.Chassis;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
 
-        _hotkeyButton = new TransportKey();
-        _hotkeyButton.Click += (_, _) =>
+        foreach (var slot in Enum.GetValues<ShortcutSlot>())
         {
-            if (_recorder is null) StartRecording(cleanup: false); else CancelRecording();
-        };
-
-        _cleanupHotkeyButton = new TransportKey();
-        _cleanupHotkeyButton.Click += (_, _) =>
-        {
-            if (_recorder is null) StartRecording(cleanup: true); else CancelRecording();
-        };
+            var key = new TransportKey();
+            key.Click += (_, _) =>
+            {
+                if (_recorder is null) StartRecording(slot); else CancelRecording();
+            };
+            _keys[slot] = key;
+        }
 
         _keyWarning = new TextBlock
         {
@@ -81,7 +78,7 @@ public sealed class SettingsWindow : Window
                 Spacing = Tokens.Space.Wide,
                 Children =
                 {
-                    ShortcutsSection.Build(_settings, Save, _hotkeyButton, _cleanupHotkeyButton, _keyWarning),
+                    ShortcutsSection.Build(_settings, Save, _keys, _keyWarning),
                     TypingSection.Build(_settings, Save),
                     CleanupSection.Build(_settings, Save),
                     SpeechSection.Build(_settings, Save),
@@ -91,8 +88,7 @@ public sealed class SettingsWindow : Window
             },
         };
 
-        ShowChord(_settings.Data.ResolvedPushToTalkKeys);
-        ShowCleanupChord(_settings.Data.CleanupPushToTalkKeys);
+        ShowAllChords();
     }
 
     /// <inheritdoc />
@@ -102,9 +98,34 @@ public sealed class SettingsWindow : Window
         base.OnClosed(e);
     }
 
-    private void StartRecording(bool cleanup)
+    /// <summary>The chord currently saved for <paramref name="slot"/>, or null when unbound.</summary>
+    private int[]? Chord(ShortcutSlot slot) => slot switch
     {
-        _recordingCleanupChord = cleanup;
+        ShortcutSlot.Raw => _settings.Data.ResolvedPushToTalkKeys,
+        ShortcutSlot.Cleanup => _settings.Data.CleanupPushToTalkKeys,
+        ShortcutSlot.Undo => _settings.Data.UndoKeys,
+        ShortcutSlot.Command => _settings.Data.CommandKeys,
+        _ => null,
+    };
+
+    /// <summary>Persists <paramref name="chord"/> into <paramref name="slot"/>; null unbinds.</summary>
+    private void SaveChord(ShortcutSlot slot, int[]? chord)
+    {
+        var data = _settings.Data;
+        Save(slot switch
+        {
+            // The raw slot cannot be unbound; a null here never happens (Escape cancels).
+            ShortcutSlot.Raw => data with { PushToTalkKeys = chord, PushToTalkKey = chord![0] },
+            ShortcutSlot.Cleanup => data with { CleanupPushToTalkKeys = chord },
+            ShortcutSlot.Undo => data with { UndoKeys = chord },
+            ShortcutSlot.Command => data with { CommandKeys = chord },
+            _ => data,
+        });
+    }
+
+    private void StartRecording(ShortcutSlot slot)
+    {
+        _recordingSlot = slot;
         _captured.Clear();
         _held.Clear();
 
@@ -127,18 +148,13 @@ public sealed class SettingsWindow : Window
         {
             if (key == VkEscape && _captured.Count == 0)
             {
-                // On the cleanup slot Escape means "unbind" rather than "cancel": with no
-                // other gesture available, there would otherwise be no way back to a single
-                // shortcut once one is recorded.
-                if (_recordingCleanupChord)
-                {
-                    CancelRecording();
-                    Save(_settings.Data with { CleanupPushToTalkKeys = null });
-                    ShowCleanupChord(null);
-                    return;
-                }
-
+                // On an optional slot Escape means "unbind" rather than "cancel": with no
+                // other gesture available, there would otherwise be no way back to fewer
+                // shortcuts once one is recorded. The raw slot only cancels.
+                var slot = _recordingSlot;
                 CancelRecording();
+                if (slot != ShortcutSlot.Raw) SaveChord(slot, null);
+                ShowAllChords();
                 return;
             }
 
@@ -155,45 +171,34 @@ public sealed class SettingsWindow : Window
     }
 
     /// <summary>The button the live recording is writing into.</summary>
-    private TransportKey Recording => _recordingCleanupChord ? _cleanupHotkeyButton : _hotkeyButton;
+    private TransportKey Recording => _keys[_recordingSlot];
 
     private void CommitRecording()
     {
         var chord = _captured.ToArray();
-        var cleanup = _recordingCleanupChord;
+        var slot = _recordingSlot;
         CancelRecording();
 
-        if (cleanup)
-        {
-            Save(_settings.Data with { CleanupPushToTalkKeys = chord });
-            ShowCleanupChord(chord);
-            return;
-        }
-
-        Save(_settings.Data with { PushToTalkKeys = chord, PushToTalkKey = chord[0] });
-        ShowChord(chord);
+        SaveChord(slot, chord);
+        ShowAllChords();
     }
 
     private void CancelRecording()
     {
         _recorder?.Dispose();
         _recorder = null;
-        _hotkeyButton.IsEngaged = false;
-        _cleanupHotkeyButton.IsEngaged = false;
-        ShowChord(_settings.Data.ResolvedPushToTalkKeys);
-        ShowCleanupChord(_settings.Data.CleanupPushToTalkKeys);
+        foreach (var key in _keys.Values) key.IsEngaged = false;
+        ShowAllChords();
     }
 
-    private void ShowCleanupChord(int[]? chord) =>
-        _cleanupHotkeyButton.Content = chord is { Length: > 0 }
-            ? ChordLabel(chord)
-            : "NOT BOUND";
-
-    private void ShowChord(int[] chord)
+    private void ShowAllChords()
     {
-        _hotkeyButton.Content = ChordLabel(chord);
+        foreach (var (slot, key) in _keys)
+        {
+            key.Content = Chord(slot) is { Length: > 0 } chord ? ChordLabel(chord) : "NOT BOUND";
+        }
 
-        var altGr = chord.Contains(VkRightAlt);
+        var altGr = _keys.Keys.Any(slot => Chord(slot)?.Contains(VkRightAlt) == true);
         _keyWarning.Text = altGr
             ? "Right Alt is AltGr on many European layouts — binding it here will interfere "
             + "with typing @, €, \\ and |."

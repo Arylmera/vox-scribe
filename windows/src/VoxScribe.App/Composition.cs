@@ -63,16 +63,22 @@ public sealed class Composition : IAsyncDisposable
         || new AppSettings(AppSettings.DefaultPath).Data.SttEndpoint is { Length: > 0 };
 
     /// <summary>
-    /// Keys held by the cleanup chord and not by the plain one — empty unless the cleanup
-    /// chord is a strict superset, which is the only case where the two collide.
+    /// Keys held by any of <paramref name="others"/> that strictly contains
+    /// <paramref name="chord"/>, minus the chord itself — the keys whose being down means the
+    /// user is reaching for the longer shortcut, not this one.
     /// </summary>
-    public static int[] Blockers(int[] plain, int[]? cleanup)
+    public static int[] Blockers(int[] chord, params int[]?[] others)
     {
-        if (cleanup is not { Length: > 0 }) return [];
-        if (!plain.All(cleanup.Contains)) return [];
+        if (chord.Length == 0) return [];
 
-        return [.. cleanup.Where(k => !plain.Contains(k))];
+        return [.. others
+            .Where(o => o is { Length: > 0 } && o.Length > chord.Length && chord.All(o.Contains))
+            .SelectMany(o => o!.Where(k => !chord.Contains(k)))
+            .Distinct()];
     }
+
+    /// <summary>An unbound chord is an empty one: the hook exists but can never complete.</summary>
+    private static int[] Chord(int[]? keys) => keys is { Length: > 0 } ? keys : [];
 
     /// <summary>Parses and installs the accent, keeping the default on a bad value.</summary>
     private static void ApplyAccent(string hex)
@@ -126,17 +132,13 @@ public sealed class Composition : IAsyncDisposable
                     ? new ParakeetTranscriber(modelDirectory)
                     : new UnavailableTranscriber();
 
-            // Null unless a second chord is bound; the engine then has a single shortcut.
-            var cleanupKeys = settings.Data.CleanupPushToTalkKeys;
-            var cleanupHotkey = cleanupKeys is { Length: > 0 }
-                ? PlatformFactory.CreateHotkeySource(cleanupKeys)
-                : null;
-
-            // Right Shift and Left Shift + Right Shift both satisfy the plain chord. Tell the
-            // plain hook about the keys that are only in the cleanup chord, and it stands
-            // aside for the longer gesture.
-            PlatformFactory.UpdateHotkeyBlockers(
-                hotkey!, Blockers(settings.Data.ResolvedPushToTalkKeys, cleanupKeys));
+            // Every optional shortcut gets a listener whether or not it is bound yet — an
+            // empty chord never fires, and all of them share the one keyboard hook, so an
+            // idle listener costs nothing. What it buys is that binding one for the first
+            // time works immediately instead of after a restart.
+            var cleanupHotkey = PlatformFactory.CreateHotkeySource(Chord(settings.Data.CleanupPushToTalkKeys));
+            var undoHotkey = PlatformFactory.CreateHotkeySource(Chord(settings.Data.UndoKeys));
+            var commandHotkey = PlatformFactory.CreateHotkeySource(Chord(settings.Data.CommandKeys));
 
             // Escape throws a dictation away. The hook never swallows keys, so outside a
             // recording Escape still reaches whatever app has it — the engine ignores it.
@@ -148,12 +150,43 @@ public sealed class Composition : IAsyncDisposable
                 () => dictionary.Entries,
                 cleanupHotkey: cleanupHotkey,
                 focusAnchor: focusAnchor,
-                cancelHotkey: cancelHotkey);
+                cancelHotkey: cancelHotkey,
+                undoHotkey: undoHotkey,
+                commandHotkey: commandHotkey);
+
+            // Right Shift and Left Shift + Right Shift both satisfy the shorter chord. Each
+            // hook is told the keys that belong only to a longer chord containing its own,
+            // and stands aside while any of them is held.
+            void Rearm()
+            {
+                var raw = settings.Data.ResolvedPushToTalkKeys;
+                var clean = Chord(settings.Data.CleanupPushToTalkKeys);
+                var undo = Chord(settings.Data.UndoKeys);
+                var command = Chord(settings.Data.CommandKeys);
+
+                (IHotkeySource? Hook, int[] Own, int[]?[] Others)[] chords =
+                [
+                    (hotkey, raw, [clean, undo, command]),
+                    (cleanupHotkey, clean, [raw, undo, command]),
+                    (undoHotkey, undo, [raw, clean, command]),
+                    (commandHotkey, command, [raw, clean, undo]),
+                ];
+
+                foreach (var (hook, own, others) in chords)
+                {
+                    if (hook is null) continue;
+                    PlatformFactory.UpdateHotkeyChord(hook, own);
+                    PlatformFactory.UpdateHotkeyBlockers(hook, Blockers(own, others));
+                }
+            }
+
+            Rearm();
 
             engine.ToggleMode = settings.Data.PushToTalkToggle;
             engine.IncrementalInjection = settings.Data.IncrementalInjection;
             engine.SpokenPunctuation = settings.Data.SpokenPunctuation;
             engine.AnchorFocus = settings.Data.AnchorFocus;
+            engine.CommandWindowTitle = settings.Data.CommandWindowTitle;
 
             watching = engine;
 
@@ -175,20 +208,12 @@ public sealed class Composition : IAsyncDisposable
             var live = engine;
             settings.Changed += (_, _) =>
             {
-                PlatformFactory.UpdateHotkeyChord(hotkey!, settings.Data.ResolvedPushToTalkKeys);
-
-                // Rebinding is live; binding one for the first time still needs a restart,
-                // because the hook does not exist yet.
-                if (cleanupHotkey is not null && settings.Data.CleanupPushToTalkKeys is { Length: > 0 } chord)
-                    PlatformFactory.UpdateHotkeyChord(cleanupHotkey, chord);
-
-                PlatformFactory.UpdateHotkeyBlockers(
-                    hotkey!,
-                    Blockers(settings.Data.ResolvedPushToTalkKeys, settings.Data.CleanupPushToTalkKeys));
+                Rearm();
                 live.ToggleMode = settings.Data.PushToTalkToggle;
                 live.IncrementalInjection = settings.Data.IncrementalInjection;
                 live.SpokenPunctuation = settings.Data.SpokenPunctuation;
                 live.AnchorFocus = settings.Data.AnchorFocus;
+                live.CommandWindowTitle = settings.Data.CommandWindowTitle;
                 live.Cleanup = BuildCleanup();
             };
 

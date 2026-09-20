@@ -294,9 +294,8 @@ public sealed class MainWindow : Window
     /// <summary>Builds the shared UNDO key.</summary>
     private Button BuildUndoKey()
     {
-        // ponytail: UNDO lives here, not on a global shortcut — a dedicated undo hotkey
-        // means another IHotkeySource, settings key and chord-blocker plumbing; add when
-        // someone actually asks to undo without opening the window.
+        // The same undo the UNDO chord in Settings → SHORTCUTS triggers, for people who
+        // have not bound one.
         var undo = Panels.DeckButton("UNDO");
         undo.VerticalAlignment = VerticalAlignment.Center;
         ToolTip.SetTip(undo, "Delete the last dictation's text");

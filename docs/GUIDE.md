@@ -10,15 +10,23 @@ Everything the app can do, in one place. Feature-by-feature, with where to find 
 focus. The default key is **Right Ctrl**; rebind it in Settings → SHORTCUTS (chords work —
 hold several keys together, the last release commits the binding).
 
-**Two shortcuts, two behaviours:**
+**Three dictation shortcuts, three destinations:**
 
-| Shortcut | Default | What it types |
+| Shortcut | Default | What it does |
 |---|---|---|
-| Raw | Right Ctrl | The transcript as it was heard |
-| Cleanup | not bound | The transcript after a small language model fixes punctuation, capitalisation and filler words |
+| Raw | Right Ctrl | Types the transcript as it was heard |
+| Cleanup | not bound | Types the transcript after a small language model fixes punctuation, capitalisation and filler words |
+| Command | not bound | Sends the transcript to Claude Code — see below |
 
 The cleanup shortcut only works once a cleanup endpoint is configured (Settings → CLEANUP).
 If the gateway is unreachable, the raw text is typed instead — a dictation never disappears.
+
+**Command mode.** Hold the command shortcut and speak; on release the transcript (tidied
+when a cleanup endpoint is set) is typed into the first visible window whose title contains
+the text in Settings → SHORTCUTS → COMMAND WINDOW TITLE CONTAINS (default `Claude`), then
+submitted with Return. You do not need to be looking at that window. If no window matches,
+nothing is typed anywhere and the pill says so — a prompt meant for Claude must never land
+in a spreadsheet. The pill's badge reads `CMD`.
 
 **Toggle mode** (Settings → SHORTCUTS): press once to start, press again to stop, instead
 of holding the key down.
@@ -41,9 +49,10 @@ for the raw shortcut when no cleanup model is reachable.
 While you dictate, a small pill sits at the bottom of the screen. It never takes focus —
 your text still lands where the caret is.
 
-- **Red lamp + `REC · RAW` / `REC · CLEAN`** — recording; the badge says which shortcut is
-  running. Live waveform, running timer.
-- **Amber `RAW` / `CLEAN` + shimmer** — you released the key; the tail is being transcribed.
+- **Red lamp + `REC · RAW` / `REC · CLEAN` / `REC · CMD`** — recording; the badge says which
+  shortcut is running. Live waveform, running timer.
+- **Amber `RAW` / `CLEAN` / `CMD` + shimmer** — you released the key; the tail is being
+  transcribed.
 - **Preview line** — the transcript as it arrives, last 110 characters.
 - **`NOTICE`** — something failed (gateway unreachable, transcription error, speech model
   not loaded, microphone blocked by Windows privacy settings); the message lingers a few
@@ -62,11 +71,11 @@ key during a recording.
 
 ## Undoing the last dictation
 
-Wrong window, mangled sentence, accidental press: open the main window and click **UNDO**
-in the voice band (top strip, next to the tape counter). It deletes the last dictation's
-text from wherever it was typed by sending the right number of backspaces — so do it while
-the caret is still where the text landed. One dictation deep; there is no global hotkey
-for it yet.
+Wrong window, mangled sentence, accidental press: press the **undo shortcut** (Settings →
+SHORTCUTS → UNDO, not bound by default), or open the main window and click **UNDO** in the
+voice band (top strip, next to the tape counter). Either deletes the last dictation's text
+from wherever it was typed by sending the right number of backspaces — so do it while the
+caret is still where the text landed. One dictation deep.
 
 ## Main window
 
@@ -99,15 +108,15 @@ the underlying file directly.
 
 | Section | What's there |
 |---|---|
-| SHORTCUTS | Raw key, cleanup key, toggle mode. Escape while binding cancels — on the cleanup slot it *unbinds*. |
+| SHORTCUTS | Raw, cleanup, undo and command chords, the command window title, toggle mode. Escape while binding cancels — on the optional slots it *unbinds*. Every shortcut works the moment it is recorded. |
 | TYPING | Type into focused app (on), anchor focus (on), incremental typing (off), spoken punctuation (off) |
 | CLEANUP | OpenAI-compatible endpoint, model (`local-light`), API key, TEST CONNECTION |
 | SPEECH | Microphone, local model status, or a remote OpenAI-compatible transcription endpoint + model + API key |
 | GENERAL | Keep history, start at login (minimised to tray) |
 | APPEARANCE | Theme — Deep Field (dark), Signal House (warm hardware), Manuscript (paper-light, serif transcripts); an APPLY key restarts the app with the new theme. Accent colour — five swatches, applies immediately |
 
-Speech settings (microphone, remote server) and a first-time cleanup binding take effect
-at next start; the rest is immediate.
+Speech settings (microphone, remote server) take effect at next start; the rest is
+immediate.
 
 **Local or remote speech.** By default Parakeet runs on your CPU via sherpa-onnx — nothing
 leaves the machine, but the model (~661 MB) must be downloaded first (see

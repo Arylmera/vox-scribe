@@ -78,6 +78,9 @@ public interface ITextInjector
     /// keeping the platform layer a single logic-free keystroke.
     /// </summary>
     ValueTask<bool> BackspaceAsync(CancellationToken cancellationToken);
+
+    /// <summary>Sends a single Return keystroke — submits in a terminal or chat box.</summary>
+    ValueTask<bool> EnterAsync(CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -93,6 +96,13 @@ public interface IFocusAnchor
 {
     /// <summary>Captures the current target, or null if there is none or it took too long.</summary>
     ValueTask<IFocusTarget?> CaptureAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Finds a visible top-level window whose title contains <paramref name="titleContains"/>
+    /// (case-insensitive), or null. Command mode uses it to reach a Claude Code session the
+    /// user is not looking at.
+    /// </summary>
+    ValueTask<IFocusTarget?> FindAsync(string titleContains, CancellationToken cancellationToken);
 }
 
 /// <summary>A captured focus target that can bring itself back.</summary>

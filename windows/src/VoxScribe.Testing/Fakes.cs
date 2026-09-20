@@ -203,6 +203,16 @@ public sealed class RecordingTextInjector : ITextInjector
         Backspaces++;
         return ValueTask.FromResult(true);
     }
+
+    /// <summary>Number of Return keystrokes requested via <see cref="EnterAsync"/>.</summary>
+    public int Enters { get; private set; }
+
+    /// <inheritdoc />
+    public ValueTask<bool> EnterAsync(CancellationToken cancellationToken)
+    {
+        Enters++;
+        return ValueTask.FromResult(true);
+    }
 }
 
 /// <summary>A focus anchor that records when it was captured and restored.</summary>
@@ -227,6 +237,24 @@ public sealed class FakeFocusAnchor : IFocusAnchor
     {
         Captures++;
         if (CaptureReturnsNull) return ValueTask.FromResult<IFocusTarget?>(null);
+
+        var target = new FakeFocusTarget(_injector);
+        Targets.Add(target);
+        return ValueTask.FromResult<IFocusTarget?>(target);
+    }
+
+    /// <summary>Titles of the windows this fake pretends are open.</summary>
+    public List<string> WindowTitles { get; } = [];
+
+    /// <summary>The fragment the last <see cref="FindAsync"/> looked for, or null.</summary>
+    public string? LastFind { get; private set; }
+
+    /// <inheritdoc />
+    public ValueTask<IFocusTarget?> FindAsync(string titleContains, CancellationToken cancellationToken)
+    {
+        LastFind = titleContains;
+        if (!WindowTitles.Any(t => t.Contains(titleContains, StringComparison.OrdinalIgnoreCase)))
+            return ValueTask.FromResult<IFocusTarget?>(null);
 
         var target = new FakeFocusTarget(_injector);
         Targets.Add(target);

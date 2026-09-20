@@ -57,6 +57,8 @@ public sealed class DictationEngine : IAsyncDisposable
     private readonly Func<IReadOnlyList<DictionaryEntry>> _dictionary;
     private readonly IHotkeySource? _cleanupHotkey;
     private readonly IHotkeySource? _cancelHotkey;
+    private readonly IHotkeySource? _undoHotkey;
+    private readonly IHotkeySource? _commandHotkey;
     private readonly IFocusAnchor? _focusAnchor;
 
     /// <summary>Set by <see cref="CancelAsync"/>; segments still in flight then stay untyped.</summary>
@@ -159,6 +161,14 @@ public sealed class DictationEngine : IAsyncDisposable
     /// <see cref="CancelAsync"/>. Ignored in every other state, so the key keeps its
     /// ordinary meaning outside a dictation.
     /// </param>
+    /// <param name="undoHotkey">
+    /// Optional. Its press while idle runs <see cref="UndoLastDictationAsync"/>.
+    /// </param>
+    /// <param name="commandHotkey">
+    /// Optional third shortcut: records like the others, but the finished text goes to the
+    /// window named by <see cref="CommandWindowTitle"/> and is submitted with Return. Tidied
+    /// first when <see cref="Cleanup"/> is set.
+    /// </param>
     public DictationEngine(
         IAudioCapture capture,
         IHotkeySource hotkey,
@@ -168,7 +178,9 @@ public sealed class DictationEngine : IAsyncDisposable
         IClock? clock = null,
         IHotkeySource? cleanupHotkey = null,
         IFocusAnchor? focusAnchor = null,
-        IHotkeySource? cancelHotkey = null)
+        IHotkeySource? cancelHotkey = null,
+        IHotkeySource? undoHotkey = null,
+        IHotkeySource? commandHotkey = null)
     {
         _capture = capture;
         _hotkey = hotkey;
@@ -193,7 +205,29 @@ public sealed class DictationEngine : IAsyncDisposable
             _cancelHotkey = cancelHotkey;
             cancelHotkey.Pressed += OnCancelPressed;
         }
+
+        if (undoHotkey is not null)
+        {
+            _undoHotkey = undoHotkey;
+            undoHotkey.Pressed += OnUndoPressed;
+        }
+
+        if (commandHotkey is not null)
+        {
+            _commandHotkey = commandHotkey;
+            commandHotkey.Pressed += OnCommandPressed;
+            commandHotkey.Released += OnReleased;
+        }
     }
+
+    /// <summary>
+    /// Title fragment of the window command-mode dictations are sent to. "Claude" by default:
+    /// it matches both the desktop app and a terminal tab running Claude Code.
+    /// </summary>
+    public string CommandWindowTitle { get; set; } = "Claude";
+
+    /// <summary>Whether the utterance in progress is a command-mode one. Drives the badge.</summary>
+    public bool CommandThisUtterance { get; private set; }
 
     /// <summary>
     /// The model load kicked off by <see cref="Start"/>; every segment waits on it before
@@ -225,10 +259,12 @@ public sealed class DictationEngine : IAsyncDisposable
             });
         }
 
-        // The second shortcut is a convenience: if its hook fails to install, dictation must
-        // still work from the first.
+        // The other shortcuts are conveniences: if their hooks fail to install, dictation
+        // must still work from the first.
         _cleanupHotkey?.Start();
         _cancelHotkey?.Start();
+        _undoHotkey?.Start();
+        _commandHotkey?.Start();
         return _hotkey.Start();
     }
 
@@ -428,9 +464,15 @@ public sealed class DictationEngine : IAsyncDisposable
     public bool CleaningThisUtterance =>
         _cleanThisUtterance && Cleanup is not null;
 
-    private void OnPlainPressed(object? sender, EventArgs e) => Pressed(false, sender, e);
+    private void OnPlainPressed(object? sender, EventArgs e) => Pressed(cleanup: false, command: false, sender, e);
 
-    private void OnCleanupPressed(object? sender, EventArgs e) => Pressed(true, sender, e);
+    private void OnCleanupPressed(object? sender, EventArgs e) => Pressed(cleanup: true, command: false, sender, e);
+
+    // A command is tidied when a cleaner exists — what reaches Claude should read well — and
+    // it never anchors: the target is found by title at release, not remembered from press.
+    private void OnCommandPressed(object? sender, EventArgs e) => Pressed(cleanup: true, command: true, sender, e);
+
+    private void OnUndoPressed(object? sender, EventArgs e) => _ = UndoLastDictationAsync(CancellationToken.None);
 
     /// <summary>
     /// Chooses the mode, then runs the shared press path.
@@ -441,12 +483,13 @@ public sealed class DictationEngine : IAsyncDisposable
     /// letting either flip the mode mid-utterance would mean phrases already typed
     /// incrementally and then typed again, whole, at the end.
     /// </remarks>
-    private void Pressed(bool cleanup, object? sender, EventArgs e)
+    private void Pressed(bool cleanup, bool command, object? sender, EventArgs e)
     {
         if (State == DictationState.Idle)
         {
             _cleanThisUtterance = cleanup;
-            _anchorRequested = true;
+            CommandThisUtterance = command;
+            _anchorRequested = !command;
         }
 
         OnPressed(sender, e);
@@ -616,6 +659,12 @@ public sealed class DictationEngine : IAsyncDisposable
         // to type — injecting here would double the whole utterance.
         if (InjectIncrementally) return;
 
+        if (CommandThisUtterance)
+        {
+            await SendCommandAsync(text).ConfigureAwait(false);
+            return;
+        }
+
         // Bring the anchored field back first. A failed restore is deliberate silence: the
         // fallback is to type where focus is now, which is what the app always did.
         if (_anchorCapture is { } capture && await capture.ConfigureAwait(false) is { } target)
@@ -623,6 +672,29 @@ public sealed class DictationEngine : IAsyncDisposable
 
         if (await _injector.InjectAsync(text, CancellationToken.None).ConfigureAwait(false))
             Journal.Record(text);
+    }
+
+    /// <summary>
+    /// Types <paramref name="text"/> into the command target and submits it. If the window is
+    /// not there, or will not come forward, nothing is typed anywhere: a prompt meant for
+    /// Claude landing in a spreadsheet is worse than a dictation lost to a notice.
+    /// </summary>
+    private async Task SendCommandAsync(string text)
+    {
+        var target = _focusAnchor is null
+            ? null
+            : await _focusAnchor.FindAsync(CommandWindowTitle, CancellationToken.None).ConfigureAwait(false);
+
+        if (target is null || !await target.RestoreAsync(CancellationToken.None).ConfigureAwait(false))
+        {
+            ReportNotice($"No window titled “{CommandWindowTitle}” — command not sent");
+            return;
+        }
+
+        if (!await _injector.InjectAsync(text, CancellationToken.None).ConfigureAwait(false)) return;
+
+        Journal.Record(text);
+        await _injector.EnterAsync(CancellationToken.None).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -752,6 +824,19 @@ public sealed class DictationEngine : IAsyncDisposable
         {
             _cancelHotkey.Pressed -= OnCancelPressed;
             _cancelHotkey.Dispose();
+        }
+
+        if (_undoHotkey is not null)
+        {
+            _undoHotkey.Pressed -= OnUndoPressed;
+            _undoHotkey.Dispose();
+        }
+
+        if (_commandHotkey is not null)
+        {
+            _commandHotkey.Pressed -= OnCommandPressed;
+            _commandHotkey.Released -= OnReleased;
+            _commandHotkey.Dispose();
         }
 
         if (_recording is not null)
