@@ -194,10 +194,36 @@ public sealed class DictationEngine : IAsyncDisposable
         }
     }
 
-    /// <summary>Arms the hotkey.</summary>
+    /// <summary>
+    /// The model load kicked off by <see cref="Start"/>; every segment waits on it before
+    /// transcribing. Completed-false until then, so an engine that was never started still
+    /// transcribes with whatever the transcriber can do unloaded.
+    /// </summary>
+    private Task _loading = Task.CompletedTask;
+
+    /// <summary>Arms the hotkey and starts loading the speech model.</summary>
     /// <returns>False if the hook could not be installed.</returns>
     public bool Start()
     {
+        // In the background, because the local model takes seconds to load and this runs on
+        // the UI thread. Nothing called LoadAsync at all before this line existed, so the
+        // local engine sat unloaded and answered every utterance with an empty string.
+        if (!_transcriber.IsReady)
+        {
+            _loading = Task.Run(async () =>
+            {
+                try
+                {
+                    if (!await _transcriber.LoadAsync(CancellationToken.None).ConfigureAwait(false))
+                        ReportNotice("Speech model not loaded — check Settings → SPEECH");
+                }
+                catch (Exception e)
+                {
+                    ReportNotice($"Speech model failed to load — {e.Message}");
+                }
+            });
+        }
+
         // The second shortcut is a convenience: if its hook fails to install, dictation must
         // still work from the first.
         _cleanupHotkey?.Start();
@@ -458,6 +484,7 @@ public sealed class DictationEngine : IAsyncDisposable
                 : null;
 
             _capturedSamples = 0;
+            _zeroSamples = 0;
             _cancelled = false;
             PartialText = string.Empty;
             Notice = string.Empty;
@@ -481,6 +508,7 @@ public sealed class DictationEngine : IAsyncDisposable
                 if (State != DictationState.Recording) break;
 
                 _capturedSamples += chunk.Samples.Length;
+                DetectBlockedMicrophone(chunk);
 
                 // Copied by the segmenter, not referenced: capture implementations are
                 // entitled to reuse their buffer the moment this returns.
@@ -611,6 +639,9 @@ public sealed class DictationEngine : IAsyncDisposable
 
         try
         {
+            // Never faults: the load task reports its own failure through the notice.
+            await _loading.ConfigureAwait(false);
+
             var raw = await _transcriber
                 .TranscribeAsync(piece, _bias, CancellationToken.None)
                 .ConfigureAwait(false);
@@ -649,6 +680,31 @@ public sealed class DictationEngine : IAsyncDisposable
             // Core; if this needs diagnosing, add one to the transcriber, which knows why.
             return Segment.Empty;
         }
+    }
+
+    /// <summary>Exact-zero samples seen in a row this utterance; -1 once the notice went out.</summary>
+    private int _zeroSamples;
+
+    /// <summary>How much digital silence means the OS, not the room, is the source.</summary>
+    private const double BlockedMicrophoneSeconds = 1.5;
+
+    /// <summary>
+    /// When Windows' microphone privacy switch is off, WASAPI does not fail — it delivers
+    /// exact zeros. A live microphone always has a noise floor, so a run of precisely zero
+    /// is the only tell there is, and this is the one place every chunk passes through.
+    /// </summary>
+    private void DetectBlockedMicrophone(AudioChunk chunk)
+    {
+        if (_zeroSamples < 0) return;
+
+        _zeroSamples = chunk.Samples.Span.IndexOfAnyExcept(0f) < 0
+            ? _zeroSamples + chunk.Samples.Length
+            : 0;
+
+        if (_zeroSamples < BlockedMicrophoneSeconds * AudioChunk.SampleRate) return;
+
+        _zeroSamples = -1;
+        ReportNotice("Microphone delivers silence — check Windows microphone privacy settings");
     }
 
     private void SetState(DictationState state)

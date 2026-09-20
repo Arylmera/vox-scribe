@@ -106,6 +106,13 @@ public sealed class RemoteTranscriber : ITranscriber
             _onFailure?.Invoke("Transcription failed — gateway did not answer in time");
             return string.Empty;
         }
+        catch (Exception e) when (e is JsonException or IOException)
+        {
+            // A 200 with a body that is not JSON — a proxy error page, a truncated stream.
+            // Without this the engine dropped the segment and nothing told the user.
+            _onFailure?.Invoke($"Transcription failed — unreadable answer ({e.Message})");
+            return string.Empty;
+        }
     }
 
     /// <summary>Encodes float samples as a 16-bit PCM mono WAV at <see cref="AudioChunk.SampleRate"/>.</summary>

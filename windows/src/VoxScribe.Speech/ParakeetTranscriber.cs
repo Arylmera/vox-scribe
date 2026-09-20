@@ -55,18 +55,28 @@ public sealed class ParakeetTranscriber : ITranscriber
 
     /// <summary>Where the model is looked for, in order.</summary>
     /// <remarks>
+    /// <para>
     /// <c>%LOCALAPPDATA%</c> first: it needs no administrator rights, so the app can download
     /// and update the model itself even when installed under Program Files.
+    /// </para>
+    /// <para>
+    /// v3 (25 languages) before v2 (English only): both have the same file names and
+    /// speed, and someone who downloaded v3 next to v2 did so to dictate in another
+    /// language. <c>ModelDirectory</c> in settings overrides the search altogether.
+    /// </para>
     /// </remarks>
     public static IEnumerable<string> DefaultSearchPaths()
     {
-        yield return DataDirectory.File("models", "parakeet-v2");
+        foreach (var version in Versions) yield return DataDirectory.File("models", version);
 
         // AppContext.BaseDirectory, not Assembly.Location — the latter returns an empty
         // string in a single-file app, which silently resolves paths against the current
         // directory instead.
-        yield return Path.Combine(AppContext.BaseDirectory, "models", "parakeet-v2");
+        foreach (var version in Versions)
+            yield return Path.Combine(AppContext.BaseDirectory, "models", version);
     }
+
+    private static readonly string[] Versions = ["parakeet-v3", "parakeet-v2"];
 
     /// <summary>Finds a directory containing a complete model, or null.</summary>
     public static string? Locate() => DefaultSearchPaths().FirstOrDefault(IsComplete);

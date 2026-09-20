@@ -70,7 +70,8 @@ foreach ($f in "encoder.int8.onnx","decoder.int8.onnx","joiner.int8.onnx","token
 Get-ChildItem $dir | Select-Object Name, @{n='MB';e={[math]::Round($_.Length/1MB,1)}}
 ```
 
-For **v3**, change `parakeet-v2` → `parakeet-v3` and `...-v2-int8` → `...-v3-int8`.
+For **v3**, change `parakeet-v2` → `parakeet-v3` and `...-v2-int8` → `...-v3-int8`. The app
+searches both folders and prefers `parakeet-v3` when both are present.
 
 > **`curl.exe`, with the `.exe`.** Bare `curl` in PowerShell is an alias for
 > `Invoke-WebRequest`, which is a different program. And if you do use

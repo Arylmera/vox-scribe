@@ -113,6 +113,64 @@ public sealed class DictationEngineTests
         injector.Injected.ShouldBeEmpty();
     }
 
+    /// <summary>
+    /// Nothing called LoadAsync before 2026-09-20, so the local model was never loaded and
+    /// every utterance came back empty. Start is where the load belongs.
+    /// </summary>
+    [Fact]
+    public async Task Start_loads_the_speech_model()
+    {
+        var hotkey = new FakeHotkeySource();
+        var transcriber = new FakeTranscriber("hello");
+        var injector = new RecordingTextInjector();
+
+        await using var engine = Build(FakeAudioCapture.Tone(1.0), hotkey, transcriber, injector);
+        transcriber.IsReady.ShouldBeFalse();
+
+        engine.Start();
+        await DictateAsync(hotkey, engine);
+
+        transcriber.IsReady.ShouldBeTrue();
+        injector.Injected.ShouldBe(["hello"]);
+    }
+
+    /// <summary>
+    /// Windows' microphone privacy switch does not fail the capture — it feeds exact zeros.
+    /// A real microphone never does, so a run of them is reported rather than transcribed.
+    /// </summary>
+    [Fact]
+    public async Task Digital_silence_reports_a_blocked_microphone()
+    {
+        var hotkey = new FakeHotkeySource();
+        var injector = new RecordingTextInjector();
+
+        await using var engine = Build(
+            FakeAudioCapture.Silence(2.0), hotkey, new FakeTranscriber(""), injector);
+
+        hotkey.Press();
+        for (var i = 0; i < 2000 && engine.State != DictationState.Recording; i++) await Task.Yield();
+        for (var i = 0; i < 20000 && engine.Notice.Length == 0; i++) await Task.Yield();
+        hotkey.Release();
+        for (var i = 0; i < 20000 && engine.State != DictationState.Idle; i++) await Task.Yield();
+
+        engine.Notice.ShouldContain("icrophone");
+    }
+
+    [Fact]
+    public async Task A_quiet_room_is_not_a_blocked_microphone()
+    {
+        var hotkey = new FakeHotkeySource();
+        var injector = new RecordingTextInjector();
+
+        // Below the speech floor, but not digital zero: a noise floor, as every real mic has.
+        await using var engine = Build(
+            FakeAudioCapture.Tone(2.0, amplitude: 0.001f), hotkey, new FakeTranscriber(""), injector);
+
+        await DictateAsync(hotkey, engine);
+
+        engine.Notice.ShouldBeEmpty();
+    }
+
     [Fact]
     public async Task Journal_holds_exactly_what_was_injected()
     {

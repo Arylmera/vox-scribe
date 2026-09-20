@@ -38,7 +38,7 @@ internal static class CleanupSection
                     settings.Data.CleanupApiKey)),
                 Panels.Note("Overrides \"type each phrase as you speak it\": a tidied dictation is "
                    + "always typed once, at the end, because text already in the target "
-                   + "window cannot be repaired. Takes effect the next time VoxScribe starts."),
+                   + "window cannot be repaired. Changes apply immediately."),
             },
         });
     }

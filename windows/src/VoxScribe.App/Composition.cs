@@ -156,13 +156,17 @@ public sealed class Composition : IAsyncDisposable
 
             watching = engine;
 
-            if (settings.Data.CleanupEndpoint is { Length: > 0 } cleanupEndpoint)
-            {
-                var cleaner = new TextCleaner(
-                    cleanupEndpoint, settings.Data.CleanupModel, settings.Data.CleanupApiKey,
-                    ReportFailure);
-                engine.Cleanup = cleaner.CleanAsync;
-            }
+            // Rebuilt on every settings change, like the chords: the cleaner holds nothing
+            // but its endpoint, so swapping it live is free — and "restart to apply" on a
+            // field you just typed reads as broken.
+            Func<string, CancellationToken, Task<string>>? BuildCleanup() =>
+                settings.Data.CleanupEndpoint is { Length: > 0 } cleanupEndpoint
+                    ? new TextCleaner(
+                        cleanupEndpoint, settings.Data.CleanupModel, settings.Data.CleanupApiKey,
+                        ReportFailure).CleanAsync
+                    : null;
+
+            engine.Cleanup = BuildCleanup();
 
             // A freshly recorded shortcut must work right away — "restart to apply" reads
             // as "recording is broken". The hook reads Keys per event, so swapping the
@@ -183,6 +187,7 @@ public sealed class Composition : IAsyncDisposable
                 live.ToggleMode = settings.Data.PushToTalkToggle;
                 live.IncrementalInjection = settings.Data.IncrementalInjection;
                 live.AnchorFocus = settings.Data.AnchorFocus;
+                live.Cleanup = BuildCleanup();
             };
 
             engine.Completed += (_, result) =>

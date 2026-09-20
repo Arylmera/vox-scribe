@@ -45,19 +45,6 @@ public sealed class WasapiAudioCapture : IAudioCapture
     /// <inheritdoc />
     public bool IsCapturing { get; private set; }
 
-    /// <summary>
-    /// True when the microphone appears to be muted at the OS level.
-    /// </summary>
-    /// <remarks>
-    /// When "Let desktop apps access your microphone" is off, WASAPI does not fail — it
-    /// returns a stream of digital silence. There is no documented way for an unpackaged app
-    /// to query that setting, so exact-zero samples are the only available signal. Real
-    /// microphones have a noise floor, so a run of *precisely* zero is a reliable tell.
-    /// </remarks>
-    public bool LooksLikeBlockedMicrophone { get; private set; }
-
-    private int _consecutiveSilentChunks;
-
     /// <inheritdoc />
     public async IAsyncEnumerable<AudioChunk> CaptureAsync(
         [EnumeratorCancellation] CancellationToken cancellationToken)
@@ -96,9 +83,6 @@ public sealed class WasapiAudioCapture : IAudioCapture
             SingleWriter = true,
             SingleReader = true,
         });
-
-        _consecutiveSilentChunks = 0;
-        LooksLikeBlockedMicrophone = false;
 
         foreach (var attempt in Formats(device))
         {
@@ -210,25 +194,9 @@ public sealed class WasapiAudioCapture : IAudioCapture
         }
     }
 
-    private void Publish(float[] samples)
-    {
-        DetectBlockedMicrophone(samples);
-        _channel?.Writer.TryWrite(samples);   // TryWrite never blocks
-    }
-
-    private void DetectBlockedMicrophone(float[] samples)
-    {
-        var allZero = true;
-        foreach (var sample in samples)
-        {
-            if (sample != 0f) { allZero = false; break; }
-        }
-
-        // ~1.5s of exactly-zero samples. A live microphone always has a noise floor, so this
-        // means the OS is feeding us silence rather than the room being quiet.
-        _consecutiveSilentChunks = allZero ? _consecutiveSilentChunks + 1 : 0;
-        if (_consecutiveSilentChunks > 1500 / BufferMilliseconds) LooksLikeBlockedMicrophone = true;
-    }
+    // Blocked-microphone detection (a run of exact zeros) lives in DictationEngine, where it
+    // is tested and where the notice reaches the pill; this layer stays logic-free.
+    private void Publish(float[] samples) => _channel?.Writer.TryWrite(samples);   // TryWrite never blocks
 
     private void OnRecordingStopped(object? sender, StoppedEventArgs e)
     {
