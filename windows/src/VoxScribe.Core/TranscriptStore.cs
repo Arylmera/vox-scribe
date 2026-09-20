@@ -25,6 +25,12 @@ public sealed record TranscriptRecord
 
     /// <summary>Corrections that fired, if any.</summary>
     public IReadOnlyList<AppliedCorrection>? Corrections { get; init; }
+
+    /// <summary>
+    /// Dictionary-corrected text before the cleanup model rewrote it; null when no cleanup
+    /// rewrote anything. Old lines deserialize with null, which is the same thing.
+    /// </summary>
+    public string? RawText { get; init; }
 }
 
 /// <summary>

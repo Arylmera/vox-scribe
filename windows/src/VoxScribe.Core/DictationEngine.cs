@@ -19,12 +19,22 @@ public enum DictationState
 }
 
 /// <summary>One completed dictation.</summary>
+/// <param name="At">When the key was released.</param>
+/// <param name="AudioDuration">How long the key was held.</param>
+/// <param name="ProcessingTime">Release to finished text — the wait actually felt.</param>
+/// <param name="Text">The final text, after corrections and any cleanup.</param>
+/// <param name="Corrections">Dictionary rules that fired.</param>
+/// <param name="RawText">
+/// The dictionary-corrected text before the cleanup model rewrote it, or null when no
+/// cleanup ran or it changed nothing. Feeds the dictionary suggestions.
+/// </param>
 public sealed record DictationResult(
     DateTimeOffset At,
     TimeSpan AudioDuration,
     TimeSpan ProcessingTime,
     string Text,
-    IReadOnlyList<AppliedCorrection> Corrections);
+    IReadOnlyList<AppliedCorrection> Corrections,
+    string? RawText = null);
 
 /// <summary>
 /// The whole dictation flow: hotkey down, capture, transcribe as you speak, correct, inject.
@@ -643,15 +653,22 @@ public sealed class DictationEngine : IAsyncDisposable
         // Before Completed, so the history keeps what was actually typed. Skipped in
         // incremental mode, where the phrases are already in the target window and there is
         // nothing left to improve.
+        string? rawText = null;
         if (_cleanThisUtterance && Cleanup is { } cleanup)
+        {
+            var beforeCleanup = text;
             text = await cleanup(text, CancellationToken.None).ConfigureAwait(false);
+            // Only a rewrite is worth keeping: identical raw text is noise for the miner.
+            if (!string.Equals(text, beforeCleanup, StringComparison.Ordinal)) rawText = beforeCleanup;
+        }
 
         var result = new DictationResult(
             At: releasedAt,
             AudioDuration: TimeSpan.FromSeconds((double)_capturedSamples / AudioChunk.SampleRate),
             ProcessingTime: _clock.Now - releasedAt,
             Text: text,
-            Corrections: [.. spoken.SelectMany(s => s.Corrections)]);
+            Corrections: [.. spoken.SelectMany(s => s.Corrections)],
+            RawText: rawText);
 
         Completed?.Invoke(this, result);
 

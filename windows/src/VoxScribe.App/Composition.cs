@@ -228,6 +228,7 @@ public sealed class Composition : IAsyncDisposable
                     ProcessingSeconds = result.ProcessingTime.TotalSeconds,
                     Text = result.Text,
                     Corrections = result.Corrections.Count > 0 ? result.Corrections : null,
+                    RawText = result.RawText,
                 });
             };
         }

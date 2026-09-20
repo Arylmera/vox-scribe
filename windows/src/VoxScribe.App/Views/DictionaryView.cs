@@ -20,14 +20,21 @@ namespace VoxScribe.App.Views;
 public sealed class DictionaryView : UserControl
 {
     private readonly DictionaryFile _file;
+    private readonly TranscriptStore _transcripts;
     private readonly TextBox _search;
     private readonly StackPanel _list;
     private readonly Silkscreen _count;
+    private readonly ContentControl _suggestionHost = new();
 
-    /// <summary>Builds the view over <paramref name="file"/>.</summary>
-    public DictionaryView(DictionaryFile file)
+    // ponytail: in memory; persist to a small file if a dismissed suggestion coming back
+    // after a restart turns out to annoy.
+    private readonly HashSet<(string Hear, string Write)> _dismissed = [];
+
+    /// <summary>Builds the view over <paramref name="file"/>, mining <paramref name="transcripts"/> for suggestions.</summary>
+    public DictionaryView(DictionaryFile file, TranscriptStore transcripts)
     {
         _file = file;
+        _transcripts = transcripts;
 
         _search = Panels.SearchBox("Search dictionary");
         _search.TextChanged += (_, _) => Refresh();
@@ -42,10 +49,79 @@ public sealed class DictionaryView : UserControl
         reveal.Click += (_, _) => OpenInEditor(_file.FilePath);
 
         Content = Panels.ListShell(
-            Panels.SearchRow(_search, add), Panels.Footer(_count, reveal), _list);
+            Panels.SearchRow(_search, add),
+            Panels.Footer(_count, reveal),
+            new StackPanel { Children = { _suggestionHost, _list } });
 
-        _file.Changed += (_, _) => Refresh();
+        _file.Changed += (_, _) => { Refresh(); RefreshSuggestions(); };
+        _transcripts.Changed += (_, _) => Avalonia.Threading.Dispatcher.UIThread.Post(RefreshSuggestions);
         Refresh();
+        RefreshSuggestions();
+    }
+
+    private void RefreshSuggestions() => _suggestionHost.Content = BuildSuggestions();
+
+    /// <summary>
+    /// Recurring cleanup rewrites not yet covered by a rule, or null when there are none.
+    /// </summary>
+    private StackPanel? BuildSuggestions()
+    {
+        var pairs = _transcripts.Records
+            .Where(r => r.RawText is not null)
+            .Select(r => (r.RawText!, r.Text));
+
+        var suggestions = SuggestionEngine.Analyze(pairs)
+            .Where(s => !_dismissed.Contains((s.Hear, s.Write)))
+            .Where(s => !_file.Entries.Any(e =>
+                e.Kind == EntryKind.Correction && string.Equals(e.Hear, s.Hear, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        if (suggestions.Count == 0) return null;
+
+        var block = new StackPanel
+        {
+            Spacing = Tokens.Space.Snug,
+            Margin = new Thickness(Tokens.Space.Base, Tokens.Space.Base, Tokens.Space.Base, 0),
+            Children = { new Silkscreen { Text = "SUGGESTIONS" } },
+        };
+        block.Children.Add(Panels.Note(
+            "The cleanup model keeps making these fixes. Add one and the dictionary applies "
+            + "it every time — on the raw shortcut too."));
+        foreach (var suggestion in suggestions) block.Children.Add(BuildSuggestionRow(suggestion));
+        return block;
+    }
+
+    private Border BuildSuggestionRow(DictionarySuggestion suggestion)
+    {
+        var accept = Panels.DeckButton("ADD");
+        accept.Click += (_, _) => _file.Add(DictionaryEntry.Correction(suggestion.Hear, suggestion.Write));
+
+        var dismiss = Panels.DeckButton("DISMISS");
+        dismiss.Click += (_, _) =>
+        {
+            _dismissed.Add((suggestion.Hear, suggestion.Write));
+            RefreshSuggestions();
+        };
+
+        var leading = Panels.Row(
+            Tokens.Space.Base,
+            new Silkscreen
+            {
+                Text = $"×{suggestion.Count}",
+                Foreground = Tokens.Brushes.InkOnDeckAt(Tokens.Emphasis.Soft),
+                Width = Tokens.Material.EntryTagWidth,
+                VerticalAlignment = VerticalAlignment.Center,
+            },
+            new TextBlock
+            {
+                Text = $"{suggestion.Hear}  →  {suggestion.Write}",
+                FontFamily = Tokens.Fonts.Grotesque,
+                FontSize = Tokens.Fonts.Body,
+                Foreground = Tokens.Brushes.InkOnDeck,
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+
+        return Panels.DeckCard(Panels.SplitRow(leading, Panels.Row(Tokens.Space.Tight, accept, dismiss)));
     }
 
     private void Refresh()

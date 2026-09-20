@@ -200,6 +200,44 @@ public sealed class DictationEngineTests
         injector.Injected.ShouldBe(["first\nsecond"]);
     }
 
+    /// <summary>
+    /// The raw text rides along only when the cleaner actually changed something: identical
+    /// pairs are noise for the suggestion miner, and raw dictations have nothing to compare.
+    /// </summary>
+    [Theory]
+    [InlineData("helo wrld", "hello world", "helo wrld")]
+    [InlineData("already clean", "already clean", null)]
+    public async Task A_cleaned_dictation_keeps_its_raw_text_only_when_rewritten(string heard, string cleaned, string? expectedRaw)
+    {
+        var hotkey = new FakeHotkeySource();
+        var cleanupHotkey = new FakeHotkeySource();
+        await using var engine = new DictationEngine(
+            FakeAudioCapture.Tone(1.0), hotkey, new FakeTranscriber(heard), new RecordingTextInjector(),
+            () => [], new FakeClock(), cleanupHotkey);
+        engine.Cleanup = (_, _) => Task.FromResult(cleaned);
+        DictationResult? result = null;
+        engine.Completed += (_, r) => result = r;
+
+        await DictateAsync(cleanupHotkey, engine);
+
+        result.ShouldNotBeNull();
+        result.Text.ShouldBe(cleaned);
+        result.RawText.ShouldBe(expectedRaw);
+    }
+
+    [Fact]
+    public async Task A_raw_dictation_has_no_raw_text()
+    {
+        var hotkey = new FakeHotkeySource();
+        await using var engine = Build(FakeAudioCapture.Tone(1.0), hotkey, new FakeTranscriber("hello"), new RecordingTextInjector());
+        DictationResult? result = null;
+        engine.Completed += (_, r) => result = r;
+
+        await DictateAsync(hotkey, engine);
+
+        result.ShouldNotBeNull().RawText.ShouldBeNull();
+    }
+
     [Fact]
     public async Task Journal_holds_exactly_what_was_injected()
     {

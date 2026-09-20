@@ -104,6 +104,11 @@ Two kinds of entry:
 Each entry can be toggled **ON/OFF** without deleting it. **OPEN DICTIONARY.TXT** opens
 the underlying file directly.
 
+**Suggestions.** When the cleanup model has made the same one-word fix in three or more
+dictations (`kubernets → kubernetes`), it appears at the top of the list with **ADD** and
+**DISMISS**. Adding it makes it a FIX rule, so the correction happens without the round trip
+— and on the raw shortcut too. Dismissals last until the app restarts.
+
 ## Settings
 
 | Section | What's there |

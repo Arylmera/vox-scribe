@@ -37,13 +37,16 @@ Les vagues 1, 3 et 4 touchent l'injection réelle ou la capture audio. Chacune s
 termine par une checklist de test manuel — c'est la règle du dépôt pour tout ce
 qui passe par `PushToTalkHook`, `SendInput` ou WASAPI.
 
-## État d'avancement (2026-09-04)
+## État d'avancement (2026-09-20)
 
-- **Vague 1 — partiellement livrée** : journal d'injection (`InjectionJournal`,
-  `DictationEngine.Journal`) et annulation de la dernière dictée
-  (`UndoLastDictationAsync` + touche UNDO, `ITextInjector.BackspaceAsync`) sont en
-  place. Restent : ponctuation vocale (tâches 5–6) et suggestions de dictionnaire
-  (tâches 7–9).
+- **Vague 1 — livrée** : journal d'injection, annulation de la dernière dictée (touche UNDO
+  **et** raccourci global), ponctuation vocale FR/EN (`VoiceCommandProcessor`, opt-in),
+  suggestions de dictionnaire minées depuis les réécritures du cleanup
+  (`SuggestionEngine`, bloc SUGGESTIONS dans la vue Dictionnaire).
+- **Hors vagues, livré le 2026-09-20** : Command Mode (troisième chord → fenêtre Claude Code
+  par titre + Entrée), un seul hook clavier partagé (`KeyboardHook`) vérifié par le self-test,
+  chargement du modèle local (jamais appelé auparavant), cleanup appliqué à chaud, notice
+  micro bloqué, recherche du modèle v3.
 - Vagues 2–4 : non commencées.
 - Hors plan, livrés le même jour : notices d'échec réseau (crash log + pill),
   clés API protégées DPAPI, tests `StreamingSegmenter` (avec correction d'un bug
@@ -56,8 +59,9 @@ Candidates pour une vague ultérieure, à trier :
 | Idée | Contenu | Note |
 |---|---|---|
 | Profils par application | Comportement par app ciblée (raccourci, cleanup, incrémental) — l'ancrage de focus identifie déjà la fenêtre cible | S'appuie sur `IFocusAnchor` |
-| Recherche dans l'historique | Champ de recherche dans TranscriptionsView sur `TranscriptStore.Search` | Petit |
-| Latence visible | Afficher `ProcessingTime` dans la pill à la fin d'une dictée — la latence du cleanup n'a jamais été mesurée sur vrai matériel (AGENTS.md) | Petit, forte valeur diagnostique |
+| Onboarding | Téléchargement du modèle Parakeet depuis l'app (v2/v3), première ouverture guidée | Le plus gros frein à l'adoption |
+| Release automatisée | Job CI sur tag `v*` → GitHub Release + installeur, version lue d'un seul endroit | Petit |
+| Ducking | Plan de la vague 4 | Indépendant |
 
 ## Hors vagues
 

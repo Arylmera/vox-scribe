@@ -152,6 +152,19 @@ public sealed class TranscriptStoreTests : IDisposable
     }
 
     [Fact]
+    public void Raw_text_round_trips_and_old_lines_read_as_null()
+    {
+        var store = new TranscriptStore(_path);
+        store.Add(Record("hello world") with { RawText = "helo wrld" });
+        File.AppendAllText(_path, """{"Text":"legacy line"}""" + Environment.NewLine);
+
+        var reopened = new TranscriptStore(_path);
+
+        reopened.Records.Single(r => r.Text == "hello world").RawText.ShouldBe("helo wrld");
+        reopened.Records.Single(r => r.Text == "legacy line").RawText.ShouldBeNull();
+    }
+
+    [Fact]
     public void A_corrupt_line_does_not_destroy_the_rest_of_the_history()
     {
         var store = new TranscriptStore(_path);

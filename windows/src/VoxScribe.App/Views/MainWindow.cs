@@ -499,7 +499,7 @@ public sealed class MainWindow : Window
         }
         else
         {
-            _dictionaryView ??= new DictionaryView(_composition.Dictionary);
+            _dictionaryView ??= new DictionaryView(_composition.Dictionary, _composition.Transcripts);
             _sectionHost.Content = _dictionaryView;
         }
     }
