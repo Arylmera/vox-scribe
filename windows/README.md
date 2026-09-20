@@ -106,9 +106,9 @@ windows/
 │  ├─ VoxScribe.App/                 Avalonia UI                    net10.0
 │  └─ VoxScribe.Platform.Windows/    the ONLY Win32 code            net10.0-windows
 └─ tests/
-   ├─ VoxScribe.Dictionary.Tests/    the shared vectors             24 tests
-   ├─ VoxScribe.Core.Tests/          engine, chunking, storage      26 tests
-   └─ VoxScribe.App.Tests/           headless Avalonia UI           13 tests
+   ├─ VoxScribe.Dictionary.Tests/    the shared vectors
+   ├─ VoxScribe.Core.Tests/          engine, chunking, storage
+   └─ VoxScribe.App.Tests/           headless Avalonia UI
 ```
 
 **Only one project targets `-windows`.** Everything else is platform-neutral, so `CA1416`
@@ -143,7 +143,7 @@ builds and tests normally, including the full UI suite:
 
 ```bash
 cd windows
-dotnet test VoxScribe.CrossPlatform.slnf -c Release      # ~0.5s, 63 tests
+dotnet test VoxScribe.CrossPlatform.slnf -c Release      # about a second
 ```
 
 `--no-incremental` is not optional in CI. Roslyn does not re-emit analyzer warnings on an
@@ -153,14 +153,16 @@ incremental build, so `-warnaserror` would pass on cached results and prove noth
 
 ## <a id="honesty"></a>Honesty about what is verified
 
-**Verified, every push:** 98 tests pass — 24 dictionary (the shared vectors), 55 core
-(dictation state machine, streaming segmentation, audio chunking, the two shortcuts, the
-cleanup guard, all three storage formats), 19 headless Avalonia UI and composition. CI then
+**Verified, every push:** the whole suite — dictionary (the shared vectors), core (dictation
+state machine, streaming segmentation, audio chunking, the shortcuts, the cleanup guard, all
+three storage formats), headless Avalonia UI and composition. The count is whatever
+`dotnet test` prints; it is not repeated here because it drifted every time it was. CI then
 publishes a self-contained ~117 MB executable, **runs it**, and the binary reports back that
-the dictionary works, the source-generated JSON round-trips, and the Windows platform layer
-loads and constructs out of the bundle. The whole suite also runs on macOS in about half a
-second, which is why bugs like a `Render` method mutating a property get caught while
-writing them rather than three CI round-trips later.
+the dictionary works, the source-generated JSON round-trips, the Windows platform layer
+loads out of the bundle, and **a real keyboard hook sees an injected key** — two hooks at
+once, so the singleton bug below can never ship green again. The whole suite also runs on
+macOS in about a second, which is why bugs like a `Render` method mutating a property get
+caught while writing them rather than three CI round-trips later.
 
 **Regex divergences**, measured across 30 cases when a second implementation still existed —
 9 differed. The two that affect this code are both handled: culture-sensitive
@@ -168,11 +170,13 @@ case-insensitive matching (fixed by `CultureInvariant`) and NFC/NFD mismatch (fi
 normalizing). Two that are *not* fixable are simply avoided: ICU folds `ß` to `ss` and .NET
 does not, and .NET's `.` splits surrogate pairs.
 
-**The tests have a known blind spot.** They drive the engine through `FakeHotkeySource` and
-never install a real hook, which is exactly how two real bugs shipped green: `PushToTalkHook`
-holding per-instance state in a static, so a second hook silently never received a key; and
-two chords overlapping, so the shorter one ate every dictation meant for the longer. Anything
-touching that class has to be tried by hand.
+**The unit tests have a known blind spot.** They drive the engine through `FakeHotkeySource`
+and never install a real hook, which is exactly how two real bugs shipped green:
+`PushToTalkHook` holding per-instance state in a static, so a second hook silently never
+received a key; and two chords overlapping, so the shorter one ate every dictation meant for
+the longer. The self-test now covers the first with real hooks and an injected key; the
+chord logic is a pure function on the hook thread. Anything touching `KeyboardHook` still
+deserves a hand test with a real keyboard.
 
 **The cleanup pass has never reached a live gateway.** Its guard is covered; its network path
 is one `catch`, and the latency it adds between the key release and the text appearing is

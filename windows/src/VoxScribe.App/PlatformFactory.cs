@@ -208,6 +208,30 @@ internal static class PlatformFactory
     public static ITextInjector? CreateTextInjector() =>
         Create<ITextInjector>("SendInputTextInjector", []);
 
+    /// <summary>
+    /// Taps a key as a finger would — untagged, so the app's own hook reacts. Self-test only.
+    /// </summary>
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2075:DynamicallyAccessedMembers",
+        Justification = "VoxScribe.Platform.Windows is published whole and never trimmed.")]
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2026:RequiresUnreferencedCode",
+        Justification = "VoxScribe.Platform.Windows is published whole and never trimmed.")]
+    public static bool TapKeyForSelfTest(int virtualKey)
+    {
+        var method = Load()?.GetType($"{Namespace}.SendInputTextInjector")?.GetMethod("TapUntagged");
+        try
+        {
+            return method?.Invoke(null, [virtualKey]) as bool? ?? false;
+        }
+        catch (TargetInvocationException)
+        {
+            return false;
+        }
+    }
+
     /// <summary>Creates the UI Automation focus anchor, or null off Windows.</summary>
     public static IFocusAnchor? CreateFocusAnchor() =>
         Create<IFocusAnchor>("UiAutomationFocusAnchor", []);

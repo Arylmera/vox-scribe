@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using VoxScribe.Abstractions;
 
 namespace VoxScribe.Platform.Windows;
@@ -36,7 +35,7 @@ public enum PushToTalkKey
 }
 
 /// <summary>
-/// Detects press <i>and</i> release of a single held key, globally.
+/// Detects press <i>and</i> release of a held chord, globally.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -47,33 +46,14 @@ public enum PushToTalkKey
 /// hold-to-talk.
 /// </para>
 /// <para>
-/// <b>Why a dedicated thread:</b> Microsoft's guidance is explicit — low-level hooks should
-/// run on their own thread that hands work off and returns immediately. If the hook procedure
-/// exceeds <c>LowLevelHooksTimeout</c> (capped at 1000 ms since Windows 10 1709) the system
-/// <b>silently removes the hook, with no way for the application to know</b>. A hook on the
-/// UI thread dies the first time the app does a slow layout pass.
-/// </para>
-/// <para>
-/// <b>Why the key is never swallowed:</b> the macOS build consumes Right Option because on
-/// macOS that key types characters. Here, suppression buys nothing and risks something much
-/// worse — if the key-down is swallowed but the key-up escapes (the hook timed out
-/// mid-gesture, or focus crossed into an elevated window), the target application believes
-/// the modifier is held down forever.
+/// The key stream comes from <see cref="KeyboardHook"/>, the process's single low-level
+/// hook. This class holds only the chord state, per instance — the old design kept a
+/// callback and a "current instance" in statics, which silently made it a singleton: a
+/// second hook overwrote the first and the loser reported success and heard nothing.
 /// </para>
 /// </remarks>
 public sealed class PushToTalkHook : IHotkeySource
 {
-    private const int WH_KEYBOARD_LL = 13;
-    private const int HC_ACTION = 0;
-
-    private const int WM_KEYDOWN = 0x0100;
-    private const int WM_KEYUP = 0x0101;
-    private const int WM_SYSKEYDOWN = 0x0104;
-    private const int WM_SYSKEYUP = 0x0105;
-    private const uint WM_QUIT = 0x0012;
-
-    private const uint LLKHF_EXTENDED = 0x01;
-
     private const int VK_SHIFT = 0x10;
     private const int VK_CONTROL = 0x11;
     private const int VK_MENU = 0x12;
@@ -86,83 +66,12 @@ public sealed class PushToTalkHook : IHotkeySource
 
     private const int ScanCodeRightShift = 0x36;
 
-    /// <summary>
-    /// Stamped into <c>dwExtraInfo</c> on every event this app injects, so our own Ctrl+V
-    /// paste cannot re-enter this hook and re-trigger dictation.
-    /// </summary>
-    public static readonly IntPtr InjectedTag = unchecked((IntPtr)0x4D524D52); // 'MRMR'
+    /// <inheritdoc cref="KeyboardHook.InjectedTag"/>
+    public static readonly IntPtr InjectedTag = KeyboardHook.InjectedTag;
 
-    [StructLayout(LayoutKind.Sequential)]
-    private struct KBDLLHOOKSTRUCT
-    {
-        public uint VirtualKey;
-        public uint ScanCode;
-        public uint Flags;
-        public uint Time;
-        public IntPtr ExtraInfo;
-    }
+    /// <summary>The subscription, non-null while listening. Delegate identity is the key.</summary>
+    private Action<int, bool>? _listener;
 
-    [StructLayout(LayoutKind.Sequential)]
-    private struct MSG
-    {
-        public IntPtr Window;
-        public uint Message;
-        public IntPtr WParam;
-        public IntPtr LParam;
-        public uint Time;
-        public int X;
-        public int Y;
-    }
-
-    private delegate IntPtr HookProc(int code, IntPtr wParam, IntPtr lParam);
-
-    [DllImport("user32.dll", EntryPoint = "SetWindowsHookExW", SetLastError = true)]
-    private static extern IntPtr SetWindowsHookEx(int idHook, HookProc callback, IntPtr module, uint threadId);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool UnhookWindowsHookEx(IntPtr hook);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr CallNextHookEx(IntPtr hook, int code, IntPtr wParam, IntPtr lParam);
-
-    [DllImport("kernel32.dll", EntryPoint = "GetModuleHandleW", CharSet = CharSet.Unicode, SetLastError = true)]
-    private static extern IntPtr GetModuleHandle(string? name);
-
-    [DllImport("user32.dll", EntryPoint = "GetMessageW")]
-    private static extern int GetMessage(out MSG message, IntPtr window, uint filterMin, uint filterMax);
-
-    [DllImport("user32.dll", EntryPoint = "PostThreadMessageW")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool PostThreadMessage(uint threadId, uint message, IntPtr wParam, IntPtr lParam);
-
-    [DllImport("kernel32.dll")]
-    private static extern uint GetCurrentThreadId();
-
-    /// <summary>
-    /// Roots the delegate for the lifetime of the hook.
-    /// </summary>
-    /// <remarks>
-    /// Microsoft: "you must ensure the callback is not moved around by the garbage collector,
-    /// otherwise your app will crash with an ExecutionEngineException." A local variable here
-    /// produces a crash minutes or hours later, at random, with no useful stack.
-    /// </remarks>
-    /// <summary>
-    /// Kept alive for as long as the hook is installed, and <b>per instance</b>.
-    /// </summary>
-    /// <remarks>
-    /// This used to be a pair of statics — one delegate, one "current" instance — which
-    /// silently made the class a singleton. A second hook overwrote the first, the callback
-    /// dispatched every key to whichever instance started last, and the other one never saw a
-    /// keystroke while still reporting that it had installed successfully. The field only ever
-    /// existed to root the delegate against the GC, and an instance field does that just as
-    /// well.
-    /// </remarks>
-    private HookProc? _callback;
-
-    private IntPtr _hook;
-    private Thread? _thread;
-    private uint _threadId;
     private volatile bool _isDown;
 
     /// <summary>Which key triggers dictation. Convenience view over <see cref="Keys"/>.</summary>
@@ -184,10 +93,10 @@ public sealed class PushToTalkHook : IHotkeySource
     /// <remarks>
     /// This is how two overlapping shortcuts coexist. Bind Right Shift for raw dictation and
     /// Left Shift + Right Shift for the cleanup pass, and the raw chord is satisfied by both
-    /// gestures — it would fire on every cleanup dictation, and whichever hook the system
-    /// happened to call last would decide what the utterance was. Naming the extra key here
-    /// makes the more specific chord win, which is what every shortcut system does and what a
-    /// user pressing two keys obviously means.
+    /// gestures — it would fire on every cleanup dictation, and whichever listener happened
+    /// to run last would decide what the utterance was. Naming the extra key here makes the
+    /// more specific chord win, which is what every shortcut system does and what a user
+    /// pressing two keys obviously means.
     /// </remarks>
     public int[] Blockers { get; set; } = [];
 
@@ -208,109 +117,32 @@ public sealed class PushToTalkHook : IHotkeySource
     {
         StopListening();
 
-        using var ready = new ManualResetEventSlim(false);
-        var installed = false;
+        _listener = OnKey;
+        if (KeyboardHook.Subscribe(_listener)) return true;
 
-        _thread = new Thread(() =>
-        {
-            _threadId = GetCurrentThreadId();
-            _callback = Callback;
-
-            // Pass the running module's handle. IntPtr.Zero is documented as possibly
-            // failing when threadId is 0, which is exactly the global case.
-            _hook = SetWindowsHookEx(WH_KEYBOARD_LL, _callback, GetModuleHandle(null), 0);
-            installed = _hook != IntPtr.Zero;
-
-            // ReSharper disable once AccessToDisposedClosure
-            ready.Set();
-            if (!installed) return;
-
-            // Required. The system delivers hook callbacks by *sending a message* to this
-            // thread, so without a pump the hook is installed but never invoked.
-            while (GetMessage(out var message, IntPtr.Zero, 0, 0) > 0)
-            {
-                // No TranslateMessage/DispatchMessage: this thread owns no windows, and the
-                // only message it cares about is the WM_QUIT that ends the loop.
-            }
-
-            if (_hook != IntPtr.Zero)
-            {
-                UnhookWindowsHookEx(_hook);
-                _hook = IntPtr.Zero;
-            }
-        })
-        {
-            IsBackground = true,
-            Name = "VoxScribe push-to-talk hook",
-            // Stay ahead of the 1000 ms timeout that silently removes the hook.
-            Priority = ThreadPriority.AboveNormal,
-        };
-
-        _thread.SetApartmentState(ApartmentState.STA);
-        _thread.Start();
-        ready.Wait(TimeSpan.FromSeconds(3));
-
-        return installed;
+        _listener = null;
+        return false;
     }
 
     /// <inheritdoc />
     public void StopListening()
     {
-        if (_thread is null) return;
+        if (_listener is null) return;
 
-        if (_threadId != 0) PostThreadMessage(_threadId, WM_QUIT, IntPtr.Zero, IntPtr.Zero);
-        _thread.Join(TimeSpan.FromSeconds(2));
-
-        _thread = null;
-        _threadId = 0;
+        KeyboardHook.Unsubscribe(_listener);
+        _listener = null;
         _isDown = false;
         _chordDown.Clear();
         _blockersDown.Clear();
-        _callback = null;
     }
 
-    /// <summary>Keep the body short — this runs inside the system's hook timeout.</summary>
-    private IntPtr Callback(int code, IntPtr wParam, IntPtr lParam)
+    /// <summary>Runs on the hook thread; keep it short.</summary>
+    private void OnKey(int key, bool isDown)
     {
-        if (code != HC_ACTION) return CallNextHookEx(IntPtr.Zero, code, wParam, lParam);
-
-        try
-        {
-            Handle(wParam, lParam);
-        }
-        catch (Exception)
-        {
-            // An exception escaping into the hook chain would take the process down from a
-            // thread with no useful context. Swallow and keep the chain intact.
-        }
-
-        // Always chain. Microsoft: otherwise "other applications that have installed
-        // WH_KEYBOARD_LL hooks will not receive hook notifications and may behave
-        // incorrectly as a result."
-        return CallNextHookEx(IntPtr.Zero, code, wParam, lParam);
-    }
-
-    private void Handle(IntPtr wParam, IntPtr lParam)
-    {
-        var e = Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam);
-
-        // Ignore anything this app injected itself.
-        if (e.ExtraInfo == InjectedTag) return;
-
-        // ToInt32 rather than a cast: since .NET 7 an explicit (int)IntPtr conversion
-        // silently truncates instead of throwing, which CA2020 flags. Window messages are
-        // always small, so the checked conversion is free and states the intent.
-        var message = wParam.ToInt32();
-        var isDown = message is WM_KEYDOWN or WM_SYSKEYDOWN;
-        var isUp = message is WM_KEYUP or WM_SYSKEYUP;
-        if (!isDown && !isUp) return;
-
         // The chord can be swapped live while keys from the old one are still down; purge
         // strays here, on the hook thread, so the all-members-down count stays honest.
         _chordDown.RemoveWhere(k => Array.IndexOf(Keys, k) < 0);
         _blockersDown.RemoveWhere(k => Array.IndexOf(Blockers, k) < 0);
-
-        var key = Normalize(e);
 
         if (Array.IndexOf(Blockers, key) >= 0)
         {
@@ -365,10 +197,6 @@ public sealed class PushToTalkHook : IHotkeySource
     /// Both signals are accepted here.
     /// </para>
     /// </remarks>
-    private static int Normalize(in KBDLLHOOKSTRUCT e) =>
-        Normalize((int)e.VirtualKey, (int)(e.ScanCode & 0xFF), (e.Flags & LLKHF_EXTENDED) != 0);
-
-    /// <summary>Shared with <see cref="KeyCaptureHook"/> so recording and matching agree.</summary>
     internal static int Normalize(int key, int scan, bool extended)
     {
         return key switch

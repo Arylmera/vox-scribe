@@ -118,11 +118,7 @@ public static class SelfTest
         failures += Check("audio capture constructs", PlatformFactory.CreateAudioCapture() is not null);
         failures += Check("text injector constructs", PlatformFactory.CreateTextInjector() is not null);
 
-        // Constructed, not started: installing a real low-level keyboard hook on a CI runner
-        // is neither useful nor polite.
-        var hotkey = PlatformFactory.CreateHotkeySource(0xA3);
-        failures += Check("hotkey source constructs with Right Ctrl", hotkey is not null);
-        hotkey?.Dispose();
+        failures += CheckHook();
 
         var recorder = PlatformFactory.StartKeyCapture((_, _) => { });
         failures += Check("key recorder hook installs", recorder is not null);
@@ -133,6 +129,51 @@ public static class SelfTest
         var devices = PlatformFactory.ListCaptureDevices();
         failures += Check("capture devices enumerate", devices.Length > 0);
         foreach (var (id, name) in devices) Console.WriteLine($"    mic: {name} ({id})");
+
+        return failures;
+    }
+
+    /// <summary>
+    /// Installs two real hooks, taps Right Ctrl as a finger would, and expects both to fire.
+    /// </summary>
+    /// <remarks>
+    /// This is the check the unit tests cannot make: they drive the engine through a fake
+    /// hotkey. Two hooks rather than one on purpose — the bug that shipped green was a second
+    /// hook silently starving the first, and one hook alone can never show it. An untagged
+    /// <c>SendInput</c> passes through <c>WH_KEYBOARD_LL</c> exactly like hardware, and needs
+    /// no foreground window.
+    /// </remarks>
+    private static int CheckHook()
+    {
+        const int VkRightCtrl = 0xA3;
+        const int VkF13 = 0x7C;
+
+        using var plain = PlatformFactory.CreateHotkeySource(VkRightCtrl);
+        using var second = PlatformFactory.CreateHotkeySource([VkRightCtrl, VkF13]);
+        if (plain is null || second is null) return Check("hotkey sources construct", false);
+
+        using var plainPressed = new ManualResetEventSlim();
+        using var plainReleased = new ManualResetEventSlim();
+        using var secondSawKey = new ManualResetEventSlim();
+        plain.Pressed += (_, _) => plainPressed.Set();
+        plain.Released += (_, _) => plainReleased.Set();
+        // The chord needs F13 too, so it never completes — but its listener must still be
+        // called, which a Pressed handler cannot show. Tapping F13 alone does it.
+        second.Pressed += (_, _) => secondSawKey.Set();
+
+        var failures = Check("hook installs", plain.Start() && second.Start());
+        if (failures > 0) return failures;
+
+        PlatformFactory.TapKeyForSelfTest(VkRightCtrl);
+        var wait = TimeSpan.FromSeconds(2);
+        failures += Check("hook sees an injected Right Ctrl press", plainPressed.Wait(wait));
+        failures += Check("hook sees its release", plainReleased.Wait(wait));
+
+        // Second listener alive: press both chord members via two taps in a row is racy, so
+        // instead swap its chord to F13 alone and tap that — a key the plain hook ignores.
+        PlatformFactory.UpdateHotkeyChord(second, [VkF13]);
+        PlatformFactory.TapKeyForSelfTest(VkF13);
+        failures += Check("a second hook receives keys too", secondSawKey.Wait(wait));
 
         return failures;
     }

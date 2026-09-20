@@ -238,6 +238,22 @@ public sealed class SendInputTextInjector : ITextInjector
         return SendInput((uint)inputs.Length, inputs, InputSize) == inputs.Length;
     }
 
+    /// <summary>
+    /// Presses and releases <paramref name="virtualKey"/> <i>without</i> the injected tag, so
+    /// the app's own hook sees it as if a finger had. Self-test only: it is how the published
+    /// binary proves its hook end to end on a machine nobody is typing on.
+    /// </summary>
+    public static bool TapUntagged(int virtualKey)
+    {
+        var down = KeyInput(virtualKey, up: false);
+        var up = KeyInput(virtualKey, up: true);
+        down.Union.Keyboard.ExtraInfo = IntPtr.Zero;
+        up.Union.Keyboard.ExtraInfo = IntPtr.Zero;
+
+        INPUT[] tap = [down, up];
+        return SendInput(2, tap, InputSize) == 2;
+    }
+
     /// <summary>How long to wait after setting the clipboard before pasting.</summary>
     public static TimeSpan ClipboardSettleDelay => ClipboardSettle;
 

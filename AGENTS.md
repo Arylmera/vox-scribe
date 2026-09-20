@@ -62,9 +62,11 @@ Right Shift for cleanup means both chords are satisfied by the second gesture. T
 hook is given the keys that belong only to the cleanup chord and stands aside while any of
 them is held. Remove that and the raw shortcut silently eats every cleanup dictation.
 
-**`PushToTalkHook` must never hold per-instance state in a static.** It did — a callback and
-a "current instance" — which made it a singleton: a second hook overwrote the first, and the
-loser reported a successful install and then never saw a keystroke. There are two hooks now.
+**One `WH_KEYBOARD_LL` hook per process, in `KeyboardHook`.** Every shortcut is a listener on
+it, not a hook of its own. `PushToTalkHook` once kept a callback and a "current instance" in
+statics, which made it a singleton: a second hook overwrote the first, and the loser reported
+a successful install and then never saw a keystroke. The statics in `KeyboardHook` are a
+listener registry, which is the opposite arrangement — but keep chord state per instance.
 
 ---
 
@@ -166,5 +168,6 @@ been measured on real hardware.
 Everything the platform layer touches is behind an interface and tested with fakes. The
 bindings themselves are not, and two real bugs — the hook singleton and the chord overlap —
 lived happily behind green tests because those tests drive the engine through
-`FakeHotkeySource` and never install a real hook. **Anything touching `PushToTalkHook` has to
-be tried by hand.**
+`FakeHotkeySource` and never install a real hook. The published self-test now installs two
+real hooks and taps a key through `SendInput`, which covers the singleton class of bug.
+**Anything touching `KeyboardHook` still has to be tried by hand with a real keyboard.**
