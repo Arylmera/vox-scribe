@@ -29,6 +29,13 @@ of holding the key down.
 **Incremental typing** (off by default, raw shortcut only): each phrase is typed as you
 speak it instead of everything at the end.
 
+**Spoken punctuation** (off by default, Settings → TYPING): say the mark and it is written.
+French and English — *virgule*, *point*, *point d'interrogation*, *point d'exclamation*,
+*deux points*, *point-virgule*, *à la ligne* / *nouvelle ligne*; *comma*, *period* /
+*full stop*, *question mark*, *exclamation mark*, *colon*, *semicolon*, *new line*. The mark
+glues to the word before it, and "à la ligne" starts a new line with no stray space. Handy
+for the raw shortcut when no cleanup model is reachable.
+
 ## The pill
 
 While you dictate, a small pill sits at the bottom of the screen. It never takes focus —
@@ -38,8 +45,9 @@ your text still lands where the caret is.
   running. Live waveform, running timer.
 - **Amber `RAW` / `CLEAN` + shimmer** — you released the key; the tail is being transcribed.
 - **Preview line** — the transcript as it arrives, last 110 characters.
-- **`NOTICE`** — something failed (gateway unreachable, transcription error); the message
-  lingers a few seconds. Details go to the crash log.
+- **`NOTICE`** — something failed (gateway unreachable, transcription error, speech model
+  not loaded, microphone blocked by Windows privacy settings); the message lingers a few
+  seconds. Details go to the crash log.
 - **Latency readout** — after a clean finish the pill holds for a moment and the timer slot
   shows the wait you just felt, e.g. `1.2s` (from key release to text typed).
 
@@ -92,7 +100,7 @@ the underlying file directly.
 | Section | What's there |
 |---|---|
 | SHORTCUTS | Raw key, cleanup key, toggle mode. Escape while binding cancels — on the cleanup slot it *unbinds*. |
-| TYPING | Type into focused app (on), anchor focus (on), incremental typing (off) |
+| TYPING | Type into focused app (on), anchor focus (on), incremental typing (off), spoken punctuation (off) |
 | CLEANUP | OpenAI-compatible endpoint, model (`local-light`), API key, TEST CONNECTION |
 | SPEECH | Microphone, local model status, or a remote OpenAI-compatible transcription endpoint + model + API key |
 | GENERAL | Keep history, start at login (minimised to tray) |

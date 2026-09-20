@@ -59,6 +59,13 @@ public sealed record SettingsData
     public bool IncrementalInjection { get; init; }
 
     /// <summary>
+    /// Whether spoken punctuation ("virgule", "point", "new line"…) becomes the mark itself.
+    /// Off by default: "point" is an ordinary French word, and a dictation that goes through
+    /// the cleanup model is punctuated there anyway.
+    /// </summary>
+    public bool SpokenPunctuation { get; init; }
+
+    /// <summary>
     /// Whether text goes to the field that had focus when the shortcut was pressed, rather
     /// than wherever focus is at release.
     /// </summary>

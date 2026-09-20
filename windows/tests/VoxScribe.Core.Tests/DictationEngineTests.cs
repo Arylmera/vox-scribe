@@ -172,6 +172,35 @@ public sealed class DictationEngineTests
     }
 
     [Fact]
+    public async Task Spoken_punctuation_applies_only_when_enabled()
+    {
+        var hotkey = new FakeHotkeySource();
+        var injector = new RecordingTextInjector();
+        await using var engine = Build(
+            FakeAudioCapture.Tone(1.0), hotkey, new FakeTranscriber("hello virgule world", "hello virgule world"), injector);
+
+        await DictateAsync(hotkey, engine);
+        engine.SpokenPunctuation = true;
+        await DictateAsync(hotkey, engine);
+
+        injector.Injected.ShouldBe(["hello virgule world", "hello, world"]);
+    }
+
+    [Fact]
+    public async Task A_spoken_newline_at_a_segment_end_suppresses_the_join_space()
+    {
+        var hotkey = new FakeHotkeySource();
+        var capture = FakeAudioCapture.Phrases(2);
+        var injector = new RecordingTextInjector();
+        await using var engine = Build(capture, hotkey, new FakeTranscriber("first à la ligne", "second"), injector);
+        engine.SpokenPunctuation = true;
+
+        await DictateFullyAsync(hotkey, capture, engine);
+
+        injector.Injected.ShouldBe(["first\nsecond"]);
+    }
+
+    [Fact]
     public async Task Journal_holds_exactly_what_was_injected()
     {
         var hotkey = new FakeHotkeySource();

@@ -152,6 +152,7 @@ public sealed class Composition : IAsyncDisposable
 
             engine.ToggleMode = settings.Data.PushToTalkToggle;
             engine.IncrementalInjection = settings.Data.IncrementalInjection;
+            engine.SpokenPunctuation = settings.Data.SpokenPunctuation;
             engine.AnchorFocus = settings.Data.AnchorFocus;
 
             watching = engine;
@@ -186,6 +187,7 @@ public sealed class Composition : IAsyncDisposable
                     Blockers(settings.Data.ResolvedPushToTalkKeys, settings.Data.CleanupPushToTalkKeys));
                 live.ToggleMode = settings.Data.PushToTalkToggle;
                 live.IncrementalInjection = settings.Data.IncrementalInjection;
+                live.SpokenPunctuation = settings.Data.SpokenPunctuation;
                 live.AnchorFocus = settings.Data.AnchorFocus;
                 live.Cleanup = BuildCleanup();
             };

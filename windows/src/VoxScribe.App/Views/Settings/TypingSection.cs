@@ -26,6 +26,12 @@ internal static class TypingSection
                     v => save(settings.Data with { IncrementalInjection = v }),
                     hint: "While the option above is on, phrases are held and typed together on "
                         + "release, so nothing lands in the wrong window."),
+                Panels.Toggle("Spoken punctuation",
+                    settings.Data.SpokenPunctuation,
+                    v => save(settings.Data with { SpokenPunctuation = v }),
+                    hint: "“virgule”, “point d'interrogation”, “à la ligne”, "
+                        + "“comma”, “new line” and friends become the marks themselves. "
+                        + "French and English."),
             },
         });
 }

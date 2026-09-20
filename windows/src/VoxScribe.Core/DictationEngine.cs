@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using System.Text;
 using VoxScribe.Abstractions;
 using VoxScribe.Dictionary;
 
@@ -366,6 +367,13 @@ public sealed class DictationEngine : IAsyncDisposable
     public bool IncrementalInjection { get; set; }
 
     /// <summary>
+    /// When true, spoken punctuation — "virgule", "point", "new line" — becomes the mark
+    /// itself, after dictionary correction and before anything is typed or previewed.
+    /// Off by default; see <see cref="VoiceCommandProcessor"/>.
+    /// </summary>
+    public bool SpokenPunctuation { get; set; }
+
+    /// <summary>
     /// Whether to type into the field that had focus at press. Overrides
     /// <see cref="IncrementalInjection"/> for the utterance: phrases are held and typed
     /// together at release, because typing them as they land would send them wherever the
@@ -585,7 +593,9 @@ public sealed class DictationEngine : IAsyncDisposable
         var spoken = segments.Where(s => s.Text.Length > 0).ToArray();
         if (spoken.Length == 0) return;
 
-        var text = string.Join(' ', spoken.Select(s => s.Text));
+        var joined = new StringBuilder();
+        foreach (var segment in spoken) joined.Append(Separator(joined)).Append(segment.Text);
+        var text = joined.ToString();
 
         // Before Completed, so the history keeps what was actually typed. Skipped in
         // incremental mode, where the phrases are already in the target window and there is
@@ -614,6 +624,16 @@ public sealed class DictationEngine : IAsyncDisposable
         if (await _injector.InjectAsync(text, CancellationToken.None).ConfigureAwait(false))
             Journal.Record(text);
     }
+
+    /// <summary>
+    /// What goes between the text so far and the next segment: nothing at the start or after
+    /// a spoken newline, otherwise one space.
+    /// </summary>
+    private static string Separator(StringBuilder soFar) =>
+        soFar.Length == 0 || soFar[^1] == '\n' ? string.Empty : " ";
+
+    private static string Separator(string soFar) =>
+        soFar.Length == 0 || soFar[^1] == '\n' ? string.Empty : " ";
 
     /// <summary>Adds a closed segment to the ordered transcription chain.</summary>
     /// <remarks>Callers must hold <see cref="_segments"/>.</remarks>
@@ -654,8 +674,9 @@ public sealed class DictationEngine : IAsyncDisposable
             // ponytail: a correction phrase straddling a segment boundary is missed —
             // boundaries sit in pauses, so that is a phrase said with a pause through it.
             var (corrected, applied) = _corrector!.Apply(trimmed);
+            if (SpokenPunctuation) corrected = VoiceCommandProcessor.Apply(corrected);
 
-            var separator = PartialText.Length == 0 ? string.Empty : " ";
+            var separator = Separator(PartialText);
             PartialText += separator + corrected;
             Changed?.Invoke(this, EventArgs.Empty);
 
