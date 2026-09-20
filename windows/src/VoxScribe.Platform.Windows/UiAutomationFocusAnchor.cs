@@ -49,7 +49,7 @@ public sealed class UiAutomationFocusAnchor : IFocusAnchor
     /// an abandoned restore keep switching windows while the injector is already typing.
     /// </summary>
     private static readonly TimeSpan RestoreTimeout =
-        ForegroundWait + ForegroundWait + FocusSettle + TimeSpan.FromMilliseconds(100);
+        ForegroundWait + ForegroundWait + ForegroundWait + FocusSettle + TimeSpan.FromMilliseconds(100);
 
     [ComImport]
     [Guid("ff48dba4-60ef-4201-aa87-54103eef594e")]
@@ -88,6 +88,22 @@ public sealed class UiAutomationFocusAnchor : IFocusAnchor
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool IsWindow(IntPtr hwnd);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsIconic(IntPtr hwnd);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool ShowWindow(IntPtr hwnd, int command);
+
+    [DllImport("user32.dll")]
+    private static extern void SwitchToThisWindow(IntPtr hwnd, [MarshalAs(UnmanagedType.Bool)] bool altTab);
+
+    private const int SW_RESTORE = 9;
+
+    /// <summary>Longest a title search may take. Release-time, so it can afford more than a capture.</summary>
+    private static readonly TimeSpan FindTimeout = TimeSpan.FromSeconds(1);
 
     [DllImport("user32.dll")]
     private static extern uint GetWindowThreadProcessId(IntPtr hwnd, IntPtr processId);
@@ -183,7 +199,7 @@ public sealed class UiAutomationFocusAnchor : IFocusAnchor
             return new Target(hwnd, element);
         }, cancellationToken);
 
-        var finished = await Task.WhenAny(work, Task.Delay(CaptureTimeout, cancellationToken))
+        var finished = await Task.WhenAny(work, Task.Delay(FindTimeout, cancellationToken))
             .ConfigureAwait(false);
 
         return finished == work && work.Status == TaskStatus.RanToCompletion ? work.Result : null;
@@ -226,7 +242,15 @@ public sealed class UiAutomationFocusAnchor : IFocusAnchor
 
         private bool BringForward()
         {
+            // A minimised window activates but stays hidden; keystrokes into it are lost.
+            if (IsIconic(_hwnd)) ShowWindow(_hwnd, SW_RESTORE);
+
             SetForegroundWindow(_hwnd);
+            if (WaitForeground()) return true;
+
+            // What Alt+Tab calls. It is allowed to switch where SetForegroundWindow from a
+            // background process is refused, and it costs one call to find out.
+            SwitchToThisWindow(_hwnd, true);
             if (WaitForeground()) return true;
 
             // A background process may not steal foreground. Borrowing the current

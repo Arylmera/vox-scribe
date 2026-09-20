@@ -91,6 +91,20 @@ public sealed class CommandModeTests
     }
 
     [Fact]
+    public async Task A_window_that_will_not_come_forward_gets_its_own_notice()
+    {
+        var (engine, _, command, _, injector, anchor) = Build();
+        await using var _ = engine;
+        anchor.WindowTitles.Add("Claude");
+        anchor.RestoreFails = true;
+
+        await DictateAsync(command, engine);
+
+        injector.Injected.ShouldBeEmpty();
+        engine.Notice.ShouldContain("come forward");
+    }
+
+    [Fact]
     public async Task The_command_window_title_is_a_setting()
     {
         var (engine, _, command, _, injector, anchor) = Build();

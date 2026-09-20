@@ -226,6 +226,9 @@ public sealed class FakeFocusAnchor : IFocusAnchor
     /// <summary>When true, <see cref="CaptureAsync"/> returns null — a failed capture.</summary>
     public bool CaptureReturnsNull { get; set; }
 
+    /// <summary>When true, every target handed out refuses to come forward.</summary>
+    public bool RestoreFails { get; set; }
+
     /// <summary>How many captures were requested.</summary>
     public int Captures { get; private set; }
 
@@ -238,7 +241,7 @@ public sealed class FakeFocusAnchor : IFocusAnchor
         Captures++;
         if (CaptureReturnsNull) return ValueTask.FromResult<IFocusTarget?>(null);
 
-        var target = new FakeFocusTarget(_injector);
+        var target = new FakeFocusTarget(_injector) { Fails = RestoreFails };
         Targets.Add(target);
         return ValueTask.FromResult<IFocusTarget?>(target);
     }
@@ -256,7 +259,7 @@ public sealed class FakeFocusAnchor : IFocusAnchor
         if (!WindowTitles.Any(t => t.Contains(titleContains, StringComparison.OrdinalIgnoreCase)))
             return ValueTask.FromResult<IFocusTarget?>(null);
 
-        var target = new FakeFocusTarget(_injector);
+        var target = new FakeFocusTarget(_injector) { Fails = RestoreFails };
         Targets.Add(target);
         return ValueTask.FromResult<IFocusTarget?>(target);
     }
@@ -279,11 +282,14 @@ public sealed class FakeFocusTarget : IFocusTarget
     /// </summary>
     public int InjectedWhenRestored { get; private set; } = -1;
 
+    /// <summary>When true, <see cref="RestoreAsync"/> reports the window would not come forward.</summary>
+    public bool Fails { get; init; }
+
     /// <inheritdoc />
     public ValueTask<bool> RestoreAsync(CancellationToken cancellationToken)
     {
         if (Restores++ == 0) InjectedWhenRestored = _injector.Injected.Count;
-        return ValueTask.FromResult(true);
+        return ValueTask.FromResult(!Fails);
     }
 }
 

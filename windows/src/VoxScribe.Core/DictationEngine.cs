@@ -702,9 +702,16 @@ public sealed class DictationEngine : IAsyncDisposable
             ? null
             : await _focusAnchor.FindAsync(CommandWindowTitle, CancellationToken.None).ConfigureAwait(false);
 
-        if (target is null || !await target.RestoreAsync(CancellationToken.None).ConfigureAwait(false))
+        // Two notices, not one: which of the two failed is the whole diagnosis.
+        if (target is null)
         {
             ReportNotice($"No window titled “{CommandWindowTitle}” — command not sent");
+            return;
+        }
+
+        if (!await target.RestoreAsync(CancellationToken.None).ConfigureAwait(false))
+        {
+            ReportNotice($"Window “{CommandWindowTitle}” would not come forward — command not sent");
             return;
         }
 
