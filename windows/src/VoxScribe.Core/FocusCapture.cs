@@ -9,7 +9,7 @@ namespace VoxScribe.Core;
 internal sealed class FocusCapture
 {
     private readonly IFocusAnchor? _anchor;
-    private Task<IFocusTarget?>? _capture;
+    private IFocusTarget? _capturedTarget;
     private bool _requested;
     private bool _anchoredThisUtterance;
 
@@ -34,16 +34,14 @@ internal sealed class FocusCapture
         if (!_requested || _anchor is null) return null;
 
         _anchoredThisUtterance = true;
-        _capture = _anchor.CaptureAsync(ct);
-        return await _capture;
+        _capturedTarget = await _anchor.CaptureAsync(ct);
+        return _capturedTarget;
     }
 
     /// <summary>Restore focus to captured target.</summary>
     public async Task RestoreAsync(CancellationToken ct)
     {
-        if (_capture is null) return;
-        var target = await _capture;
-        if (target is not null) await target.RestoreAsync(ct);
+        if (_capturedTarget is not null) await _capturedTarget.RestoreAsync(ct);
     }
 
     /// <summary>Reset state for next utterance.</summary>
@@ -51,6 +49,6 @@ internal sealed class FocusCapture
     {
         _requested = false;
         _anchoredThisUtterance = false;
-        _capture = null;
+        _capturedTarget = null;
     }
 }
