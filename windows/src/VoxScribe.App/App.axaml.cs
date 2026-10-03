@@ -39,8 +39,16 @@ public partial class App : Application
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "Murmur", "model", "parakeet.onnx")))
             {
-                // Show first-run window before main window
-                _ = new FirstRunWindow().ShowDialog(_main);
+                try
+                {
+                    // Show first-run window before main window
+                    _ = new FirstRunWindow().ShowDialog(_main);
+                }
+                catch (Exception ex)
+                {
+                    // Log but don't crash — user can skip model download
+                    System.Diagnostics.Debug.WriteLine($"FirstRunWindow failed: {ex}");
+                }
             }
 
             // The dictation pill manages its own visibility from the engine state; it only
