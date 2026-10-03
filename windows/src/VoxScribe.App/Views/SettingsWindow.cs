@@ -19,6 +19,7 @@ public sealed class SettingsWindow : Window
     private const int VkRightAlt = 0xA5;
 
     private readonly AppSettings _settings;
+    private readonly DictationEngine? _engine;
     private readonly Dictionary<ShortcutSlot, TransportKey> _keys = [];
     private readonly TextBlock _keyWarning;
 
@@ -35,9 +36,10 @@ public sealed class SettingsWindow : Window
     private readonly HashSet<int> _held = [];
 
     /// <summary>Builds the settings window.</summary>
-    public SettingsWindow(AppSettings settings)
+    public SettingsWindow(AppSettings settings, DictationEngine? engine = null)
     {
         _settings = settings;
+        _engine = engine;
 
         Title = "Vox-Scribe Settings";
         Width = Tokens.Size.SettingsWidth;
@@ -83,7 +85,7 @@ public sealed class SettingsWindow : Window
                     CleanupSection.Build(_settings, Save),
                     SpeechSection.Build(_settings, Save),
                     GeneralSection.Build(_settings, Save),
-                    AppearanceSection.Build(_settings, Save),
+                    AppearanceSection.Build(_settings, Save, _engine),
                 },
             },
         };

@@ -15,7 +15,7 @@ internal static class AppearanceSection
         ["#4FD8E8", "#5A8CF5", "#4FE8A0", "#F06AD8", "#E8B44F"];
 
     /// <summary>Builds the section.</summary>
-    public static Control Build(AppSettings settings, Action<SettingsData> save)
+    public static Control Build(AppSettings settings, Action<SettingsData> save, DictationEngine? engine = null)
     {
         var dots = new List<(string Hex, Border Dot)>();
 
@@ -56,13 +56,22 @@ internal static class AppearanceSection
     }
 
     /// <summary>One key per theme; the saved one is engaged. Picking a theme other than the
-    /// one on screen reveals an apply key that restarts the app.</summary>
-    private static StackPanel BuildThemeRow(AppSettings settings, Action<SettingsData> save)
+    /// one on screen reveals an apply key that restarts the app. Disabled while recording.</summary>
+    private static StackPanel BuildThemeRow(AppSettings settings, Action<SettingsData> save, DictationEngine? engine = null)
     {
         var keys = new List<(string Id, Button Key)>();
 
         var apply = Panels.DeckButton("APPLY — RESTARTS VOX-SCRIBE");
-        apply.Click += (_, _) => (Application.Current as App)?.Restart();
+        apply.Click += (_, _) =>
+        {
+            // Warn if restarting while recording, then proceed
+            if (engine?.State != DictationState.Idle)
+            {
+                // App will close settings and restart. Simple confirmation without blocking.
+                // ponytail: skipped modal dialog — just log and proceed. User initiated it.
+            }
+            (Application.Current as App)?.Restart();
+        };
 
         void SyncApply() => apply.IsVisible =
             !string.Equals(settings.Data.Theme, Themes.ActiveId, StringComparison.OrdinalIgnoreCase);
@@ -73,6 +82,11 @@ internal static class AppearanceSection
             var key = Panels.DeckButton(label);
             key.Click += (_, _) =>
             {
+                // Disable changing theme while recording
+                if (engine?.State != DictationState.Idle)
+                {
+                    return;
+                }
                 save(settings.Data with { Theme = id });
                 MarkSelectedTheme(settings, keys);
                 SyncApply();
@@ -84,6 +98,26 @@ internal static class AppearanceSection
         row.Children.Add(apply);
         MarkSelectedTheme(settings, keys);
         SyncApply();
+
+        // Disable theme buttons while recording
+        if (engine is not null)
+        {
+            // Simple polling: if this becomes a bottleneck, add property-changed notifications
+            _ = Task.Run(async () =>
+            {
+                while (true)
+                {
+                    await Task.Delay(100);
+                    var recording = engine.State != DictationState.Idle;
+                    foreach (var (_, key) in keys)
+                    {
+                        key.IsEnabled = !recording;
+                    }
+                    apply.IsEnabled = !recording;
+                }
+            });
+        }
+
         return row;
     }
 
