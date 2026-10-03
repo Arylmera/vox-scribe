@@ -31,6 +31,17 @@ internal static class AppearanceSection
                 BorderThickness = new Thickness(Tokens.Border.Ring),
                 Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
             };
+            var colorName = hex switch
+            {
+                "#4FD8E8" => "Cyan",
+                "#5A8CF5" => "Blue",
+                "#4FE8A0" => "Green",
+                "#F06AD8" => "Magenta",
+                "#E8B44F" => "Amber",
+                _ => hex,
+            };
+            Avalonia.Automation.AutomationProperties.SetName(dot, $"Accent color: {colorName}");
+            Avalonia.Automation.AutomationProperties.SetHelpText(dot, $"Select {colorName} accent color. Applies to the dictation pill and highlights.");
             dot.PointerPressed += (_, _) =>
             {
                 save(settings.Data with { AccentColor = hex });
@@ -62,6 +73,8 @@ internal static class AppearanceSection
         var keys = new List<(string Id, Button Key)>();
 
         var apply = Panels.DeckButton("APPLY — RESTARTS VOX-SCRIBE");
+        Avalonia.Automation.AutomationProperties.SetName(apply, "Apply theme changes");
+        Avalonia.Automation.AutomationProperties.SetHelpText(apply, "Restarts Vox-Scribe with the selected theme. Only available when a different theme is selected.");
         apply.Click += (_, _) =>
         {
             // Warn if restarting while recording, then proceed
@@ -80,6 +93,8 @@ internal static class AppearanceSection
         foreach (var (id, label) in Themes.Choices)
         {
             var key = Panels.DeckButton(label);
+            Avalonia.Automation.AutomationProperties.SetName(key, $"Theme: {label}");
+            Avalonia.Automation.AutomationProperties.SetHelpText(key, "Select this theme. Changes take effect after restart.");
             key.Click += (_, _) =>
             {
                 // Disable changing theme while recording
