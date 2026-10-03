@@ -99,6 +99,8 @@ public sealed class MainWindow : Window
             Height = Tokens.Material.RecordLensSize,
         };
         _recordKey = new RecordButton { Content = _recordLamp };
+        Avalonia.Automation.AutomationProperties.SetName(_recordKey, "Push to Talk");
+        Avalonia.Automation.AutomationProperties.SetHelpText(_recordKey, "Hold to record dictation");
         _recordKey.Click += (_, _) => ToggleRecording();
 
         _meter = new VuMeter
@@ -116,7 +118,13 @@ public sealed class MainWindow : Window
         };
 
         _transcriptionsKey = new RailKey(WaveIcon) { IsEngaged = true };
+        Avalonia.Automation.AutomationProperties.SetName(_transcriptionsKey, "Transcriptions");
+        Avalonia.Automation.AutomationProperties.SetHelpText(_transcriptionsKey, "View dictation history");
+
         _dictionaryKey = new RailKey(BookIcon);
+        Avalonia.Automation.AutomationProperties.SetName(_dictionaryKey, "Dictionary");
+        Avalonia.Automation.AutomationProperties.SetHelpText(_dictionaryKey, "Manage autocorrect rules");
+
         _transcriptionsKey.Click += (_, _) => ShowSection(transcriptions: true);
         _dictionaryKey.Click += (_, _) => ShowSection(transcriptions: false);
 
