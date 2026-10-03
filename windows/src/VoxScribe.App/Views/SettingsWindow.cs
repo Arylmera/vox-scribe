@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Input;
 using Avalonia.Media;
 using VoxScribe.App.Controls;
 using VoxScribe.App.Design;
@@ -70,15 +71,11 @@ public sealed class SettingsWindow : Window
             IsVisible = false,
         };
 
-        Content = new ScrollViewer
+        var sections = new StackPanel
         {
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            Content = new StackPanel
-            {
-                Margin = new Thickness(Tokens.Space.Panel),
-                Spacing = Tokens.Space.Wide,
-                Children =
+            Margin = new Thickness(Tokens.Space.Panel),
+            Spacing = Tokens.Space.Wide,
+            Children =
                 {
                     ShortcutsSection.Build(_settings, Save, _keys, _keyWarning),
                     TypingSection.Build(_settings, Save),
@@ -87,7 +84,15 @@ public sealed class SettingsWindow : Window
                     GeneralSection.Build(_settings, Save),
                     AppearanceSection.Build(_settings, Save, _engine),
                 },
-            },
+        };
+
+        KeyboardNavigation.SetTabNavigation(sections, KeyboardNavigationMode.Cycle);
+
+        Content = new ScrollViewer
+        {
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            Content = sections,
         };
 
         ShowAllChords();
