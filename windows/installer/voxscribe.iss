@@ -11,10 +11,16 @@
 ; The product is Vox-Scribe; the executable and the %LOCALAPPDATA%\VoxScribe data directory
 ; keep their upstream names so settings, transcripts and the model survive the rebrand.
 #define MyAppName "Vox-Scribe"
-#define MyAppVersion "1.0.0"
 #define MyAppExeName "VoxScribe.App.exe"
 
-; Where the published build lives, relative to this script. CI overrides it:
+; Version passed from build script (reads from Directory.Version.props). Fallback for manual builds:
+#ifndef AppVersion
+  #define AppVersion "1.0.0"
+#endif
+#define MyAppVersion AppVersion
+
+; Where the published build lives. Build script and CI override it:
+;   build-installer.ps1 [-PublishDir ./path/to/publish]
 ;   ISCC.exe installer\voxscribe.iss /DPublishDir=..\artifacts\publish
 #ifndef PublishDir
   #define PublishDir "..\publish"

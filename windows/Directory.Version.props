@@ -1,0 +1,6 @@
+<Project>
+  <!-- Single source of truth for version. Imported by all projects. -->
+  <PropertyGroup>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+</Project>

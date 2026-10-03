@@ -103,10 +103,19 @@ jobs:
 
       # Inno Setup is preinstalled on the windows-latest image. The installer wraps the
       # same published exe the smoke test just ran, so a green gate covers what ships.
+      # Version is passed from Directory.Version.props to ensure .exe and .iss stay in sync.
       - name: Build installer
         shell: pwsh
         run: |
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer\voxscribe.iss /DPublishDir=..\artifacts\publish
+          $versionFile = Resolve-Path 'Directory.Version.props'
+          $versionContent = Get-Content $versionFile -Raw
+          if ($versionContent -match '<Version>([^<]+)</Version>') {
+            $appVersion = $matches[1]
+          } else {
+            throw "Could not extract version from Directory.Version.props"
+          }
+          Write-Host "Building installer version $appVersion"
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer\voxscribe.iss /DPublishDir=..\artifacts\publish /DAppVersion=$appVersion
           if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
 
       - name: Upload installer
