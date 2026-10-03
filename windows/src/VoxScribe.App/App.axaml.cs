@@ -31,6 +31,18 @@ public partial class App : Application
                 desktop.MainWindow = _main;
             }
 
+            // Show first-run model downloader if model doesn't exist
+            var modelPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "VoxScribe", "model", "parakeet.onnx");
+            if (!File.Exists(modelPath) && !File.Exists(Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Murmur", "model", "parakeet.onnx")))
+            {
+                // Show first-run window before main window
+                _ = new FirstRunWindow().ShowDialog(_main);
+            }
+
             // The dictation pill manages its own visibility from the engine state; it only
             // needs to exist. Never becomes MainWindow — it must never own focus.
             if (_composition.Engine is not null) _ = new HudWindow(_composition.Engine);
