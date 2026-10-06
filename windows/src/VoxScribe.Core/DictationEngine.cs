@@ -725,10 +725,7 @@ public sealed class DictationEngine : IAsyncDisposable
     /// What goes between the text so far and the next segment: nothing at the start or after
     /// a spoken newline, otherwise one space.
     /// </summary>
-    private static string Separator(StringBuilder soFar) =>
-        soFar.Length == 0 || soFar[^1] == '\n' ? string.Empty : " ";
-
-    private static string Separator(string soFar) =>
+    private static string Separator(ReadOnlySpan<char> soFar) =>
         soFar.Length == 0 || soFar[^1] == '\n' ? string.Empty : " ";
 
     /// <summary>Adds a closed segment to the ordered transcription chain.</summary>
