@@ -39,9 +39,13 @@ if ($LASTEXITCODE -ne 0) {
 
 # Build installer
 Write-Host "Building installer..." -ForegroundColor Blue
-$isccPath = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
-if (-not (Test-Path $isccPath)) {
-    Write-Error "Inno Setup 6 not found at $isccPath. Install from https://jrsoftware.org/isdl.php"
+# Machine-wide install first, then the per-user one winget/the installer offers.
+$isccPath = @(
+    "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+    "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe"
+) | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $isccPath) {
+    Write-Error "Inno Setup 6 not found. Install from https://jrsoftware.org/isdl.php"
     exit 1
 }
 
