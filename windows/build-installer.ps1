@@ -29,6 +29,7 @@ dotnet publish src/VoxScribe.App `
     -r win-x64 `
     --self-contained true `
     -p:PublishSingleFile=true `
+    -p:IncludeNativeLibrariesForSelfExtract=true `
     -o $PublishDir
 
 if ($LASTEXITCODE -ne 0) {
