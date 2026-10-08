@@ -84,7 +84,13 @@ public sealed record SettingsData
     /// Process names (e.g. <c>Discord</c>) whose microphone stream is muted while a dictation
     /// records, so a voice chat does not hear it. Empty mutes nothing.
     /// </summary>
-    public string[] MuteAppsWhileDictating { get; init; } = [];
+    /// <remarks>
+    /// Never null: a settings file written before this existed deserialized it as null and
+    /// crashed the Settings window. The getter guards every reader at once.
+    /// </remarks>
+    public string[] MuteAppsWhileDictating { get => _muteApps ?? []; init => _muteApps = value; }
+
+    private readonly string[]? _muteApps;
 
     /// <summary>
     /// OpenAI-compatible API base for remote transcription (e.g. a LiteLLM gateway,
