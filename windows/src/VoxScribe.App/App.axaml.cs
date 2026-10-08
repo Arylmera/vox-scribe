@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using VoxScribe.App.Views;
+using VoxScribe.Speech;
 
 namespace VoxScribe.App;
 
@@ -31,24 +32,15 @@ public partial class App : Application
                 desktop.MainWindow = _main;
             }
 
-            // Show first-run model downloader if model doesn't exist
-            var modelPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "VoxScribe", "model", "parakeet.onnx");
-            if (!File.Exists(modelPath) && !File.Exists(Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "Murmur", "model", "parakeet.onnx")))
+            // Offer the model download only when transcription has nowhere to run: no model
+            // found or configured, and no remote gateway (machines using one have no local
+            // model on purpose). Show, not ShowDialog — the main window is not open yet, and
+            // never opens at all when started from the login entry.
+            var data = _composition.Settings.Data;
+            if (data.ModelDirectory is null && data.SttEndpoint is not { Length: > 0 }
+                && ParakeetTranscriber.Locate() is null)
             {
-                try
-                {
-                    // Show first-run window before main window
-                    _ = new FirstRunWindow().ShowDialog(_main);
-                }
-                catch (Exception ex)
-                {
-                    // Log but don't crash — user can skip model download
-                    System.Diagnostics.Debug.WriteLine($"FirstRunWindow failed: {ex}");
-                }
+                new FirstRunWindow().Show();
             }
 
             // The dictation pill manages its own visibility from the engine state; it only
