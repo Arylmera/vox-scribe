@@ -52,28 +52,6 @@ public sealed class MainWindowTests
     }
 
     [AvaloniaFact]
-    public void Record_toggles_the_lamp_and_the_meter_together()
-    {
-        var window = new MainWindow();
-        window.Show();
-
-        window.IsRecording.ShouldBeFalse();
-        window.RecordLamp.IsLit.ShouldBeFalse();
-        window.Meter.IsActive.ShouldBeFalse();
-
-        window.ToggleRecording();
-
-        window.IsRecording.ShouldBeTrue();
-        window.RecordLamp.IsLit.ShouldBeTrue("the record lamp must follow the transport");
-        window.Meter.IsActive.ShouldBeTrue("the meter lamp must follow the transport");
-
-        window.ToggleRecording();
-
-        window.RecordLamp.IsLit.ShouldBeFalse();
-        window.Meter.IsActive.ShouldBeFalse();
-    }
-
-    [AvaloniaFact]
     public void Window_honours_its_minimum_size()
     {
         var window = new MainWindow();
@@ -118,17 +96,6 @@ public sealed class EquipmentTests
         key.MinWidth.ShouldBe(Tokens.Material.KeyMinWidth);
     }
 
-    [AvaloniaFact]
-    public void Meter_renders_without_throwing()
-    {
-        // The VU meter does all its own drawing, including a damped needle stepped by a
-        // timer. Constructing and showing it is what proves the render path is sound.
-        var meter = new VuMeter { Width = 168, Height = 54, Level = 0.6 };
-        var window = new Window { Content = meter };
-        window.Show();
-
-        meter.Bounds.Width.ShouldBeGreaterThan(0);
-    }
 }
 
 /// <summary>
@@ -168,8 +135,6 @@ public sealed class DesignSystemTests
         // breaking the rule, which is the quiet way a colour rule dies.
         new Lamp().LampColor.ShouldNotBe(Tokens.Colors.Record);
         new TransportKey().EngagedColor.ShouldNotBe(Tokens.Colors.Record);
-
-        new MainWindow().RecordLamp.LampColor.ShouldBe(Tokens.Colors.Record);
     }
 
     [AvaloniaFact]
@@ -211,12 +176,9 @@ public sealed class DesignSystemTests
             foreach (var (id, _) in Themes.Choices)
             {
                 Themes.Apply(id);
-
-                // Each theme re-architects the window; all of them must still build, keep
-                // the record lamp red, and expose the meter the tests poke.
                 var window = new MainWindow();
-                window.RecordLamp.LampColor.ShouldBe(Tokens.Colors.Record, $"theme {id}");
-                window.Meter.ShouldNotBeNull($"theme {id}");
+                window.Show();
+                window.Bounds.Width.ShouldBeGreaterThan(0, $"theme {id}");
             }
         }
         finally
@@ -238,14 +200,9 @@ public sealed class DesignSystemTests
     }
 
     [AvaloniaFact]
-    public void Needle_ballistics_keep_the_vu_character_but_track_live_speech()
+    public void Level_gain_lifts_speech_into_view()
     {
-        // A fast attack so the needle answers the voice, a slower fall and a slight
-        // overshoot so it still moves like an instrument and not a progress bar. The
-        // display gain lifts speech RMS (~0.02–0.15) into the visible range.
-        Tokens.Motion.NeedleAttackSeconds.ShouldBeInRange(0.08, 0.20);
-        Tokens.Motion.NeedleReleaseSeconds.ShouldBeGreaterThan(Tokens.Motion.NeedleAttackSeconds);
-        Tokens.Motion.NeedleOvershoot.ShouldBeGreaterThan(0);
+        // Speech RMS lives around 0.02–0.15; without gain the pill's level visual barely moves.
         Tokens.Motion.LevelGain.ShouldBeGreaterThan(1);
     }
 }
@@ -327,7 +284,7 @@ public sealed class KeyHitAreaTests
     [AvaloniaFact]
     public void Custom_keys_are_hit_testable_across_their_whole_face()
     {
-        Button[] keys = [new TransportKey(), new RailKey("M4,10 V14"), new RecordButton()];
+        Button[] keys = [new TransportKey(), new RailKey("M4,10 V14")];
 
         foreach (var key in keys) key.Background.ShouldBe(Brushes.Transparent);
     }

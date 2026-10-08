@@ -62,47 +62,10 @@ public sealed class TranscriptionsView : UserControl
             return;
         }
 
-        // The journal groups by day; the tape log numbers takes from the oldest up.
-        DateTime? day = null;
-        for (var i = 0; i < records.Count; i++)
-        {
-            var record = records[i];
-
-            if (Themes.Transcripts == TranscriptStyle.Journal)
-            {
-                var date = record.At.ToLocalTime().Date;
-                if (date != day)
-                {
-                    day = date;
-                    _list.Children.Add(new TextBlock
-                    {
-                        Text = date.ToString("dddd d MMMM", CultureInfo.CurrentCulture),
-                        FontFamily = Tokens.Fonts.Prose,
-                        FontStyle = FontStyle.Italic,
-                        FontSize = Tokens.Fonts.Label,
-                        Foreground = new SolidColorBrush(Tokens.Colors.InkSecondary),
-                        Margin = new Thickness(0, Tokens.Space.Base, 0, Tokens.Space.Tight),
-                    });
-                }
-            }
-
-            _list.Children.Add(BuildRow(record, TakeNumber(record)));
-        }
+        foreach (var record in records) _list.Children.Add(BuildRow(record));
     }
 
-    /// <summary>The record's position from the oldest, so take numbers survive filtering.</summary>
-    private int TakeNumber(TranscriptRecord record)
-    {
-        var all = _store.Records;
-        for (var i = 0; i < all.Count; i++)
-        {
-            if (all[i].Id == record.Id) return all.Count - i;
-        }
-
-        return all.Count;
-    }
-
-    private Border BuildRow(TranscriptRecord record, int take)
+    private Border BuildRow(TranscriptRecord record)
     {
         var copy = Panels.DeckButton("COPY");
         copy.Click += async (_, _) =>
@@ -128,81 +91,7 @@ public sealed class TranscriptionsView : UserControl
             TextWrapping = TextWrapping.Wrap,
         };
 
-        return Themes.Transcripts switch
-        {
-            TranscriptStyle.TakeLog => BuildTakeRow(record, take, text, actions),
-            TranscriptStyle.Journal => BuildJournalRow(record, text, actions),
-            _ => BuildBareRow(record, text, actions),
-        };
-    }
-
-    /// <summary>A numbered take on the tape log, Signal House style.</summary>
-    private static Border BuildTakeRow(
-        TranscriptRecord record, int take, TextBlock text, Control actions)
-    {
-        var header = Panels.Row(
-            Tokens.Space.Snug,
-            new TextBlock
-            {
-                Text = string.Create(CultureInfo.InvariantCulture, $"TAKE {take:000}"),
-                FontFamily = Tokens.Fonts.Mono,
-                FontSize = Tokens.Fonts.Caption,
-                Foreground = new SolidColorBrush(Tokens.Colors.InkSecondary),
-                VerticalAlignment = VerticalAlignment.Center,
-            },
-            MetaBlock(record, Tokens.Emphasis.Ghost));
-
-        var body = new StackPanel
-        {
-            Spacing = Tokens.Space.Snug,
-            Children = { Panels.SplitRow(header, actions), text },
-        };
-        AddCorrections(body, record);
-        return Panels.DeckCard(body);
-    }
-
-    /// <summary>A journal entry: the time in the margin, the words on the page.</summary>
-    private static Border BuildJournalRow(TranscriptRecord record, TextBlock text, Control actions)
-    {
-        var margin = new StackPanel
-        {
-            Spacing = Tokens.Space.Hair,
-            Children =
-            {
-                new TextBlock
-                {
-                    Text = record.At.ToLocalTime().ToString("HH:mm", CultureInfo.CurrentCulture),
-                    FontFamily = Tokens.Fonts.Mono,
-                    FontSize = Tokens.Fonts.Caption,
-                    Foreground = Tokens.Brushes.InkOnDeckAt(Tokens.Emphasis.Soft),
-                },
-                new TextBlock
-                {
-                    Text = record.ProcessingSeconds.ToString("0.0", CultureInfo.CurrentCulture) + "s",
-                    FontFamily = Tokens.Fonts.Mono,
-                    FontSize = Tokens.Fonts.Caption,
-                    Foreground = Tokens.Brushes.InkOnDeckAt(Tokens.Emphasis.Ghost),
-                },
-            },
-        };
-
-        var body = new StackPanel { Spacing = Tokens.Space.Snug, Children = { text } };
-        AddCorrections(body, record);
-
-        var grid = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
-        };
-        margin.Width = Tokens.Material.RailWidth;
-        Grid.SetColumn(margin, 0);
-        Grid.SetColumn(body, 1);
-        Grid.SetColumn(actions, 2);
-        actions.VerticalAlignment = VerticalAlignment.Top;
-        grid.Children.Add(margin);
-        grid.Children.Add(body);
-        grid.Children.Add(actions);
-
-        return HairlineRow(grid);
+        return BuildBareRow(record, text, actions);
     }
 
     /// <summary>A bare hairline row, Deep Field style: words left, meta right.</summary>

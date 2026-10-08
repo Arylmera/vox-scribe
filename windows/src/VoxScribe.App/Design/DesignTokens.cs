@@ -237,12 +237,6 @@ public static class Tokens
         /// <summary>Body text.</summary>
         public const double Body = 13;
 
-        /// <summary>The big transport counter.</summary>
-        public const double CounterLarge = 26;
-
-        /// <summary>The oversized counter on the Deep Field hero panel.</summary>
-        public const double CounterHero = 44;
-
         /// <summary>Letter spacing for silkscreen labels, in device-independent pixels.</summary>
         public const double SilkscreenTracking = 1.1;
     }
@@ -340,12 +334,6 @@ public static class Tokens
         /// <summary>Stroke weight of the badge mark — heavier than a rail icon, it is smaller.</summary>
         public const double BadgeIconStroke = 2.2;
 
-        /// <summary>The round record button in the voice band.</summary>
-        public const double RecordKeySize = 44;
-
-        /// <summary>The record button's lens (lamp) diameter.</summary>
-        public const double RecordLensSize = 12;
-
         /// <summary>Height of the custom title strip; also the extended-chrome hint.</summary>
         public const double TitleBarHeight = 44;
 
@@ -424,28 +412,6 @@ public static class Tokens
         /// a glance, not a report.
         /// </summary>
         public static TimeSpan LatencyLinger { get; } = TimeSpan.FromSeconds(1.5);
-
-        /// <summary>Display refresh for the VU movement — ~60 fps, so the needle is smooth.</summary>
-        public static TimeSpan MeterFrame { get; } = TimeSpan.FromMilliseconds(16);
-
-        /// <summary>How often the main window polls the engine for level and elapsed time.</summary>
-        public static TimeSpan PanelPoll { get; } = TimeSpan.FromMilliseconds(100);
-
-        /// <summary>
-        /// VU ballistics: seconds to reach a step going up.
-        /// </summary>
-        /// <remarks>
-        /// A real VU movement takes ~300 ms, but that read as sluggish against live speech —
-        /// the needle is deliberately snappier than the instrument it imitates, while the
-        /// slower release below keeps the ballistic fall that gives it character.
-        /// </remarks>
-        public const double NeedleAttackSeconds = 0.14;
-
-        /// <summary>Seconds for the needle to fall back.</summary>
-        public const double NeedleReleaseSeconds = 0.42;
-
-        /// <summary>Peak overshoot as a fraction of the step, before settling.</summary>
-        public const double NeedleOvershoot = 0.06;
 
         /// <summary>
         /// Display gain applied to the raw RMS before the perceptual sqrt. Speech RMS lives
