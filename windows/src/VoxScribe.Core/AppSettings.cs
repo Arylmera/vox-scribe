@@ -81,6 +81,12 @@ public sealed record SettingsData
     public bool KeepHistory { get; init; } = true;
 
     /// <summary>
+    /// Process names (e.g. <c>Discord</c>) whose microphone stream is muted while a dictation
+    /// records, so a voice chat does not hear it. Empty mutes nothing.
+    /// </summary>
+    public string[] MuteAppsWhileDictating { get; init; } = [];
+
+    /// <summary>
     /// OpenAI-compatible API base for remote transcription (e.g. a LiteLLM gateway,
     /// <c>http://192.168.1.100:4000/v1</c>), or null to transcribe locally.
     /// </summary>
