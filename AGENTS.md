@@ -12,7 +12,7 @@ fine and will bite you.
 cleaned-up text is typed into whatever had focus. C# on .NET 10, Avalonia for the UI,
 Parakeet through sherpa-onnx for speech, all under `windows/`.
 
-It works and is in daily use, shipped as 1.0.0: push-to-talk with a recordable chord,
+It works and is in daily use (version in `windows/Directory.Version.props`): push-to-talk with a recordable chord,
 streaming transcription while you speak, a dictation pill, tray, start-at-login, an
 installer, and the Void Glass theme with a user-selectable accent. Local Parakeet and a
 remote OpenAI-compatible STT gateway are both wired and both exercised by hand.
@@ -160,18 +160,25 @@ lookahead, `\p{L}`, and `$1`–`$9` in replacements. Nothing else.
 
 ## What isn't built
 
-1. **Onboarding** — a first-run window, and model download from inside the app rather than
-   by following `docs/PARAKEET-WINDOWS.md` by hand.
-2. **Code signing.** The installer is unsigned, so users meet SmartScreen.
-3. **Release automation** — CI builds the installer but publishes no release; the version is
-   typed in two places (`VoxScribe.App.csproj`, `installer/voxscribe.iss`).
+1. **Code signing.** The installer is unsigned, so users meet SmartScreen.
+
+Built since this list was first written: a first-run window that downloads Parakeet v3
+(`ModelDownloader`), a GitHub release published by CI on a `v*` tag, and one version source,
+`windows/Directory.Version.props` — the installer refuses to build without it.
 
 ## What no amount of CI can verify
 
-The cleanup pass has never run against a reachable gateway. Its guard is covered by tests;
-its network path is one `catch` whose entire contract is "return the original text on any
-failure", and the latency it adds between the key release and the text appearing has never
-been measured on real hardware.
+The cleanup pass runs daily against the owner's LiteLLM gateway; its alias must be a
+non-thinking model (`local-light`, about 0.65 s per call in September 2026 — `local-ops`
+thinks past the 5 s timeout and returns nothing). Its network path is one `catch` whose
+entire contract is "return the original text on any failure". The end-to-end delay it adds
+after key release has not been measured separately: transcripts record processing time but
+not whether cleanup ran.
+
+**Muting other apps while dictating** (`MicrophoneMuter`, `WasapiCaptureSessions`) is tested
+with a fake mixer. Whether a given app honours a WASAPI session mute is not something CI can
+see — it was built for Discord and has to be checked there by hand: Discord's mic test, the
+key held, the meter should go flat.
 
 Everything the platform layer touches is behind an interface and tested with fakes. The
 bindings themselves are not, and two real bugs — the hook singleton and the chord overlap —
