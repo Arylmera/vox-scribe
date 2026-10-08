@@ -82,14 +82,14 @@ public sealed class MainWindow : Window
         ExtendClientAreaToDecorationsHint = true;
         ExtendClientAreaTitleBarHeightHint = Tokens.Material.TitleBarHeight;
 
-        // The close button minimizes to the taskbar instead of closing: a closed Avalonia
-        // window is destroyed and the tray's "Show" could never bring it back. Real exit
-        // goes through the tray menu, which sets ExitAllowed before shutting down.
+        // The close button hides to the tray instead of closing: a closed Avalonia window
+        // is destroyed and the tray's "Show" could never bring it back. Real exit goes
+        // through the tray menu, which sets ExitAllowed before shutting down.
         Closing += (_, e) =>
         {
             if (ExitAllowed) return;
             e.Cancel = true;
-            WindowState = WindowState.Minimized;
+            Hide();
         };
 
         _recordLamp = new Lamp
