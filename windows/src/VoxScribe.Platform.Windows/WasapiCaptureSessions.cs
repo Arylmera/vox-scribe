@@ -59,7 +59,7 @@ public sealed class WasapiCaptureSessions : ICaptureSessions
             using var process = Process.GetProcessById(processId);
             return process.ProcessName;
         }
-        catch (ArgumentException)
+        catch (Exception e) when (e is ArgumentException or InvalidOperationException)
         {
             return string.Empty;   // exited since the session was listed
         }
