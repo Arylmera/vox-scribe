@@ -93,10 +93,6 @@ internal static class PlatformFactory
         }
     }
 
-    /// <summary>Creates the per-app microphone stream mixer, or null off Windows.</summary>
-    public static ICaptureSessions? CreateCaptureSessions() =>
-        Create<ICaptureSessions>("WasapiCaptureSessions", []);
-
     /// <summary>Creates the low-level keyboard hook, or null off Windows.</summary>
     public static IHotkeySource? CreateHotkeySource(int virtualKey) =>
         CreateHotkeySource([virtualKey]);

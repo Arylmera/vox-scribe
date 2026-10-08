@@ -157,26 +157,3 @@ public sealed class SystemClock : IClock
     /// <inheritdoc />
     public DateTimeOffset Now => DateTimeOffset.Now;
 }
-
-/// <summary>One app's stream on a microphone, as the Windows mixer sees it.</summary>
-/// <param name="ProcessId">The owning process.</param>
-/// <param name="ProcessName">Executable name without extension, e.g. <c>Discord</c>.</param>
-/// <param name="IsMuted">Whether the stream is muted right now.</param>
-public sealed record CaptureSession(int ProcessId, string ProcessName, bool IsMuted);
-
-/// <summary>
-/// Other apps' microphone streams, so they can be muted while the user dictates.
-/// </summary>
-/// <remarks>
-/// Muting a stream silences that app only — the device, and therefore our own capture,
-/// keeps running. Implementations stay logic-free; which streams to mute and how to put
-/// them back lives in <c>MicrophoneMuter</c>.
-/// </remarks>
-public interface ICaptureSessions
-{
-    /// <summary>Every live stream on every active microphone, our own included.</summary>
-    IReadOnlyList<CaptureSession> List();
-
-    /// <summary>Mutes or unmutes every stream <paramref name="processId"/> holds.</summary>
-    void SetMuted(int processId, bool muted);
-}

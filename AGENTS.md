@@ -175,10 +175,12 @@ entire contract is "return the original text on any failure". The end-to-end del
 after key release has not been measured separately: transcripts record processing time but
 not whether cleanup ran.
 
-**Muting other apps while dictating** (`MicrophoneMuter`, `WasapiCaptureSessions`) is tested
-with a fake mixer. Whether a given app honours a WASAPI session mute is not something CI can
-see — it was built for Discord and has to be checked there by hand: Discord's mic test, the
-key held, the meter should go flat.
+**Muting other apps while dictating was tried and removed** (October 2026, `git log -S
+MicrophoneMuter`). Per-app WASAPI session mute (`ISimpleAudioVolume`) on a capture endpoint
+silenced *every* stream on that microphone, VoxScribe's own included, regardless of format or
+`AUDCLNT_STREAMOPTIONS_RAW`. Its tests ran against a fake mixer and the hand check only
+watched Discord's meter, never whether VoxScribe still heard anything. Do not bring it back
+without a two-process test on real hardware.
 
 Everything the platform layer touches is behind an interface and tested with fakes. The
 bindings themselves are not, and two real bugs — the hook singleton and the chord overlap —

@@ -81,7 +81,6 @@ public sealed class SettingsWindow : Window
                     TypingSection.Build(_settings, Save),
                     CleanupSection.Build(_settings, Save),
                     SpeechSection.Build(_settings, Save),
-                    VoiceChatSection.Build(_settings, Save, OtherMicrophoneApps),
                     GeneralSection.Build(_settings, Save),
                     AppearanceSection.Build(_settings, Save, _engine),
                 },
@@ -104,21 +103,6 @@ public sealed class SettingsWindow : Window
     {
         CancelRecording();
         base.OnClosed(e);
-    }
-
-    /// <summary>Other processes holding a microphone stream now; empty off Windows.</summary>
-    private static IEnumerable<string> OtherMicrophoneApps()
-    {
-        try
-        {
-            return PlatformFactory.CreateCaptureSessions()?.List()
-                .Where(s => s.ProcessId != Environment.ProcessId)
-                .Select(s => s.ProcessName) ?? [];
-        }
-        catch (System.Runtime.InteropServices.COMException)
-        {
-            return []; // no audio service — the saved toggles still show
-        }
     }
 
     /// <summary>The chord currently saved for <paramref name="slot"/>, or null when unbound.</summary>

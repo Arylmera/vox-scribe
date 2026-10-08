@@ -300,15 +300,3 @@ public sealed class AppSettingsTests : IDisposable
         }
     }
 }
-
-public sealed class SettingsUpgradeTests
-{
-    [Fact]
-    public void A_settings_file_from_before_a_list_setting_existed_loads_it_empty_not_null()
-    {
-        var path = Path.Combine(Path.GetTempPath(), $"vox-{Guid.NewGuid():N}.json");
-        File.WriteAllText(path, """{ "KeepHistory": true }""");
-
-        new AppSettings(path).Data.MuteAppsWhileDictating.ShouldNotBeNull();
-    }
-}
