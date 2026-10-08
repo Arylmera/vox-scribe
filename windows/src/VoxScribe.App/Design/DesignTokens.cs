@@ -22,124 +22,119 @@ namespace VoxScribe.App.Design;
 /// is that control's own arithmetic and belongs to it as a named private constant. Hoisting
 /// those here would make the system look bigger than the decisions it actually holds.
 /// </para>
-/// <para>One rule that is not negotiable: <b>red means recording.</b> Nothing else is red.</para>
+/// <para>Red is used only for the recording dot. Nothing else is red.</para>
 /// </remarks>
 public static class Tokens
 {
     // ---- Colour ----
 
     /// <summary>
-    /// Surfaces, from the window ground inward. Settable values belong to the active theme
-    /// and are written once at startup by <see cref="Themes.Apply"/>; the rest are law.
+    /// Surfaces, inks and accents. Settable values belong to the active theme and are written by
+    /// <see cref="Themes.Apply"/>; defaults equal Paper light. <see cref="Record"/> is law.
     /// </summary>
     public static class Colors
     {
-        /// <summary>The window ground. Frames everything.</summary>
-        public static Color Chassis { get; internal set; } = Rgb(0x0A0D12);
+        /// <summary>The window ground (theme <c>ground</c>).</summary>
+        public static Color Chassis { get; internal set; } = Rgb(0xF4EFE6);
 
-        /// <summary>A card resting on the ground.</summary>
-        public static Color Panel { get; internal set; } = Rgb(0x12161D);
+        /// <summary>A card on the ground (theme <c>surface</c>).</summary>
+        public static Color Panel { get; internal set; } = Rgb(0xFBF8F2);
 
-        /// <summary>The darkest readout surface (counters, inputs, lists).</summary>
-        public static Color Deck { get; internal set; } = Rgb(0x0B0F14);
+        /// <summary>Lists and inputs (theme <c>surface</c>).</summary>
+        public static Color Deck { get; internal set; } = Rgb(0xFBF8F2);
 
-        /// <summary>Buttons and interactive chips.</summary>
-        public static Color Cap { get; internal set; } = Rgb(0x1A212B);
+        /// <summary>Buttons and raised chips (theme <c>surfaceRaised</c>).</summary>
+        public static Color Cap { get; internal set; } = Rgb(0xFFFFFF);
 
-        /// <summary>Hairline border between surfaces.</summary>
-        public static Color Seam { get; internal set; } = Rgb(0x232A35);
+        /// <summary>Hairline border (theme <c>border</c>).</summary>
+        public static Color Seam { get; internal set; } = Rgb(0xE3DBCD);
 
-        /// <summary>Row under the pointer, before selection.</summary>
-        public static Color Hover { get; internal set; } = Rgb(0x171D26);
+        /// <summary>Row under the pointer, selected nav (theme <c>hover</c>).</summary>
+        public static Color Hover { get; internal set; } = Rgb(0xEAE2D3);
 
-        /// <summary>Primary readable text. Contrast vs Chassis: 19.2:1 (WCAG AAA ✓)</summary>
-        public static Color Ink { get; internal set; } = Rgb(0xE9EDF2);
+        /// <summary>Primary text (theme <c>ink</c>).</summary>
+        public static Color Ink { get; internal set; } = Rgb(0x1E1A15);
 
-        /// <summary>Supporting text. Contrast vs Chassis: 6.1:1 (WCAG AA ✓)</summary>
-        public static Color InkSecondary { get; internal set; } = Rgb(0x8B96A5);
+        /// <summary>Supporting text (theme <c>inkMuted</c>).</summary>
+        public static Color InkSecondary { get; internal set; } = Rgb(0x6B6153);
 
-        /// <summary>Section labels and captions. Contrast vs Chassis: 6.1:1 (WCAG AA ✓)</summary>
-        public static Color Silkscreen { get; internal set; } = Rgb(0x8B96A5);
+        /// <summary>Section labels (theme <c>inkMuted</c>).</summary>
+        public static Color Silkscreen { get; internal set; } = Rgb(0x6B6153);
 
-        /// <summary>Text on the darkest readout surface. Contrast vs Deck: 18.8:1 (WCAG AAA ✓)</summary>
-        public static Color InkOnDeck { get; internal set; } = Rgb(0xE9EDF2);
-
-        /// <summary>The record indicator. The only red in the app — themes may not touch it.</summary>
-        public static Color Record => Rgb(0xE85656);
-
-        /// <summary>The record indicator unlit — a dark lens, not an absence.</summary>
-        public static Color RecordIdle { get; internal set; } = Rgb(0x3D2426);
+        /// <summary>Text on lists and inputs (theme <c>ink</c>).</summary>
+        public static Color InkOnDeck { get; internal set; } = Rgb(0x1E1A15);
 
         /// <summary>
-        /// Computes WCAG 2.1 contrast ratio between two colors.
-        /// Range: 1:1 (no contrast) to 21:1 (maximum contrast).
-        /// WCAG AA: minimum 4.5:1 for normal text, 3:1 for large text.
-        /// WCAG AAA: minimum 7:1 for normal text, 4.5:1 for large text.
+        /// The recording dot. The only red in the app, identical in every theme, and nothing
+        /// else may use it.
         /// </summary>
+        public static Color Record => Rgb(0xE5484D);
+
+        /// <summary>Accent for text and strokes on the ground (variant, by mode).</summary>
+        public static Color Accent { get; internal set; } = Rgb(0x6A3D9A);
+
+        /// <summary>Second gradient stop (Orb); equals <see cref="Accent"/> elsewhere.</summary>
+        public static Color AccentSecondary { get; internal set; } = Rgb(0x6A3D9A);
+
+        /// <summary>Accent used as a fill behind <see cref="OnAccent"/> text.</summary>
+        public static Color AccentFill { get; internal set; } = Rgb(0x6A3D9A);
+
+        /// <summary>Text and glyphs on <see cref="AccentFill"/> (theme <c>accentInk</c>).</summary>
+        public static Color OnAccent { get; internal set; } = Rgb(0xFFFFFF);
+
+        /// <summary>The accent at ~10% alpha, for tinted fills.</summary>
+        public static Color AccentTint { get; internal set; } = Color.FromArgb(0x1A, 0x6A, 0x3D, 0x9A);
+
+        /// <summary>The dictation pill's body (may carry alpha).</summary>
+        public static Color PillFill { get; internal set; } = Argb(0xFFFBF8F2);
+
+        /// <summary>The pill's edge (may carry alpha; transparent for Tide).</summary>
+        public static Color PillEdge { get; internal set; } = Argb(0xFFE3DBCD);
+
+        /// <summary>Rules and unlit cells inside the pill.</summary>
+        public static Color PillRule { get; internal set; } = Argb(0xFFD9CFBE);
+
+        /// <summary>A good outcome (connection OK, model found). Never red.</summary>
+        public static Color Positive { get; internal set; } = Rgb(0x107C10);
+
+        /// <summary>A warning or a failure. Never red: red means recording.</summary>
+        public static Color Caution { get; internal set; } = Rgb(0x8A5200);
+
+        /// <summary>Old pill body; removed with the old pill in Task 9.</summary>
+        public static Color Glass { get; internal set; } = Argb(0xFFFBF8F2);
+
+        /// <summary>Old pill idle lamp; removed with the old pill in Task 9.</summary>
+        public static Color RecordIdle { get; internal set; } = Rgb(0xEAE2D3);
+
+        /// <summary>Lens highlights. Always used with an opacity.</summary>
+        public static Color Specular { get; internal set; } = Avalonia.Media.Colors.White;
+
+        /// <summary>WCAG 2.1 contrast ratio, 1:1 to 21:1. AA text needs 4.5:1, large text 3:1.</summary>
         public static double GetContrastRatio(Color foreground, Color background)
         {
             var l1 = GetRelativeLuminance(foreground);
             var l2 = GetRelativeLuminance(background);
-            var lighter = Math.Max(l1, l2);
-            var darker = Math.Min(l1, l2);
-            return (lighter + 0.05) / (darker + 0.05);
+            return (Math.Max(l1, l2) + 0.05) / (Math.Min(l1, l2) + 0.05);
         }
 
         private static double GetRelativeLuminance(Color c)
         {
-            var r = c.R / 255.0;
-            var g = c.G / 255.0;
-            var b = c.B / 255.0;
+            static double Channel(byte v)
+            {
+                var s = v / 255.0;
+                return s <= 0.03928 ? s / 12.92 : Math.Pow((s + 0.055) / 1.055, 2.4);
+            }
 
-            r = r <= 0.03928 ? r / 12.92 : Math.Pow((r + 0.055) / 1.055, 2.4);
-            g = g <= 0.03928 ? g / 12.92 : Math.Pow((g + 0.055) / 1.055, 2.4);
-            b = b <= 0.03928 ? b / 12.92 : Math.Pow((b + 0.055) / 1.055, 2.4);
-
-            return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+            return (0.2126 * Channel(c.R)) + (0.7152 * Channel(c.G)) + (0.0722 * Channel(c.B));
         }
-
-        /// <summary>
-        /// The dictation pill's fill: near-black at ~55% alpha, so the desktop shows through.
-        /// </summary>
-        /// <remarks>
-        /// Carries its own alpha rather than taking one from <see cref="Emphasis"/>: this is a
-        /// material, not a de-emphasised ink, and the pill is the only thing wearing it.
-        /// </remarks>
-        public static Color Glass { get; internal set; } = Color.FromArgb(0x8C, 0x0C, 0x10, 0x16);
-
-        /// <summary>Lens highlights and glass edges. Always used with an opacity.</summary>
-        public static Color Specular { get; internal set; } = Avalonia.Media.Colors.White;
-
-        /// <summary>
-        /// The user's accent, from settings. Mutable on purpose: set at startup and whenever
-        /// settings change; controls that repaint per frame pick it up immediately.
-        /// </summary>
-        /// <remarks>
-        /// Because it moves, <b>nothing may cache a brush made from it</b>. Build the brush at
-        /// paint time, or a stale accent survives until the control is rebuilt.
-        /// </remarks>
-        public static Color Accent { get; set; } = Color.FromRgb(0x4F, 0xD8, 0xE8);
-
-        // Instrumentation colours. Green and amber are readings — a level, a verdict, a
-        // correction that fired — and never UI chrome.
-
-        /// <summary>The level strip's dark backing.</summary>
-        public static Color MeterFace { get; internal set; } = Rgb(0x0B0F14);
-
-        /// <summary>Healthy / nominal.</summary>
-        public static Color MeterGreen { get; internal set; } = Rgb(0x4FE8A0);
-
-        /// <summary>Attention / approaching peak.</summary>
-        public static Color MeterAmber { get; internal set; } = Rgb(0xE8B44F);
-
-        /// <summary>Over / error.</summary>
-        public static Color MeterRed => Rgb(0xE85656);
 
         internal static Color Rgb(uint hex) => Color.FromRgb(
             (byte)((hex >> 16) & 0xFF), (byte)((hex >> 8) & 0xFF), (byte)(hex & 0xFF));
+
+        internal static Color Argb(uint hex) => Color.FromUInt32(hex);
     }
 
-    /// <summary>Brushes for the colours above, allocated per call.</summary>
+    /// <summary>Brushes for the colours above, allocated per call so none outlives a theme change.</summary>
     public static class Brushes
     {
         /// <inheritdoc cref="Colors.Chassis"/>
@@ -151,8 +146,17 @@ public static class Tokens
         /// <inheritdoc cref="Colors.Deck"/>
         public static IBrush Deck => new SolidColorBrush(Colors.Deck);
 
+        /// <inheritdoc cref="Colors.Seam"/>
+        public static IBrush Seam => new SolidColorBrush(Colors.Seam);
+
+        /// <inheritdoc cref="Colors.Hover"/>
+        public static IBrush Hover => new SolidColorBrush(Colors.Hover);
+
         /// <inheritdoc cref="Colors.Ink"/>
         public static IBrush Ink => new SolidColorBrush(Colors.Ink);
+
+        /// <inheritdoc cref="Colors.InkSecondary"/>
+        public static IBrush InkSecondary => new SolidColorBrush(Colors.InkSecondary);
 
         /// <inheritdoc cref="Colors.Silkscreen"/>
         public static IBrush Silkscreen => new SolidColorBrush(Colors.Silkscreen);
@@ -160,15 +164,20 @@ public static class Tokens
         /// <inheritdoc cref="Colors.InkOnDeck"/>
         public static IBrush InkOnDeck => new SolidColorBrush(Colors.InkOnDeck);
 
+        /// <inheritdoc cref="Colors.Accent"/>
+        public static IBrush Accent => new SolidColorBrush(Colors.Accent);
+
+        /// <inheritdoc cref="Colors.AccentFill"/>
+        public static IBrush AccentFill => new SolidColorBrush(Colors.AccentFill);
+
+        /// <inheritdoc cref="Colors.OnAccent"/>
+        public static IBrush OnAccent => new SolidColorBrush(Colors.OnAccent);
+
         /// <inheritdoc cref="Colors.Record"/>
         public static IBrush Record => new SolidColorBrush(Colors.Record);
 
-        /// <inheritdoc cref="Colors.MeterFace"/>
-        public static IBrush MeterFace => new SolidColorBrush(Colors.MeterFace);
-
         /// <summary>Ink at a chosen level of de-emphasis. See <see cref="Emphasis"/>.</summary>
-        public static IBrush InkOnDeckAt(double emphasis) =>
-            new SolidColorBrush(Colors.InkOnDeck, emphasis);
+        public static IBrush InkOnDeckAt(double emphasis) => new SolidColorBrush(Colors.InkOnDeck, emphasis);
     }
 
     /// <summary>
@@ -208,19 +217,17 @@ public static class Tokens
     /// </remarks>
     public static class Fonts
     {
-        /// <summary>The interface typeface.</summary>
-        public static FontFamily Grotesque { get; } =
-            new("Segoe UI Variable Display, Segoe UI, Helvetica Neue, Arial, sans-serif");
+        /// <summary>The active theme's body face. (The name is historical; it is not always a grotesque.)</summary>
+        public static FontFamily Grotesque { get; internal set; } = FontFaces.Geist;
 
-        /// <summary>
-        /// The spoken word — transcript rows and the pill's preview line. Follows the theme:
-        /// the Manuscript sets it in a serif, the others keep the grotesque.
-        /// </summary>
-        public static FontFamily Prose { get; internal set; } = Grotesque;
+        /// <summary>The active theme's display face: headlines, wordmark.</summary>
+        public static FontFamily Display { get; internal set; } = FontFaces.InstrumentSerif;
+
+        /// <summary>The spoken word — transcript rows. Follows the theme's body face.</summary>
+        public static FontFamily Prose { get; internal set; } = FontFaces.Geist;
 
         /// <summary>Readouts and timings. Monospaced so digits don't shift as they tick.</summary>
-        public static FontFamily Mono { get; } =
-            new("Cascadia Mono, Consolas, Menlo, SF Mono, monospace");
+        public static FontFamily Mono { get; internal set; } = FontFaces.GeistMono;
 
         /// <summary>Panel labels: small, uppercase, tightly tracked.</summary>
         public const double Silkscreen = 9;
@@ -236,6 +243,9 @@ public static class Tokens
 
         /// <summary>Body text.</summary>
         public const double Body = 13;
+
+        /// <summary>Row text, nav labels.</summary>
+        public const double Row = 14;
 
         /// <summary>Letter spacing for silkscreen labels, in device-independent pixels.</summary>
         public const double SilkscreenTracking = 1.1;
@@ -268,18 +278,19 @@ public static class Tokens
         public const double Panel = 32;
     }
 
-    /// <summary>
-    /// Generous by design — Void Glass surfaces are soft-cornered cards.
-    /// </summary>
+    /// <summary>Corner radii. Chip and Panel follow the theme (Mono is square, Paper is round).</summary>
     public static class Radius
     {
-        /// <summary>Indicator chips, small lamps, badges.</summary>
-        public const double Chip = 8;
+        /// <summary>Buttons, chips, badges, nav items (theme <c>radius.button</c>).</summary>
+        public static double Chip { get; internal set; } = 999;
 
-        /// <summary>Glass cards and recessed wells.</summary>
-        public const double Panel = 14;
+        /// <summary>Cards and wells (theme <c>radius.card</c>).</summary>
+        public static double Panel { get; internal set; } = 12;
 
-        /// <summary>Navigation rail keys.</summary>
+        /// <summary>The pill body (theme <c>radius.pill</c>).</summary>
+        public static double Pill { get; internal set; } = 3;
+
+        /// <summary>Navigation rail keys (removed with the rail in Task 6).</summary>
         public const double RailKey = 12;
     }
 
@@ -356,9 +367,9 @@ public static class Tokens
         public const double WarningMaxWidth = 340;
 
         /// <summary>
-        /// How strongly an instrumentation colour tints the outline of a notice — the
-        /// "corrected" chips and the dictionary's false-positive warnings. Amber at full
-        /// strength around a box reads as an error; this reads as a note.
+        /// How strongly a caution colour tints the outline of a notice — the "corrected"
+        /// chips and the dictionary's false-positive warnings. Caution at full strength
+        /// around a box reads as an error; this reads as a note.
         /// </summary>
         public const double NoticeEdgeOpacity = 0.4;
 

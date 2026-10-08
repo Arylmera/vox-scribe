@@ -11,20 +11,32 @@ internal static class FontFaces
 {
     private const string Root = "avares://VoxScribe.App/Assets/Fonts/";
 
+    // Each custom family carries a system fallback. Avalonia resolves the bundled face
+    // first everywhere that matters (verified directly against the real, Skia-backed font
+    // manager — see the Task 3 report); the fallback only engages where no real font
+    // manager is behind the request, e.g. a pure headless test host with no platform
+    // ever initialised, which cannot load embedded fonts at all and would otherwise throw
+    // on every glyph lookup.
+
     /// <summary>Paper's display serif.</summary>
-    public static FontFamily InstrumentSerif { get; } = new(Root + "InstrumentSerif#Instrument Serif");
+    public static FontFamily InstrumentSerif { get; } =
+        new(Root + "InstrumentSerif#Instrument Serif, Georgia, Times New Roman, serif");
 
     /// <summary>Paper and Orb body face.</summary>
-    public static FontFamily Geist { get; } = new(Root + "Geist#Geist");
+    public static FontFamily Geist { get; } =
+        new(Root + "Geist#Geist, Segoe UI Variable Display, Segoe UI, Helvetica Neue, Arial, sans-serif");
 
     /// <summary>Paper, Orb and Tide mono face.</summary>
-    public static FontFamily GeistMono { get; } = new(Root + "GeistMono#Geist Mono");
+    public static FontFamily GeistMono { get; } =
+        new(Root + "GeistMono#Geist Mono, Cascadia Mono, Consolas, Menlo, SF Mono, monospace");
 
     /// <summary>Tide's display and body face.</summary>
-    public static FontFamily Figtree { get; } = new(Root + "Figtree#Figtree");
+    public static FontFamily Figtree { get; } =
+        new(Root + "Figtree#Figtree, Segoe UI Variable Display, Segoe UI, Helvetica Neue, Arial, sans-serif");
 
     /// <summary>Mono's only face.</summary>
-    public static FontFamily JetBrainsMono { get; } = new(Root + "JetBrainsMono#JetBrains Mono");
+    public static FontFamily JetBrainsMono { get; } =
+        new(Root + "JetBrainsMono#JetBrains Mono, Cascadia Mono, Consolas, Menlo, SF Mono, monospace");
 
     /// <summary>Fluent body text — system font.</summary>
     public static FontFamily SegoeText { get; } = new("Segoe UI Variable Text, Segoe UI, sans-serif");

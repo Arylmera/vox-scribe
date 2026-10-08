@@ -160,7 +160,7 @@ public sealed class DictionaryView : UserControl
             new Lamp
             {
                 IsLit = entry.IsEnabled,
-                LampColor = Tokens.Colors.MeterGreen,
+                LampColor = Tokens.Colors.Positive,
                 Width = Tokens.Material.LampBullet,
                 Height = Tokens.Material.LampBullet,
                 VerticalAlignment = VerticalAlignment.Center,
@@ -365,7 +365,7 @@ public sealed class DictionaryEditorWindow : Window
     private static Border BuildWarning(string message) => new()
     {
         BorderBrush = new SolidColorBrush(
-            Tokens.Colors.MeterAmber, Tokens.Material.NoticeEdgeOpacity),
+            Tokens.Colors.Caution, Tokens.Material.NoticeEdgeOpacity),
         BorderThickness = new Thickness(Tokens.Border.Hairline),
         CornerRadius = new CornerRadius(Tokens.Radius.Chip),
         Padding = new Thickness(Tokens.Space.Snug),
@@ -378,7 +378,7 @@ public sealed class DictionaryEditorWindow : Window
                 new Lamp
                 {
                     IsLit = true,
-                    LampColor = Tokens.Colors.MeterAmber,
+                    LampColor = Tokens.Colors.Caution,
                     Width = Tokens.Material.LampBullet,
                     Height = Tokens.Material.LampBullet,
                     VerticalAlignment = VerticalAlignment.Top,

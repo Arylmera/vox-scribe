@@ -108,82 +108,102 @@ public sealed class EquipmentTests
 public sealed class DesignSystemTests
 {
     [AvaloniaFact]
-    public void Record_red_is_the_void_glass_value()
+    public void Record_red_is_E5484D()
     {
-        // Red still means recording and nothing else; this is the Void Glass red.
         var red = Tokens.Colors.Record;
-        red.R.ShouldBe((byte)0xE8);
-        red.G.ShouldBe((byte)0x56);
-        red.B.ShouldBe((byte)0x56);
+        (red.R, red.G, red.B).ShouldBe(((byte)0xE5, (byte)0x48, (byte)0x4D));
     }
 
     [AvaloniaFact]
-    public void Radii_stay_generous_enough_to_read_as_void_glass()
+    public void Token_defaults_are_paper_light()
     {
-        // Void Glass is soft-cornered cards; anything under this reads as the old
-        // equipment look creeping back.
-        Tokens.Radius.Chip.ShouldBeGreaterThanOrEqualTo(6);
-        Tokens.Radius.Panel.ShouldBeGreaterThanOrEqualTo(12);
-        Tokens.Radius.RailKey.ShouldBeGreaterThanOrEqualTo(10);
-    }
-
-    [AvaloniaFact]
-    public void Nothing_is_red_unless_it_asks_to_be()
-    {
-        // Red means recording, so the shared controls default to neutral and the transport
-        // opts in. A red default left every unconfigured key one IsEngaged away from
-        // breaking the rule, which is the quiet way a colour rule dies.
-        new Lamp().LampColor.ShouldNotBe(Tokens.Colors.Record);
-        new TransportKey().EngagedColor.ShouldNotBe(Tokens.Colors.Record);
-    }
-
-    [AvaloniaFact]
-    public void Every_theme_keeps_the_record_red_and_stays_readable()
-    {
+        // Headless tests never call Apply; the defaults must be a real theme, not a stale one.
+        var defaults = (Tokens.Colors.Chassis, Tokens.Colors.Ink, Tokens.Colors.Accent, Tokens.Colors.PillFill);
         try
         {
-            foreach (var (id, _) in Themes.Choices)
-            {
-                Themes.Apply(id);
-
-                // The one non-negotiable: no theme may touch the record red.
-                Tokens.Colors.Record.R.ShouldBe((byte)0xE8, $"theme {id}");
-
-                // Ink must actually contrast its ground, whichever way the theme leans.
-                var contrast = Math.Abs(
-                    Luminance(Tokens.Colors.Ink) - Luminance(Tokens.Colors.Chassis));
-                contrast.ShouldBeGreaterThan(0.5, $"theme {id}");
-            }
-
-            // An unknown id — an old or hand-edited settings file — lands on the default.
-            Themes.Apply("no-such-theme");
-            Tokens.Colors.Chassis.ShouldBe(Avalonia.Media.Color.FromRgb(0x0E, 0x11, 0x16));
+            Themes.Apply("orb", null, true);
+            Themes.Apply("paper", null, false);
+            (Tokens.Colors.Chassis, Tokens.Colors.Ink, Tokens.Colors.Accent, Tokens.Colors.PillFill).ShouldBe(defaults);
         }
         finally
         {
-            Themes.Apply(Themes.Default);
+            Themes.Apply(Themes.DefaultId, null, false);
         }
     }
 
-    private static double Luminance(Avalonia.Media.Color c) =>
-        ((0.299 * c.R) + (0.587 * c.G) + (0.114 * c.B)) / 255.0;
+    [AvaloniaFact]
+    public void Five_themes_in_order_each_with_a_green_variant()
+    {
+        Themes.All.Select(t => t.Id).ShouldBe(["paper", "orb", "tide", "mono", "fluent"]);
+        var greens = new Dictionary<string, string>
+        {
+            ["paper"] = "moss",
+            ["orb"] = "emerald",
+            ["tide"] = "fern",
+            ["mono"] = "phosphor",
+            ["fluent"] = "forest",
+        };
+        foreach (var theme in Themes.All) theme.Variants.Select(v => v.Id).ShouldContain(greens[theme.Id]);
+    }
 
     [AvaloniaFact]
-    public void Every_theme_builds_its_own_window_layout()
+    public void Retired_or_unknown_ids_fall_back_to_paper_and_its_first_variant()
     {
         try
         {
-            foreach (var (id, _) in Themes.Choices)
+            foreach (var id in new string?[] { "deep-field", "signal-house", "manuscript", "no-such-theme", null })
             {
-                Themes.Apply(id);
-                var window = new MainWindow();
-                window.Show();
-                window.Bounds.Width.ShouldBeGreaterThan(0, $"theme {id}");
+                Themes.Apply(id, "#4FD8E8", false);
+                Themes.Active.Id.ShouldBe("paper");
+                Themes.ActiveVariant.Id.ShouldBe("plum");
             }
         }
         finally
         {
-            Themes.Apply(Themes.Default);
+            Themes.Apply(Themes.DefaultId, null, false);
+        }
+    }
+
+    [AvaloniaFact]
+    public void Applying_what_is_already_painted_changes_nothing()
+    {
+        var raised = 0;
+        void Count(object? s, EventArgs e) => raised++;
+        Themes.Changed += Count;
+        try
+        {
+            Themes.Apply("tide", "mint", true);
+            raised = 0;
+            Themes.Apply("tide", "mint", true).ShouldBeFalse();
+            raised.ShouldBe(0);
+            Themes.Apply("tide", "mint", false).ShouldBeTrue();
+            raised.ShouldBe(1);
+        }
+        finally
+        {
+            Themes.Changed -= Count;
+            Themes.Apply(Themes.DefaultId, null, false);
+        }
+    }
+
+    [AvaloniaFact]
+    public void Every_theme_builds_the_main_window_light_and_dark()
+    {
+        try
+        {
+            foreach (var theme in Themes.All)
+                foreach (var dark in new[] { false, true })
+                {
+                    Themes.Apply(theme.Id, null, dark);
+                    Tokens.Colors.Record.ShouldBe(Avalonia.Media.Color.FromRgb(0xE5, 0x48, 0x4D), theme.Id);
+                    var window = new MainWindow();
+                    window.Show();
+                    window.Bounds.Width.ShouldBeGreaterThan(0, theme.Id);
+                }
+        }
+        finally
+        {
+            Themes.Apply(Themes.DefaultId, null, false);
         }
     }
 

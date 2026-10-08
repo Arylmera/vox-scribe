@@ -153,7 +153,7 @@ public sealed class HudWindow : Window
         {
             // Transparent glass: the desktop shows through the pill.
             // The theme decides how round the pill is — a paper strip is barely rounded.
-            CornerRadius = new CornerRadius(Themes.PillRadius),
+            CornerRadius = new CornerRadius(Tokens.Radius.Pill),
             Background = new SolidColorBrush(Tokens.Colors.Glass),
             BorderThickness = new Thickness(Tokens.Border.Hairline),
             Padding = new Thickness(Tokens.Space.Wide, 0),
@@ -215,7 +215,7 @@ public sealed class HudWindow : Window
         _mode.Text = recording ? "REC · " + mode : mode;
         _mode.Foreground = recording
             ? new SolidColorBrush(Tokens.Colors.Ink, GlassInkOpacity)
-            : new SolidColorBrush(Tokens.Colors.MeterAmber);
+            : new SolidColorBrush(Tokens.Colors.Caution);
 
         _lamp.Fill = recording ? Tokens.Brushes.Record : new SolidColorBrush(Tokens.Colors.RecordIdle);
         _hint.IsVisible = recording;
@@ -424,7 +424,7 @@ internal sealed class HudBars : Control
     public override void Render(DrawingContext context)
     {
         var recording = _state == DictationState.Recording;
-        var color = recording ? Tokens.Colors.Accent : Tokens.Colors.MeterAmber;
+        var color = recording ? Tokens.Colors.Accent : Tokens.Colors.Caution;
 
         var slot = Bounds.Width / BarCount;
         var barWidth = Math.Max(MinBarWidth, slot * BarWidthRatio);

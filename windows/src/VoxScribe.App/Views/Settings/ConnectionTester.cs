@@ -44,7 +44,7 @@ internal static class ConnectionTester
             var (endpoint, model, key) = read();
             var (ok, message) = await TestConnectionAsync(endpoint, model, key);
             lamp.IsLit = true;
-            lamp.LampColor = ok ? Tokens.Colors.MeterGreen : Tokens.Colors.MeterRed;
+            lamp.LampColor = ok ? Tokens.Colors.Positive : Tokens.Colors.Caution;
             status.Text = message;
             test.IsEnabled = true;
         };
@@ -58,7 +58,7 @@ internal static class ConnectionTester
             // Says so briefly, then reverts: a verdict that stays put reads as the
             // result of the next test that has not run yet.
             status.Text = "Saved.";
-            status.Foreground = new SolidColorBrush(Tokens.Colors.MeterGreen);
+            status.Foreground = new SolidColorBrush(Tokens.Colors.Positive);
 
             await Task.Delay(Tokens.Motion.StatusHold);
             status.Text = "Not tested yet.";

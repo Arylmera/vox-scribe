@@ -180,7 +180,7 @@ public sealed class MainWindow : Window
                 new Lamp
                 {
                     IsLit = true,
-                    LampColor = Tokens.Colors.MeterAmber,
+                    LampColor = Tokens.Colors.Caution,
                     VerticalAlignment = VerticalAlignment.Center,
                 },
                 new TextBlock

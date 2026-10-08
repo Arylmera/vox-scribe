@@ -1,5 +1,4 @@
-﻿using Avalonia.Media;
-using VoxScribe.Abstractions;
+﻿using VoxScribe.Abstractions;
 using VoxScribe.App.Design;
 using VoxScribe.Core;
 using VoxScribe.Dictionary;
@@ -80,24 +79,14 @@ public sealed class Composition : IAsyncDisposable
     /// <summary>An unbound chord is an empty one: the hook exists but can never complete.</summary>
     private static int[] Chord(int[]? keys) => keys is { Length: > 0 } ? keys : [];
 
-    /// <summary>Parses and installs the accent, keeping the default on a bad value.</summary>
-    private static void ApplyAccent(string hex)
-    {
-        if (Color.TryParse(hex, out var color)) Tokens.Colors.Accent = color;
-    }
-
     /// <summary>Builds the object graph.</summary>
     public static Composition Create()
     {
         var settings = new AppSettings(AppSettings.DefaultPath);
 
-        // Theme first, before any window exists — views cache brushes at build time, so the
-        // theme is a next-start setting, unlike the live accent below.
-        Themes.Apply(settings.Data.Theme);
-
-        // The accent is live everywhere the moment it changes — same promise as the hotkey.
-        ApplyAccent(settings.Data.AccentColor);
-        settings.Changed += (_, _) => ApplyAccent(settings.Data.AccentColor);
+        // Theme first, before any window exists. Task 4 moves this into App and makes it live.
+        Themes.Apply(settings.Data.Theme, settings.Data.AccentVariant,
+            Avalonia.Application.Current?.ActualThemeVariant == Avalonia.Styling.ThemeVariant.Dark);
 
         var dictionary = new DictionaryFile(DictionaryFile.DefaultPath);
         var transcripts = new TranscriptStore(TranscriptStore.DefaultPath);

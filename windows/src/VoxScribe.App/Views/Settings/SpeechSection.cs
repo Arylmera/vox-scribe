@@ -78,7 +78,7 @@ internal static class SpeechSection
                 new Lamp
                 {
                     IsLit = found,
-                    LampColor = found ? Tokens.Colors.MeterGreen : Tokens.Colors.MeterAmber,
+                    LampColor = found ? Tokens.Colors.Positive : Tokens.Colors.Caution,
                     VerticalAlignment = VerticalAlignment.Center,
                 },
                 new TextBlock

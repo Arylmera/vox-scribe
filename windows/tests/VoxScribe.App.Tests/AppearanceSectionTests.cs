@@ -17,7 +17,7 @@ public sealed class AppearanceSectionTests
     public void Theme_key_saves_the_theme_when_no_engine_is_running()
     {
         var settings = new AppSettings(Path.Combine(Path.GetTempPath(), $"vox-{Guid.NewGuid():N}.json"));
-        var other = Themes.Choices.First(c => c.Id != settings.Data.Theme);
+        var other = Themes.All.First(t => t.Id != settings.Data.Theme);
         var section = AppearanceSection.Build(settings, settings.Update, engine: null);
 
         var key = section.GetLogicalDescendants().OfType<Button>()

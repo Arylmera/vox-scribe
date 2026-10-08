@@ -153,7 +153,7 @@ public sealed class TranscriptionsView : UserControl
         row.Children.Add(new Silkscreen
         {
             Text = "CORRECTED",
-            Foreground = new SolidColorBrush(Tokens.Colors.MeterAmber),
+            Foreground = new SolidColorBrush(Tokens.Colors.Caution),
             VerticalAlignment = VerticalAlignment.Center,
         });
 
@@ -166,7 +166,7 @@ public sealed class TranscriptionsView : UserControl
             row.Children.Add(new Border
             {
                 BorderBrush = new SolidColorBrush(
-                    Tokens.Colors.MeterAmber, Tokens.Material.NoticeEdgeOpacity),
+                    Tokens.Colors.Caution, Tokens.Material.NoticeEdgeOpacity),
                 BorderThickness = new Thickness(Tokens.Border.Hairline),
                 CornerRadius = new CornerRadius(Tokens.Radius.Chip),
                 Padding = new Thickness(Tokens.Space.Snug, Tokens.Space.Hair),

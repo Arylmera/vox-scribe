@@ -147,17 +147,17 @@ public sealed record SettingsData
     public string? AudioDeviceId { get; init; }
 
     /// <summary>
-    /// Accent colour as <c>#RRGGBB</c> — tints the dictation pill and highlights. Part of
-    /// the Void Glass redesign; the default is its cyan.
+    /// Visual theme id: "paper" (the default), "orb", "tide", "mono" or "fluent". Unknown
+    /// values — including the retired "deep-field", "signal-house" and "manuscript" — fall back
+    /// to Paper, so old or hand-edited files keep working.
     /// </summary>
-    public string AccentColor { get; init; } = "#4FD8E8";
+    public string Theme { get; init; } = "paper";
 
     /// <summary>
-    /// Visual theme id ("deep-field", "signal-house", "manuscript"). Applied once at
-    /// startup; changing it takes effect at next start. Unknown values fall back to the
-    /// default, so old or hand-edited files keep working.
+    /// Accent variant id within the theme ("plum", "moss", …), or null for the theme's first.
+    /// An id the theme does not offer falls back the same way.
     /// </summary>
-    public string Theme { get; init; } = "deep-field";
+    public string? AccentVariant { get; init; }
 }
 
 /// <summary>Settings, persisted as JSON.</summary>

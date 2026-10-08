@@ -66,7 +66,7 @@ public sealed class SettingsWindow : Window
         {
             FontFamily = Tokens.Fonts.Grotesque,
             FontSize = Tokens.Fonts.Label,
-            Foreground = new SolidColorBrush(Tokens.Colors.MeterAmber),
+            Foreground = new SolidColorBrush(Tokens.Colors.Caution),
             TextWrapping = TextWrapping.Wrap,
             IsVisible = false,
         };
