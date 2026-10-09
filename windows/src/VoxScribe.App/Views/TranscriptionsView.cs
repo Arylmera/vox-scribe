@@ -40,11 +40,30 @@ public sealed class TranscriptionsView : UserControl
         Content = Panels.ListShell(
             Panels.SearchRow(_search), Panels.Footer(_count, clear), _list);
 
-        // Changed fires from the dictation engine's worker thread (its pipeline runs
-        // ConfigureAwait(false) throughout); touching Avalonia controls there throws and the
-        // view silently stops refreshing. Always marshal to the UI thread.
-        _store.Changed += (_, _) => Avalonia.Threading.Dispatcher.UIThread.Post(Refresh);
         Refresh();
+    }
+
+    // Changed fires from the dictation engine's worker thread (its pipeline runs
+    // ConfigureAwait(false) throughout); touching Avalonia controls there throws and the
+    // view silently stops refreshing. Always marshal to the UI thread.
+    private void OnStoreChanged(object? sender, EventArgs e) =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(Refresh);
+
+    /// <inheritdoc />
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+
+        // A theme switch rebuilds the window from fresh instances and discards this one — a
+        // subscription held past that point would keep refreshing a control with no parent.
+        _store.Changed += OnStoreChanged;
+    }
+
+    /// <inheritdoc />
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        _store.Changed -= OnStoreChanged;
+        base.OnDetachedFromVisualTree(e);
     }
 
     private void Refresh()

@@ -37,8 +37,8 @@ public static class Program
         _single = new Mutex(initiallyOwned: true, "VoxScribe.SingleInstance", out var first);
         if (!first)
         {
-            // A theme restart launches the new copy while the old one is still tearing
-            // down, so this copy is allowed to wait its turn instead of bowing out.
+            // A model-download restart launches the new copy while the old one is still
+            // tearing down, so this copy is allowed to wait its turn instead of bowing out.
             if (!args.Contains("--restarted", StringComparer.OrdinalIgnoreCase)) return 0;
 
             try

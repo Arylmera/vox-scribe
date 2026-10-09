@@ -53,10 +53,36 @@ public sealed class DictionaryView : UserControl
             Panels.Footer(_count, reveal),
             new StackPanel { Children = { _suggestionHost, _list } });
 
-        _file.Changed += (_, _) => { Refresh(); RefreshSuggestions(); };
-        _transcripts.Changed += (_, _) => Avalonia.Threading.Dispatcher.UIThread.Post(RefreshSuggestions);
         Refresh();
         RefreshSuggestions();
+    }
+
+    private void OnFileChanged(object? sender, EventArgs e)
+    {
+        Refresh();
+        RefreshSuggestions();
+    }
+
+    private void OnTranscriptsChanged(object? sender, EventArgs e) =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(RefreshSuggestions);
+
+    /// <inheritdoc />
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+
+        // A theme switch rebuilds the window from fresh instances and discards this one — a
+        // subscription held past that point would keep refreshing a control with no parent.
+        _file.Changed += OnFileChanged;
+        _transcripts.Changed += OnTranscriptsChanged;
+    }
+
+    /// <inheritdoc />
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        _file.Changed -= OnFileChanged;
+        _transcripts.Changed -= OnTranscriptsChanged;
+        base.OnDetachedFromVisualTree(e);
     }
 
     private void RefreshSuggestions() => _suggestionHost.Content = BuildSuggestions();
