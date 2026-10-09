@@ -285,17 +285,25 @@ internal static class Panels
     }
 
     /// <summary>An accent text link ("See all history →").</summary>
-    public static Button LinkButton(string text) => new()
+    public static Button LinkButton(string text)
     {
-        Content = text,
-        FontFamily = Tokens.Fonts.Grotesque,
-        FontSize = Tokens.Fonts.Body,
-        Foreground = Tokens.Brushes.Accent,
-        Background = Brushes.Transparent,
-        BorderThickness = new Thickness(0),
-        Padding = new Thickness(0),
-        VerticalAlignment = VerticalAlignment.Center,
-    };
+        var button = new Button
+        {
+            Content = text,
+            FontFamily = Tokens.Fonts.Grotesque,
+            FontSize = Tokens.Fonts.Body,
+            Foreground = Tokens.Brushes.Accent,
+            Background = Brushes.Transparent,
+            BorderThickness = new Thickness(0),
+            Padding = new Thickness(0),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+
+        // A link's own colour IS its painted state — hovering or pressing it must not
+        // fade it to Fluent's default grey.
+        Shell.PinHoverStates(button, Brushes.Transparent, Tokens.Brushes.Accent);
+        return button;
+    }
 
     /// <summary>A square icon-only button with an accessible name and tooltip.</summary>
     public static Button IconButton(string pathData, string name)
@@ -314,6 +322,9 @@ internal static class Panels
         };
         AutomationProperties.SetName(button, name);
         ToolTip.SetTip(button, name);
+
+        // An unselected item's hover/press comes from the theme's flat hover fill.
+        Shell.PinHoverStates(button, Tokens.Brushes.Hover, Tokens.Brushes.InkSecondary);
         return button;
     }
 

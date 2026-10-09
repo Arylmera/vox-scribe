@@ -145,6 +145,7 @@ internal static class Shell
         {
             item.Background = Brushes.Transparent;
             item.Foreground = Tokens.Brushes.InkSecondary;
+            PinHoverStates(item, Tokens.Brushes.Hover, Tokens.Brushes.InkSecondary);
         }
         else
         {
@@ -179,9 +180,40 @@ internal static class Shell
                     item.Foreground = Tokens.Brushes.Ink;
                     break;
             }
+
+            // Selected: hovering or pressing must not fade the selection back to Fluent's
+            // grey — it keeps exactly the brushes just painted above.
+            PinHoverStates(item, item.Background, item.Foreground, item.BorderBrush);
         }
 
         if (item is NavButton { Icon: { } icon }) icon.Stroke = item.Foreground;
+    }
+
+    /// <summary>
+    /// Pins a button's Fluent <c>:pointerover</c>/<c>:pressed</c> states to theme brushes.
+    /// </summary>
+    /// <remarks>
+    /// Fluent's Button theme resolves <c>{DynamicResource ButtonBackgroundPointerOver}</c>
+    /// (and its <c>Foreground</c>/<c>BorderBrush</c>/<c>Pressed</c> siblings) on
+    /// <c>PART_ContentPresenter</c>. Resource lookup walks up from the requesting element
+    /// through the button's own template to the button itself before reaching the app-wide
+    /// Fluent theme dictionary, so setting the same keys on the button's own
+    /// <c>Resources</c> wins — no template or pseudo-class override needed, and it survives
+    /// a live theme rebuild because every button is built fresh with the brushes current at
+    /// construction time.
+    /// </remarks>
+    internal static void PinHoverStates(Button button, IBrush background, IBrush foreground, IBrush? borderBrush = null)
+    {
+        button.Resources["ButtonBackgroundPointerOver"] = background;
+        button.Resources["ButtonForegroundPointerOver"] = foreground;
+        button.Resources["ButtonBackgroundPressed"] = background;
+        button.Resources["ButtonForegroundPressed"] = foreground;
+
+        if (borderBrush is not null)
+        {
+            button.Resources["ButtonBorderBrushPointerOver"] = borderBrush;
+            button.Resources["ButtonBorderBrushPressed"] = borderBrush;
+        }
     }
 
     /// <summary>

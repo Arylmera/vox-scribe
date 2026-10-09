@@ -36,7 +36,8 @@ internal sealed class HomePage : UserControl
         _navigate = navigate;
         _retype = retype;
 
-        Refresh();
+        // Content is built on attach (below), not here — a page that is constructed but
+        // never shown need not pay for it, and every test attaches before inspecting.
     }
 
     // Transcripts.Changed fires on the engine's worker thread: always marshal.
@@ -311,9 +312,17 @@ internal sealed class HomePage : UserControl
         var copy = Panels.IconButton(Shell.CopyIcon, "Copy");
         copy.Click += async (_, _) =>
         {
-            if (TopLevel.GetTopLevel(this)?.Clipboard is { } clipboard)
+            try
             {
-                await clipboard.SetTextAsync(record.Text).ConfigureAwait(true);
+                if (TopLevel.GetTopLevel(this)?.Clipboard is { } clipboard)
+                {
+                    await clipboard.SetTextAsync(record.Text).ConfigureAwait(true);
+                }
+            }
+            catch (Exception)
+            {
+                // Copying is a convenience; clipboard contention from another app must
+                // never take the app down over an async void handler.
             }
         };
         var again = Panels.IconButton(Shell.RetypeIcon, "Type again");

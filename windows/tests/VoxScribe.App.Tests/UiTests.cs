@@ -3,6 +3,7 @@ using Avalonia.VisualTree;
 using VoxScribe.Core;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
 using Avalonia.Headless;
 using Avalonia.Media;
 using Avalonia.Headless.XUnit;
@@ -127,6 +128,32 @@ public sealed class MainWindowTests
         foreach (var data in new[] { Shell.HomeIcon, Shell.HistoryIcon, Shell.DictionaryIcon, Shell.SettingsIcon, Shell.CopyIcon, Shell.RetypeIcon })
         {
             Should.NotThrow(() => Avalonia.Media.Geometry.Parse(data), data);
+        }
+    }
+
+    [AvaloniaFact]
+    public void Hovering_an_unselected_nav_item_uses_the_theme_hover_brush_not_fluent_grey()
+    {
+        var window = new MainWindow();
+        window.Show();
+        try
+        {
+            var item = window.GetVisualDescendants().OfType<NavButton>()
+                .First(b => Avalonia.Automation.AutomationProperties.GetName(b) == "History");
+            var presenter = item.GetVisualDescendants().OfType<ContentPresenter>()
+                .First(cp => cp.Name == "PART_ContentPresenter");
+
+            var centre = item.TranslatePoint(new Point(item.Bounds.Width / 2, item.Bounds.Height / 2), window)!.Value;
+            window.MouseMove(centre);
+
+            item.IsPointerOver.ShouldBeTrue();
+            presenter.Background.ShouldBeOfType<SolidColorBrush>().Color.ShouldBe(Tokens.Colors.Hover);
+            presenter.Foreground.ShouldBeOfType<SolidColorBrush>().Color.ShouldBe(Tokens.Colors.InkSecondary);
+        }
+        finally
+        {
+            window.ExitAllowed = true;
+            window.Close();
         }
     }
 }
