@@ -96,8 +96,12 @@ The main window is one sidebar shell (Home · History · Dictionary · Settings)
 Only the dictation pill differs per theme: `Views/Pill/*Pill.cs`, one `PillFace` each, fed by
 `HudWindow`'s unchanged polling state machine. A pill face captures its theme's colours at
 construction, so it never recolours mid-dictation; the pill swaps faces between dictations
-instead. Views subscribe to `Themes.Changed` only while attached to an app lifetime, so a
-theme rebuild discards stale subscriptions rather than leaking them. The mockups that specify
+instead. A theme change rebuilds windows live and never restarts the app; `App.Restart()`
+survives only for the first-run model download. `MainWindow` and `HudWindow` hold their
+`Themes.Changed` subscription for the window's lifetime and drop it on close. The page views
+(`HomePage`, `TranscriptionsView`, `DictionaryView`) subscribe to their data's `Changed` events
+only while attached to the visual tree, so the instances a rebuild discards stop refreshing
+instead of leaking. The mockups that specify
 all of it live in `.superpowers/mockups/`.
 
 Fonts: Instrument Serif, Geist, Geist Mono, Figtree and JetBrains Mono are bundled under
