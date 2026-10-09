@@ -29,7 +29,7 @@ internal sealed class FluentPill : PillFace
     private readonly TextBlock _title;
     private readonly TextBlock _meta;
     private readonly TextBlock _line;
-    private readonly Border _lineHost;
+    private readonly TailClip _lineHost;
     private readonly IBrush _ink = Tokens.Brushes.Ink;
     private readonly IBrush _muted = Tokens.Brushes.InkSecondary;
 
@@ -92,11 +92,12 @@ internal sealed class FluentPill : PillFace
         var showPreview = HasPreview(state);
         if (showPreview)
         {
-            ShowPreview(_line, state, PreviewChars);
+            ShowPreview(_lineHost, _line, state, PreviewChars);
             _line.Foreground = _ink;
         }
         else
         {
+            _lineHost.Tail = false;
             _line.HorizontalAlignment = HorizontalAlignment.Stretch;
             _line.TextTrimming = TextTrimming.None;
             _line.Text = working ? "Polishing the transcript" : "Speak now — release to type";
@@ -127,12 +128,10 @@ internal sealed class MicHalo : Control
 
     private readonly Geometry _glyph = Geometry.Parse(GlyphData);
 
-    /// <summary>The halo fill this mic was built with. Captured once — see <see cref="TidePill"/>'s <c>LiquidWave.Accent</c>.</summary>
-    internal readonly IBrush HaloBrush;
-
-    /// <summary>The button fill this mic was built with. Captured once, not re-read per frame.</summary>
-    internal readonly IBrush ButtonBrush;
-
+    // Captured once, not re-read per frame: a theme change must repaint only between
+    // dictations, never recolour the halo mid-utterance.
+    private readonly IBrush _haloBrush;
+    private readonly IBrush _buttonBrush;
     private readonly Pen _spinnerPen;
     private readonly Pen _glyphPen;
 
@@ -145,8 +144,8 @@ internal sealed class MicHalo : Control
     {
         Width = Box;
         Height = Box;
-        HaloBrush = new SolidColorBrush(Tokens.Colors.Accent, HaloOpacity);
-        ButtonBrush = Tokens.Brushes.AccentFill;
+        _haloBrush = new SolidColorBrush(Tokens.Colors.Accent, HaloOpacity);
+        _buttonBrush = Tokens.Brushes.AccentFill;
         _spinnerPen = new Pen(Tokens.Brushes.Accent, SpinnerStroke, lineCap: PenLineCap.Round);
         _glyphPen = new Pen(Tokens.Brushes.OnAccent, GlyphStroke, lineCap: PenLineCap.Round);
     }
@@ -165,14 +164,14 @@ internal sealed class MicHalo : Control
     {
         var centre = new Point(Bounds.Width / 2, Bounds.Height / 2);
         var halo = (HaloMin + (HaloRange * _level)) / 2;
-        context.DrawEllipse(HaloBrush, null, centre, halo, halo);
+        context.DrawEllipse(_haloBrush, null, centre, halo, halo);
 
         if (_working)
         {
             context.DrawGeometry(null, _spinnerPen, PillFace.Arc(centre, SpinnerSize / 2, _spin, SpinnerSweep));
         }
 
-        context.DrawEllipse(ButtonBrush, null, centre, ButtonSize / 2, ButtonSize / 2);
+        context.DrawEllipse(_buttonBrush, null, centre, ButtonSize / 2, ButtonSize / 2);
         using (context.PushTransform(Matrix.CreateTranslation(centre.X - (GlyphBox / 2), centre.Y - (GlyphBox / 2))))
         {
             context.DrawGeometry(null, _glyphPen, _glyph);

@@ -103,31 +103,36 @@ internal abstract class PillFace : Border
     protected static bool HasPreview(PillState state) => state.Phase != PillPhase.Working && state.Text.Length > 0;
 
     /// <summary>
-    /// A one-line host that clips its child to its own bounds. Paired with
-    /// <see cref="ShowPreview"/>: while streaming, the child overflows to the left (the oldest
-    /// words) and is cropped there, keeping the newest word — the one the user just said — on
-    /// screen. A plain <see cref="TextBlock"/> left-clips itself instead, which would hide the
-    /// newest text, not the oldest.
+    /// Hosts the preview/notice line and clips it to its own bounds. Paired with
+    /// <see cref="ShowPreview"/>: a plain Avalonia panel clamps a right-aligned, non-wrapping
+    /// child to the panel's own width during Measure, so the child's <i>bounds</i> never
+    /// actually overflow — it just draws its full (unclamped) text starting at that clamped
+    /// box's left edge, which crops the newest words on the right. <see cref="TailClip.Tail"/>
+    /// instead measures the child at its natural width and arranges it flush with the host's
+    /// right edge, so an overflowing line truly extends past the host's left edge and is
+    /// cropped there, keeping the newest word — the one just spoken — on screen.
     /// </summary>
-    protected static Border TailHost(TextBlock text) => new() { ClipToBounds = true, Child = text };
+    protected static TailClip TailHost(TextBlock text) => new() { ClipToBounds = true, Child = text };
 
     /// <summary>
-    /// Paints <paramref name="text"/> for the preview/notice line. A lingering failure notice
-    /// is shown head-first, trimmed on the right with an ellipsis — the subject of a notice is
-    /// at its start. A streaming preview is shown tail-first (right-aligned in its
-    /// <see cref="TailHost"/>, untrimmed) so the newest word is always visible.
+    /// Paints <paramref name="text"/> for the preview/notice line inside <paramref name="host"/>.
+    /// A lingering failure notice is shown head-first, trimmed on the right with an ellipsis —
+    /// the subject of a notice is at its start. A streaming preview is shown tail-first
+    /// (<paramref name="host"/> in <see cref="TailClip.Tail"/> mode, untrimmed) so the newest
+    /// word is always visible.
     /// </summary>
-    protected static void ShowPreview(TextBlock text, PillState state, int tailChars)
+    protected static void ShowPreview(TailClip host, TextBlock text, PillState state, int tailChars)
     {
         if (state.Phase == PillPhase.Notice)
         {
+            host.Tail = false;
             text.HorizontalAlignment = HorizontalAlignment.Stretch;
             text.TextTrimming = TextTrimming.CharacterEllipsis;
             text.Text = state.Text;
         }
         else
         {
-            text.HorizontalAlignment = HorizontalAlignment.Right;
+            host.Tail = true;
             text.TextTrimming = TextTrimming.None;
             text.Text = Tail(state.Text, tailChars);
         }
@@ -164,4 +169,40 @@ internal abstract class PillFace : Border
         ClipToBounds = true,
         VerticalAlignment = VerticalAlignment.Center,
     };
+}
+
+/// <summary>
+/// A one-child host used by <see cref="PillFace.ShowPreview"/>. In <see cref="Tail"/> mode the
+/// child is measured at its natural (unconstrained) width and arranged flush with the host's
+/// right edge: an overflowing line truly extends past the host's left edge, where
+/// <see cref="Visual.ClipToBounds"/> crops it, keeping the newest word on screen. Outside Tail
+/// mode (a lingering notice) it behaves like an ordinary <see cref="Decorator"/>, stretching
+/// the child to the host's width so the child's own <see cref="TextBlock.TextTrimming"/> can
+/// ellipsise it instead.
+/// </summary>
+internal sealed class TailClip : Decorator
+{
+    /// <summary>True while streaming a preview tail-first; false for a head-first notice.</summary>
+    public bool Tail { get; set; }
+
+    /// <inheritdoc />
+    protected override Size MeasureOverride(Size availableSize)
+    {
+        if (!Tail) return base.MeasureOverride(availableSize);
+
+        Child?.Measure(Size.Infinity);
+        var childSize = Child?.DesiredSize ?? default;
+        var width = double.IsInfinity(availableSize.Width) ? childSize.Width : availableSize.Width;
+        return new Size(width, childSize.Height);
+    }
+
+    /// <inheritdoc />
+    protected override Size ArrangeOverride(Size finalSize)
+    {
+        if (!Tail || Child is not { } child) return base.ArrangeOverride(finalSize);
+
+        var x = finalSize.Width - child.DesiredSize.Width;
+        child.Arrange(new Rect(x, 0, child.DesiredSize.Width, finalSize.Height));
+        return finalSize;
+    }
 }

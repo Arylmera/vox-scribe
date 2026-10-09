@@ -29,7 +29,7 @@ internal sealed class TidePill : PillFace
     private readonly TextBlock _timer;
     private readonly TextBlock _badge;
     private readonly TextBlock _preview;
-    private readonly Border _previewHost;
+    private readonly TailClip _previewHost;
 
     /// <summary>Builds the capsule in the active theme.</summary>
     public TidePill()
@@ -98,7 +98,7 @@ internal sealed class TidePill : PillFace
         _badge.Text = state.Mode switch { "CLEAN" => "Clean", "CMD" => "Command", _ => "Raw" };
 
         var showPreview = HasPreview(state);
-        if (showPreview) ShowPreview(_preview, state, PreviewChars);
+        if (showPreview) ShowPreview(_previewHost, _preview, state, PreviewChars);
         _previewHost.IsVisible = showPreview;
         Width = showPreview ? PreviewWidth : CompactWidth;
         CornerRadius = new CornerRadius(showPreview ? Tokens.Radius.Panel : Tokens.Radius.Pill);
@@ -123,13 +123,8 @@ internal sealed class LiquidWave : Control
     private const double MainStroke = 2.4;
     private const double SecondStroke = 1.6;
 
-    /// <summary>
-    /// The accent this wave was built with. Captured once, not re-read from <see cref="Tokens"/>
-    /// on every frame: a theme change must repaint only between dictations, never recolour a
-    /// wave mid-utterance.
-    /// </summary>
-    internal readonly Color Accent;
-
+    // Captured once, not re-read from Tokens on every frame: a theme change must repaint only
+    // between dictations, never recolour a wave mid-utterance.
     private readonly IBrush _fillBrush;
     private readonly Pen _mainPen;
     private readonly Pen _secondPen;
@@ -141,10 +136,10 @@ internal sealed class LiquidWave : Control
     /// <summary>Captures the active theme's accent and builds the brushes/pens once.</summary>
     public LiquidWave()
     {
-        Accent = Tokens.Colors.Accent;
-        _fillBrush = new SolidColorBrush(Accent, FillOpacity);
-        _mainPen = new Pen(new SolidColorBrush(Accent), MainStroke, lineCap: PenLineCap.Round);
-        _secondPen = new Pen(new SolidColorBrush(Accent, SecondOpacity), SecondStroke, lineCap: PenLineCap.Round);
+        var accent = Tokens.Colors.Accent;
+        _fillBrush = new SolidColorBrush(accent, FillOpacity);
+        _mainPen = new Pen(new SolidColorBrush(accent), MainStroke, lineCap: PenLineCap.Round);
+        _secondPen = new Pen(new SolidColorBrush(accent, SecondOpacity), SecondStroke, lineCap: PenLineCap.Round);
     }
 
     /// <summary>Feeds one frame.</summary>

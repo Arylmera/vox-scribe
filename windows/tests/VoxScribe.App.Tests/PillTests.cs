@@ -1,9 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
 using Avalonia.Headless.XUnit;
-using Avalonia.Layout;
 using Avalonia.Media;
-using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Shouldly;
 using VoxScribe.App.Design;
@@ -81,17 +79,25 @@ public sealed class PillTests
     });
 
     [AvaloniaFact]
-    public void A_long_preview_keeps_its_newest_word_at_the_right_edge() => EachTheme((theme, face) =>
+    public void TailClip_crops_an_overflowing_line_on_the_left()
     {
-        face.Update(new PillState(PillPhase.Recording, 0.3, TimeSpan.FromSeconds(9), "RAW", LongText));
-        Dispatcher.UIThread.RunJobs();
+        // LongText (~1400 chars) is wider than any reasonable host at any font, so this does
+        // not depend on PreviewChars, font metrics, or which face is active.
+        var text = new TextBlock { Text = LongText, TextWrapping = TextWrapping.NoWrap };
+        var host = new TailClip { Tail = true, ClipToBounds = true, Width = 300, Height = 40, Child = text };
+        var window = new Window { Content = host, Width = 400, Height = 100 };
+        try
+        {
+            window.Show();
 
-        var line = face.GetVisualDescendants().OfType<TextBlock>()
-            .First(t => t.HorizontalAlignment == HorizontalAlignment.Right);
-        var host = (Border)line.GetVisualParent()!;
-
-        Math.Abs(line.Bounds.Right - host.Bounds.Width).ShouldBeLessThan(0.5, theme.Id);
-    });
+            text.Bounds.X.ShouldBeLessThan(0);
+            Math.Abs(text.Bounds.Right - host.Bounds.Width).ShouldBeLessThan(0.5);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
 
     [AvaloniaFact]
     public void A_lingering_notice_keeps_its_subject() => EachTheme((theme, face) =>
@@ -120,43 +126,11 @@ public sealed class PillTests
         face.Width.ShouldBeLessThan(recordingWidth, theme.Id);
     });
 
-    [AvaloniaFact]
-    public void A_liquid_wave_keeps_its_accent_once_built()
-    {
-        try
-        {
-            Themes.Apply("tide", "lagoon", false);
-            var wave = new LiquidWave();
-            var before = wave.Accent;
-
-            Themes.Apply("tide", "lilac", false);
-
-            wave.Accent.ShouldBe(before);
-        }
-        finally
-        {
-            Themes.Apply(Themes.DefaultId, null, false);
-        }
-    }
-
-    [AvaloniaFact]
-    public void A_mic_halo_keeps_its_accent_brushes_once_built()
-    {
-        try
-        {
-            Themes.Apply("fluent", "system", false);
-            var mic = new MicHalo();
-            var haloBefore = ((ISolidColorBrush)mic.HaloBrush).Color;
-            var buttonBefore = ((ISolidColorBrush)mic.ButtonBrush).Color;
-
-            Themes.Apply("fluent", "teal", false);
-
-            ((ISolidColorBrush)mic.HaloBrush).Color.ShouldBe(haloBefore);
-            ((ISolidColorBrush)mic.ButtonBrush).Color.ShouldBe(buttonBefore);
-        }
-        finally
-        {
-            Themes.Apply(Themes.DefaultId, null, false);
-        }
-    }
+    // A_liquid_wave_keeps_its_accent_once_built / A_mic_halo_keeps_its_accent_brushes_once_built
+    // were removed: they read `readonly` fields that can never change once set, so they would
+    // stay green even if Render went back to reading Tokens.Colors.Accent live. Headless
+    // rendering in this project's test host does not expose per-pixel output cheaply enough
+    // to assert what is actually painted (see task-9-report.md's fix-pass-2 section), so the
+    // accent-capture behaviour is covered by code review and the constructor-capture pattern
+    // itself, not by an automated test.
 }
