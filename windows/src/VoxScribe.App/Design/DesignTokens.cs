@@ -100,12 +100,6 @@ public static class Tokens
         /// <summary>A warning or a failure. Never red: red means recording.</summary>
         public static Color Caution { get; internal set; } = Rgb(0x8A5200);
 
-        /// <summary>Old pill body; removed with the old pill in Task 9.</summary>
-        public static Color Glass { get; internal set; } = Argb(0xFFFBF8F2);
-
-        /// <summary>Old pill idle lamp; removed with the old pill in Task 9.</summary>
-        public static Color RecordIdle { get; internal set; } = Rgb(0xEAE2D3);
-
         /// <summary>Lens highlights. Always used with an opacity.</summary>
         public static Color Specular { get; internal set; } = Avalonia.Media.Colors.White;
 
@@ -403,18 +397,6 @@ public static class Tokens
         /// </summary>
         public const double NoticeEdgeOpacity = 0.4;
 
-        /// <summary>Opacity of the pill's glass edge when not recording.</summary>
-        public const double GlassEdgeOpacity = 0.14;
-
-        /// <summary>The dictation pill's lamp — smaller than a panel lamp.</summary>
-        public const double PillLampSize = 7;
-
-        /// <summary>Height of the level bars inside the pill.</summary>
-        public const double PillBarsHeight = 30;
-
-        /// <summary>Corner radius of the pill: a full round end at its compact height.</summary>
-        public const double PillRadius = 30;
-
         /// <summary>How far the pill sits above the bottom of the working area.</summary>
         public const double PillScreenMargin = 24;
     }
@@ -454,6 +436,9 @@ public static class Tokens
         /// </summary>
         public static TimeSpan LatencyLinger { get; } = TimeSpan.FromSeconds(1.5);
 
+        /// <summary>The pill widening for the preview line, and narrowing back.</summary>
+        public static TimeSpan PillExpand { get; } = TimeSpan.FromMilliseconds(150);
+
         /// <summary>
         /// Display gain applied to the raw RMS before the perceptual sqrt. Speech RMS lives
         /// around 0.02–0.15, so without this the meter and HUD bars barely leave the floor.
@@ -486,13 +471,14 @@ public static class Tokens
         /// <summary>The dictionary entry editor. Height follows its content.</summary>
         public const double EditorWidth = 460;
 
-        /// <summary>The dictation pill.</summary>
-        public const double PillWidth = 380;
+        /// <summary>
+        /// The pill's OS window: fixed, transparent and click-through, with room for the widest
+        /// face, Orb's halos (1.5 × 76 px), Paper's tilt and the Mono/Fluent shadows. The face
+        /// animates inside it; the window never resizes.
+        /// </summary>
+        public const double PillWindowWidth = 520;
 
-        /// <summary>Pill height with the readout row only.</summary>
-        public const double PillCompactHeight = 60;
-
-        /// <summary>Pill height once the transcript preview line is showing.</summary>
-        public const double PillPreviewHeight = 100;
+        /// <summary>The pill's OS window height. See <see cref="PillWindowWidth"/>.</summary>
+        public const double PillWindowHeight = 180;
     }
 }

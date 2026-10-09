@@ -80,8 +80,6 @@ internal static class Themes
         Tokens.Colors.PillFill = Tokens.Colors.Argb(p.PillFill);
         Tokens.Colors.PillEdge = Tokens.Colors.Argb(p.PillEdge);
         Tokens.Colors.PillRule = Tokens.Colors.Argb(p.PillRule);
-        Tokens.Colors.Glass = Tokens.Colors.PillFill;
-        Tokens.Colors.RecordIdle = Tokens.Colors.Hover;
 
         var accent = Tokens.Colors.Rgb(dark ? variant.Dark : variant.Light);
         Tokens.Colors.Accent = accent;
