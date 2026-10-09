@@ -64,7 +64,8 @@ internal sealed class SettingsPage : UserControl
             var key = new TransportKey();
             key.Click += (_, _) =>
             {
-                if (_recorder is null) StartRecording(slot); else CancelRecording();
+                if (_recorder is null) StartRecording(slot);
+                else CancelRecording();
             };
             _keys[slot] = key;
         }

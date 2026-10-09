@@ -17,7 +17,7 @@ public sealed record SettingsData
     /// Right Alt is AltGr — it is how those users type <c>@</c>, <c>€</c>, <c>\</c> and
     /// <c>|</c>. Right Ctrl produces no character on any layout.
     /// </remarks>
-    public int PushToTalkKey { get; init; } = 0xA3;
+    public int PushToTalkKey { get; set; } = 0xA3;
 
     /// <summary>
     /// The full push-to-talk chord as virtual-key codes, or null for pre-chord settings
@@ -41,7 +41,7 @@ public sealed record SettingsData
     public string? ModelDirectory { get; init; }
 
     /// <summary>Whether to type the transcript into the focused app.</summary>
-    public bool InjectText { get; init; } = true;
+    public bool InjectText { get; set; } = true;
 
     /// <summary>
     /// Whether each phrase is typed as soon as it is transcribed, rather than the whole
@@ -75,10 +75,10 @@ public sealed record SettingsData
     /// together at release, because typing them as they land would send them to whatever the
     /// user is clicking on at that moment.
     /// </remarks>
-    public bool AnchorFocus { get; init; } = true;
+    public bool AnchorFocus { get; set; } = true;
 
     /// <summary>Whether to keep a transcript history.</summary>
-    public bool KeepHistory { get; init; } = true;
+    public bool KeepHistory { get; set; } = true;
 
     /// <summary>
     /// OpenAI-compatible API base for remote transcription (e.g. a LiteLLM gateway,
@@ -87,7 +87,7 @@ public sealed record SettingsData
     public string? SttEndpoint { get; init; }
 
     /// <summary>Model name the remote gateway routes on.</summary>
-    public string SttModel { get; init; } = "stt-mac";
+    public string SttModel { get; set; } = "stt-mac";
 
     /// <summary>Bearer key for the remote endpoint, or null when unauthenticated.</summary>
     public string? SttApiKey { get; init; }
@@ -117,7 +117,7 @@ public sealed record SettingsData
     public int[]? CommandKeys { get; init; }
 
     /// <summary>Title fragment that identifies the command-mode target window.</summary>
-    public string CommandWindowTitle { get; init; } = "Claude";
+    public string CommandWindowTitle { get; set; } = "Claude";
 
     /// <summary>
     /// OpenAI-compatible chat API base used to tidy the transcript before it is typed, or
@@ -135,10 +135,58 @@ public sealed record SettingsData
     /// <c>local-light</c> deliberately: non-thinking, and with no <c>free-*</c> fallback
     /// chain, so dictated text never leaves the LAN when the Mac is asleep.
     /// </remarks>
-    public string CleanupModel { get; init; } = "local-light";
+    public string CleanupModel { get; set; } = "local-light";
 
     /// <summary>Bearer key for the cleanup endpoint, or null when unauthenticated.</summary>
     public string? CleanupApiKey { get; init; }
+
+    /// <summary>
+    /// Whether a <c>/parle</c> request from Claude Code is read aloud, or null for a file
+    /// from before read-aloud existed. Read through <see cref="ReadAloudEnabled"/>.
+    /// </summary>
+    /// <remarks>
+    /// Nullable, and the strings below fall back in their getters, because the source-generated
+    /// reader sets every init-only property — one missing from an older file arrives as
+    /// false or null, not as its initializer.
+    /// </remarks>
+    public bool? ReadAloud { get; init; }
+
+    /// <summary>On unless explicitly turned off. Uses the cleanup endpoint and key (the STT
+    /// ones when cleanup is unset).</summary>
+    [JsonIgnore]
+    public bool ReadAloudEnabled => ReadAloud ?? true;
+
+    /// <summary>Alias that rewrites a reply for speech, streamed.</summary>
+    public string OralModel { get => Or(_oralModel, "oral"); init => _oralModel = value; }
+
+    /// <summary>Alias that synthesises speech (<c>/audio/speech</c>).</summary>
+    public string TtsModel { get => Or(_ttsModel, "tts"); init => _ttsModel = value; }
+
+    /// <summary>Voice passed to the TTS alias; its prefix picks the language.</summary>
+    public string TtsVoice { get => Or(_ttsVoice, "ff_siwis"); init => _ttsVoice = value; }
+
+    /// <summary>System prompt of the oral rewrite.</summary>
+    public string OralPrompt { get => Or(_oralPrompt, DefaultOralPrompt); init => _oralPrompt = value; }
+
+    private readonly string? _oralModel;
+    private readonly string? _ttsModel;
+    private readonly string? _ttsVoice;
+    private readonly string? _oralPrompt;
+
+    private static string Or(string? value, string fallback) => value is { Length: > 0 } ? value : fallback;
+
+    /// <summary>The oral rewrite prompt tuned on real replies (read-aloud spec, step 5).</summary>
+    public const string DefaultOralPrompt = """
+        Tu reformules la réponse écrite d'un assistant de code pour qu'elle soit dite à voix haute, comme un collègue qui t'explique de vive voix ce qu'il vient de faire.
+
+        Règles strictes :
+        - Français parlé, naturel, phrases courtes. Tutoiement. Pas de « Alors », pas de « Voici », pas de « Bonne nouvelle ».
+        - Aucune liste, aucun tableau, aucun titre, aucun symbole, aucun emoji. Un tableau devient une ou deux phrases qui disent ce qu'il montre.
+        - Ne prononce jamais un nom de fichier, un chemin, une URL, une commande, un identifiant de commit ou une version précise. Dis plutôt ce que c'est : « la spec », « le hook », « la config de la passerelle ».
+        - Garde les décisions, les résultats chiffrés qui comptent (au plus deux ou trois), les problèmes rencontrés et la question finale s'il y en a une.
+        - N'invente rien : pas de jugement, de comparaison ou de conclusion absents du texte. Ne réponds pas à la question, rapporte-la.
+        - Entre quatre et huit phrases au total, quelle que soit la longueur d'origine.
+        """;
 
     /// <summary>
     /// WASAPI capture device ID (<c>MMDevice.ID</c>), or null for the system default
@@ -151,7 +199,7 @@ public sealed record SettingsData
     /// values — including the retired "deep-field", "signal-house" and "manuscript" — fall back
     /// to Paper, so old or hand-edited files keep working.
     /// </summary>
-    public string Theme { get; init; } = "paper";
+    public string Theme { get; set; } = "paper";
 
     /// <summary>
     /// Accent variant id within the theme ("plum", "moss", …), or null for the theme's first.

@@ -157,3 +157,13 @@ public sealed class SystemClock : IClock
     /// <inheritdoc />
     public DateTimeOffset Now => DateTimeOffset.Now;
 }
+
+/// <summary>Plays synthesised speech.</summary>
+/// <remarks>Logic-free: one clip at a time, stopped at once by the token.</remarks>
+public interface IAudioPlayer
+{
+    /// <summary>Plays a WAV clip to the default output device and completes when it ends.</summary>
+    /// <param name="wav">A complete RIFF/WAVE file.</param>
+    /// <param name="cancellationToken">Stops playback immediately; the task then completes.</param>
+    Task PlayAsync(byte[] wav, CancellationToken cancellationToken);
+}

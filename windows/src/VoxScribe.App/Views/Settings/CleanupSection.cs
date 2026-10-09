@@ -36,6 +36,9 @@ internal static class CleanupSection
                     settings.Data.CleanupEndpoint,
                     settings.Data.CleanupModel,
                     settings.Data.CleanupApiKey)),
+                Panels.Toggle("Read Claude Code replies aloud on /parle", settings.Data.ReadAloudEnabled,
+                    v => save(settings.Data with { ReadAloud = v }),
+                    "Rewritten for speech by the oral model, then spoken. Any push-to-talk press stops it."),
                 Panels.Note("Overrides \"type each phrase as you speak it\": a tidied dictation is "
                    + "always typed once, at the end, because text already in the target "
                    + "window cannot be repaired. Changes apply immediately."),

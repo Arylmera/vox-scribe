@@ -300,3 +300,23 @@ public sealed class AppSettingsTests : IDisposable
         }
     }
 }
+
+public sealed class SettingsUpgradeTests
+{
+    [Fact]
+    public void A_settings_file_missing_a_defaulted_setting_loads_its_default()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"vox-{Guid.NewGuid():N}.json");
+        File.WriteAllText(path, """{ "AudioDeviceId": "x" }""");
+
+        // The JSON source generator builds init-only properties with an object
+        // initializer, so a missing key got default(T) over the `= true` initializer.
+        var data = new AppSettings(path).Data;
+        data.PushToTalkKey.ShouldBe(0xA3);
+        data.SttModel.ShouldBe("stt-mac");
+        data.Theme.ShouldBe("paper");
+        data.AnchorFocus.ShouldBeTrue();
+        data.InjectText.ShouldBeTrue();
+        data.KeepHistory.ShouldBeTrue();
+    }
+}

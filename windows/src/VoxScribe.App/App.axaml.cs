@@ -61,6 +61,14 @@ public partial class App : Application
             // needs to exist. Never becomes MainWindow — it must never own focus.
             if (_composition.Engine is not null) _ = new HudWindow(_composition.Engine);
 
+            // The pill only shows while dictating, so a read-aloud failure also lands on the
+            // tray tooltip, where it stays until the next one. Raised off the UI thread.
+            if (_composition.ReadAloud is { } readAloud && TrayIcon.GetIcons(this) is [var tray, ..])
+            {
+                readAloud.Failed += (_, message) =>
+                    Dispatcher.UIThread.Post(() => tray.ToolTipText = $"Vox-Scribe — {message}");
+            }
+
             // Closing the window leaves VoxScribe running in the tray — the hotkey still works,
             // which is the whole point of a dictation app. Quit is explicit, from the tray
             // menu or the app menu.
