@@ -45,6 +45,7 @@ public sealed class MainWindow : Window
     private string _historySearch = string.Empty;
     private string _dictionarySearch = string.Empty;
     private AppPage _page = AppPage.Home;
+    private SettingsTab _settingsTab = SettingsTab.General;
 
     /// <summary>Set just before an explicit quit so the hide-to-tray guard steps aside.</summary>
     public bool ExitAllowed { get; set; }
@@ -78,6 +79,7 @@ public sealed class MainWindow : Window
         {
             if (ExitAllowed) return;
             e.Cancel = true;
+            (_host.Content as SettingsPage)?.CancelRecording();
             Hide();
         };
 
@@ -99,15 +101,11 @@ public sealed class MainWindow : Window
     /// <summary>Opens <paramref name="page"/> and marks it in the navigation.</summary>
     public void ShowPage(AppPage page)
     {
-        if (page == AppPage.Settings)
+        // Leaving Settings: remember the tab and make sure no key-capture hook survives.
+        if (_host.Content is SettingsPage leaving)
         {
-            // Interim until Task 7 folds Settings into the window.
-            if (_composition is not null)
-            {
-                _ = new SettingsWindow(_composition.Settings, _composition.Engine).ShowDialog(this);
-            }
-
-            return;
+            _settingsTab = leaving.Tab;
+            leaving.CancelRecording();
         }
 
         _page = page;
@@ -117,6 +115,9 @@ public sealed class MainWindow : Window
         {
             AppPage.History => HistoryPage(),
             AppPage.Dictionary => DictionaryPage(),
+            AppPage.Settings => _composition is null
+                ? Panels.EmptyState("SETTINGS", "Nothing to configure without an engine.")
+                : new SettingsPage(_composition.Settings, _composition.Engine, _settingsTab),
             _ => new HomePage(_composition?.Transcripts, _composition?.Settings, ShowPage, RetypeAsync),
         };
     }
@@ -124,6 +125,13 @@ public sealed class MainWindow : Window
     /// <summary>Rebuilds every control in the current theme, keeping the page and the search texts.</summary>
     private void Rebuild()
     {
+        // A theme picked on the Appearance tab must come back on the Appearance tab.
+        if (_host.Content is SettingsPage open)
+        {
+            _settingsTab = open.Tab;
+            open.CancelRecording();
+        }
+
         // A control has one parent and the old ones carry the old theme's brushes: start fresh.
         _historySearch = _history?.SearchText ?? _historySearch;
         _dictionarySearch = _dictionary?.SearchText ?? _dictionarySearch;

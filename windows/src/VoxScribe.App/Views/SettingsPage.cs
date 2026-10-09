@@ -1,7 +1,9 @@
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
+using Avalonia.Layout;
 using Avalonia.Media;
 using VoxScribe.App.Controls;
 using VoxScribe.App.Design;
@@ -10,8 +12,30 @@ using VoxScribe.Core;
 
 namespace VoxScribe.App.Views;
 
-/// <summary>Settings: shortcuts, typing, cleanup, speech, general, appearance.</summary>
-public sealed class SettingsWindow : Window
+/// <summary>The settings tabs, in display order.</summary>
+internal enum SettingsTab
+{
+    /// <summary>History and start-up.</summary>
+    General,
+
+    /// <summary>Model, device, remote STT.</summary>
+    Speech,
+
+    /// <summary>The four chords.</summary>
+    Shortcuts,
+
+    /// <summary>Where and when text is typed.</summary>
+    Typing,
+
+    /// <summary>The cleanup model.</summary>
+    Cleanup,
+
+    /// <summary>Theme and accent.</summary>
+    Appearance,
+}
+
+/// <summary>Settings as a page of the main window: six tabs over the existing sections.</summary>
+internal sealed class SettingsPage : UserControl
 {
     /// <summary>Escape cancels a recording rather than becoming the trigger.</summary>
     private const int VkEscape = 0x1B;
@@ -20,37 +44,21 @@ public sealed class SettingsWindow : Window
     private const int VkRightAlt = 0xA5;
 
     private readonly AppSettings _settings;
-    private readonly DictationEngine? _engine;
     private readonly Dictionary<ShortcutSlot, TransportKey> _keys = [];
     private readonly TextBlock _keyWarning;
-
-    /// <summary>Which shortcut the live recorder is binding.</summary>
-    private ShortcutSlot _recordingSlot;
-
-    /// <summary>The live recorder hook, non-null only while recording.</summary>
-    private IDisposable? _recorder;
-
-    /// <summary>Chord members seen so far this recording, in press order.</summary>
+    private readonly Dictionary<SettingsTab, Control> _sections = [];
+    private readonly Dictionary<SettingsTab, Button> _tabs = [];
+    private readonly ContentControl _host = new();
     private readonly List<int> _captured = [];
-
-    /// <summary>Chord members currently held; recording ends when this empties.</summary>
     private readonly HashSet<int> _held = [];
 
-    /// <summary>Builds the settings window.</summary>
-    public SettingsWindow(AppSettings settings, DictationEngine? engine = null)
+    private ShortcutSlot _recordingSlot;
+    private IDisposable? _recorder;
+
+    /// <summary>Builds the page with <paramref name="tab"/> open.</summary>
+    public SettingsPage(AppSettings settings, DictationEngine? engine, SettingsTab tab)
     {
         _settings = settings;
-        _engine = engine;
-
-        Title = "Vox-Scribe Settings";
-        Width = Tokens.Size.SettingsWidth;
-        Height = Tokens.Size.SettingsHeight;
-        MinWidth = Tokens.Size.SettingsMinWidth;
-        MinHeight = Tokens.Size.SettingsMinHeight;
-        SizeToContent = SizeToContent.Manual;
-        CanResize = true;
-        Background = Tokens.Brushes.Chassis;
-        WindowStartupLocation = WindowStartupLocation.CenterOwner;
 
         foreach (var slot in Enum.GetValues<ShortcutSlot>())
         {
@@ -71,41 +79,86 @@ public sealed class SettingsWindow : Window
             IsVisible = false,
         };
 
-        var sections = new StackPanel
+        // Built once: the shortcut recorders live inside their section, and a control can only
+        // be parented once — swapping tabs re-hosts these instances.
+        _sections[SettingsTab.General] = GeneralSection.Build(_settings, Save);
+        _sections[SettingsTab.Speech] = SpeechSection.Build(_settings, Save);
+        _sections[SettingsTab.Shortcuts] = ShortcutsSection.Build(_settings, Save, _keys, _keyWarning);
+        _sections[SettingsTab.Typing] = TypingSection.Build(_settings, Save);
+        _sections[SettingsTab.Cleanup] = CleanupSection.Build(_settings, Save);
+        _sections[SettingsTab.Appearance] = AppearanceSection.Build(_settings, Save, engine);
+
+        var bar = new WrapPanel
         {
-            Margin = new Thickness(Tokens.Space.Panel),
-            Spacing = Tokens.Space.Wide,
+            ItemSpacing = Tokens.Space.Tight,
+            LineSpacing = Tokens.Space.Tight,
+            Margin = new Thickness(0, 0, 0, Tokens.Space.Roomy),
+        };
+        foreach (var t in Enum.GetValues<SettingsTab>())
+        {
+            var button = new Button
+            {
+                Content = Shell.Caps(t.ToString()),
+                Height = Tokens.Material.TabHeight,
+                Padding = new Thickness(Tokens.Space.Base, 0),
+                VerticalContentAlignment = VerticalAlignment.Center,
+                CornerRadius = new CornerRadius(Tokens.Radius.Chip),
+                FontFamily = Tokens.Fonts.Grotesque,
+                FontSize = Tokens.Fonts.Body,
+            };
+            AutomationProperties.SetName(button, $"Settings tab: {t}");
+            button.Click += (_, _) => Select(t);
+            _tabs[t] = button;
+            bar.Children.Add(button);
+        }
+
+        KeyboardNavigation.SetTabNavigation(_host, KeyboardNavigationMode.Cycle);
+        Content = new DockPanel
+        {
             Children =
+            {
+                Panels.Docked(Shell.PageTitle(Shell.Caps("Settings")), Dock.Top),
+                Panels.Docked(bar, Dock.Top),
+                new ScrollViewer
                 {
-                    ShortcutsSection.Build(_settings, Save, _keys, _keyWarning),
-                    TypingSection.Build(_settings, Save),
-                    CleanupSection.Build(_settings, Save),
-                    SpeechSection.Build(_settings, Save),
-                    GeneralSection.Build(_settings, Save),
-                    AppearanceSection.Build(_settings, Save, _engine),
+                    HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    Content = _host,
                 },
+            },
         };
 
-        KeyboardNavigation.SetTabNavigation(sections, KeyboardNavigationMode.Cycle);
+        // A page can leave the screen without being closed (page switch, theme rebuild, hide to
+        // tray); a live key-capture hook must never outlive it.
+        DetachedFromVisualTree += (_, _) => CancelRecording();
 
-        Content = new ScrollViewer
-        {
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            Content = sections,
-        };
+        ShowAllChords();
+        Select(tab);
+    }
 
+    /// <summary>The open tab.</summary>
+    public SettingsTab Tab { get; private set; }
+
+    /// <summary>Opens <paramref name="tab"/>.</summary>
+    public void Select(SettingsTab tab)
+    {
+        if (tab != SettingsTab.Shortcuts) CancelRecording();
+        Tab = tab;
+        foreach (var (t, button) in _tabs) Shell.Paint(button, Themes.Active.TabSelection, t == tab);
+        _host.Content = _sections[tab];
+    }
+
+    /// <summary>Stops a live chord recording, if any, and restores the key labels.</summary>
+    public void CancelRecording()
+    {
+        _recorder?.Dispose();
+        _recorder = null;
+        foreach (var key in _keys.Values) key.IsEngaged = false;
         ShowAllChords();
     }
 
-    /// <inheritdoc />
-    protected override void OnClosed(EventArgs e)
-    {
-        CancelRecording();
-        base.OnClosed(e);
-    }
+    // ---- Chord recorder: moved verbatim from SettingsWindow ----
 
-    /// <summary>The chord currently saved for <paramref name="slot"/>, or null when unbound.</summary>
     private int[]? Chord(ShortcutSlot slot) => slot switch
     {
         ShortcutSlot.Raw => _settings.Data.ResolvedPushToTalkKeys,
@@ -115,7 +168,6 @@ public sealed class SettingsWindow : Window
         _ => null,
     };
 
-    /// <summary>Persists <paramref name="chord"/> into <paramref name="slot"/>; null unbinds.</summary>
     private void SaveChord(ShortcutSlot slot, int[]? chord)
     {
         var data = _settings.Data;
@@ -136,8 +188,7 @@ public sealed class SettingsWindow : Window
         _captured.Clear();
         _held.Clear();
 
-        // Events arrive on the hook thread; every touch of the UI below is posted. Same
-        // lesson as the transcriptions view: off-thread Avalonia access fails silently.
+        // Events arrive on the hook thread; every touch of the UI below is posted.
         _recorder = PlatformFactory.StartKeyCapture((key, isDown) =>
             Avalonia.Threading.Dispatcher.UIThread.Post(() => OnRecordedKey(key, isDown)));
 
@@ -155,9 +206,7 @@ public sealed class SettingsWindow : Window
         {
             if (key == VkEscape && _captured.Count == 0)
             {
-                // On an optional slot Escape means "unbind" rather than "cancel": with no
-                // other gesture available, there would otherwise be no way back to fewer
-                // shortcuts once one is recorded. The raw slot only cancels.
+                // On an optional slot Escape means "unbind"; the raw slot only cancels.
                 var slot = _recordingSlot;
                 CancelRecording();
                 if (slot != ShortcutSlot.Raw) SaveChord(slot, null);
@@ -177,7 +226,6 @@ public sealed class SettingsWindow : Window
         if (_captured.Count > 0 && _held.Count == 0) CommitRecording();
     }
 
-    /// <summary>The button the live recording is writing into.</summary>
     private TransportKey Recording => _keys[_recordingSlot];
 
     private void CommitRecording()
@@ -187,14 +235,6 @@ public sealed class SettingsWindow : Window
         CancelRecording();
 
         SaveChord(slot, chord);
-        ShowAllChords();
-    }
-
-    private void CancelRecording()
-    {
-        _recorder?.Dispose();
-        _recorder = null;
-        foreach (var key in _keys.Values) key.IsEngaged = false;
         ShowAllChords();
     }
 

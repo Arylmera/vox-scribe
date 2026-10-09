@@ -84,10 +84,7 @@ public partial class App : Application
     private void OnTraySettings(object? sender, EventArgs e)
     {
         ShowMain();
-        if (_main is not null && _composition is not null)
-        {
-            _ = new SettingsWindow(_composition.Settings, _composition.Engine).ShowDialog(_main);
-        }
+        _main?.ShowPage(AppPage.Settings);
     }
 
     /// <summary>

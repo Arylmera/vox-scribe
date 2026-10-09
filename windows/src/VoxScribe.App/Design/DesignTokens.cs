@@ -339,6 +339,9 @@ public static class Tokens
         /// <summary>Nav icon stroke.</summary>
         public const double NavIconStroke = 1.6;
 
+        /// <summary>A settings tab's height.</summary>
+        public const double TabHeight = 34;
+
         /// <summary>A recent-dictation row on Home.</summary>
         public const double RowHeight = 46;
 
@@ -464,18 +467,6 @@ public static class Tokens
 
         /// <summary>Shortest the main window may be dragged.</summary>
         public const double MainMinHeight = 520;
-
-        /// <summary>Settings window, initial width.</summary>
-        public const double SettingsWidth = 540;
-
-        /// <summary>Settings window, initial height — under a laptop screen, so it scrolls.</summary>
-        public const double SettingsHeight = 720;
-
-        /// <summary>Narrowest the settings window may be dragged.</summary>
-        public const double SettingsMinWidth = 480;
-
-        /// <summary>Shortest the settings window may be dragged.</summary>
-        public const double SettingsMinHeight = 480;
 
         /// <summary>The dictionary entry editor. Height follows its content.</summary>
         public const double EditorWidth = 460;

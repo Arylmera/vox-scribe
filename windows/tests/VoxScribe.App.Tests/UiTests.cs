@@ -359,8 +359,8 @@ public sealed class PanelsTests
     }
 }
 
-/// <summary>The settings window as a whole.</summary>
-public sealed class SettingsWindowTests : IDisposable
+/// <summary>Settings is a page of the main window, in six tabs.</summary>
+public sealed class SettingsPageTests : IDisposable
 {
     private readonly string _path = Path.Combine(
         Path.GetTempPath(), $"voxscribe-settings-{Guid.NewGuid():N}.json");
@@ -369,22 +369,56 @@ public sealed class SettingsWindowTests : IDisposable
     public void Dispose() { if (File.Exists(_path)) File.Delete(_path); }
 
     [AvaloniaFact]
-    public void Opens_resizable_and_scrollable_with_sections_in_order()
+    public void Six_tabs_in_order_each_showing_its_section()
     {
-        var window = new SettingsWindow(new AppSettings(_path));
+        var page = new SettingsPage(new AppSettings(_path), null, SettingsTab.General);
+        var window = new Window { Content = page };
         window.Show();
 
-        window.CanResize.ShouldBeTrue();
-        window.Bounds.Width.ShouldBeGreaterThan(0);
-        window.Content.ShouldBeOfType<ScrollViewer>();
+        page.GetVisualDescendants().OfType<Button>()
+            .Select(b => Avalonia.Automation.AutomationProperties.GetName(b))
+            .Where(n => n?.StartsWith("Settings tab: ", StringComparison.Ordinal) == true)
+            .ShouldBe([
+                "Settings tab: General", "Settings tab: Speech", "Settings tab: Shortcuts",
+                "Settings tab: Typing", "Settings tab: Cleanup", "Settings tab: Appearance",
+            ]);
 
-        var labels = window.GetVisualDescendants()
-            .OfType<Silkscreen>()
-            .Where(s => s.IsLarge)
-            .Select(s => s.Text)
-            .ToArray();
+        foreach (var tab in Enum.GetValues<SettingsTab>())
+        {
+            page.Select(tab);
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
 
-        labels.ShouldBe(["SHORTCUTS", "TYPING", "CLEANUP", "SPEECH", "GENERAL", "APPEARANCE"]);
+            page.Tab.ShouldBe(tab);
+            page.GetVisualDescendants().OfType<Silkscreen>().Where(s => s.IsLarge).Select(s => s.Text)
+                .ShouldContain(tab.ToString().ToUpperInvariant());
+        }
+    }
+
+    [AvaloniaFact]
+    public void The_section_area_scrolls()
+    {
+        var page = new SettingsPage(new AppSettings(_path), null, SettingsTab.Shortcuts);
+        new Window { Content = page }.Show();
+
+        page.GetVisualDescendants().OfType<ScrollViewer>().ShouldNotBeEmpty();
+    }
+
+    [AvaloniaFact]
+    public void The_main_window_opens_settings_as_a_page()
+    {
+        var window = new MainWindow();
+        window.Show();
+        try
+        {
+            window.ShowPage(AppPage.Settings);
+
+            window.CurrentPage.ShouldBe(AppPage.Settings);
+        }
+        finally
+        {
+            window.ExitAllowed = true;
+            window.Close();
+        }
     }
 }
 
