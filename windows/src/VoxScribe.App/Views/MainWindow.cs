@@ -2,42 +2,55 @@ using Avalonia;
 using Avalonia.Animation;
 using Avalonia.Controls;
 using Avalonia.Layout;
-using Avalonia.Media;
 using Avalonia.Threading;
-using VoxScribe.App.Controls;
 using VoxScribe.App.Design;
+using VoxScribe.Core;
 
 namespace VoxScribe.App.Views;
 
+/// <summary>The main window's pages, in navigation order.</summary>
+public enum AppPage
+{
+    /// <summary>Status, stats, recent dictations.</summary>
+    Home,
+
+    /// <summary>All transcripts.</summary>
+    History,
+
+    /// <summary>Correction rules.</summary>
+    Dictionary,
+
+    /// <summary>Settings, in tabs.</summary>
+    Settings,
+}
+
 /// <summary>
-/// The main window: a navigation rail, a title strip in the extended chrome, and the open section.
+/// The main window: a title strip in the extended chrome, the theme's navigation, and the
+/// open page. Rebuilt whole on <see cref="Themes.Changed"/>.
 /// </summary>
 /// <remarks>
 /// Built in code rather than XAML, deliberately: every value comes from <see cref="Tokens"/>.
 /// </remarks>
 public sealed class MainWindow : Window
 {
-    private const string WaveIcon = "M4,10 V14 M8,7 V17 M12,4 V20 M16,8 V16 M20,10 V14";
-    private const string BookIcon = "M5,4 H16 A3,3 0 0 1 19,7 V20 H8 A3,3 0 0 1 5,17 Z M9,9 H15";
-    private const string GearIcon =
-        "M19,12 a7,7 0 0 0 -0.1,-1.2 l2,-1.6 -2,-3.4 -2.4,1 a7,7 0 0 0 -2,-1.2 L14,3 h-4 "
-        + "l-0.5,2.6 a7,7 0 0 0 -2,1.2 l-2.4,-1 -2,3.4 2,1.6 A7,7 0 0 0 5,12 a7,7 0 0 0 "
-        + "0.1,1.2 l-2,1.6 2,3.4 2.4,-1 a7,7 0 0 0 2,1.2 L10,21 h4 l0.5,-2.6 a7,7 0 0 0 "
-        + "2,-1.2 l2.4,1 2,-3.4 -2,-1.6 A7,7 0 0 0 19,12 Z M15,12 a3,3 0 1 1 -6,0 "
-        + "a3,3 0 0 1 6,0";
-    private const string MicIcon = "M12,4 V13 M8,8 V11 M16,8 V11 M12,17 V20 M7,13 a5,5 0 0 0 10,0";
-
     private readonly Composition? _composition;
-    private ContentControl _sectionHost = new();
-    private RailKey _transcriptionsKey = new(WaveIcon);
-    private RailKey _dictionaryKey = new(BookIcon);
+    private readonly Dictionary<AppPage, NavButton> _nav = [];
     private readonly EventHandler _onThemeChanged;
 
-    private Control? _transcriptionsView;
-    private Control? _dictionaryView;
+    private ContentControl _host = new();
+    private TranscriptionsView? _history;
+    private DictionaryView? _dictionary;
+    private Control? _historyPage;
+    private Control? _dictionaryPage;
+    private string _historySearch = string.Empty;
+    private string _dictionarySearch = string.Empty;
+    private AppPage _page = AppPage.Home;
 
     /// <summary>Set just before an explicit quit so the hide-to-tray guard steps aside.</summary>
     public bool ExitAllowed { get; set; }
+
+    /// <summary>The page on screen.</summary>
+    public AppPage CurrentPage => _page;
 
     /// <summary>Builds a window with no engine behind it. Used by headless tests.</summary>
     public MainWindow() : this(null) { }
@@ -52,15 +65,15 @@ public sealed class MainWindow : Window
         MinHeight = Tokens.Size.MainMinHeight;
         Width = Tokens.Size.MainWidth;
         Height = Tokens.Size.MainHeight;
-        Background = Tokens.Brushes.Chassis;
         Icon = new WindowIcon(Avalonia.Platform.AssetLoader.Open(
             new Uri("avares://VoxScribe.App/Assets/app.ico")));
 
+        // The system keeps its caption buttons; the app paints the rest of the chrome.
         ExtendClientAreaToDecorationsHint = true;
         ExtendClientAreaTitleBarHeightHint = Tokens.Material.TitleBarHeight;
 
-        // The close button hides to the tray: a closed Avalonia window is destroyed and the
-        // tray's "Show" could never bring it back. Real exit sets ExitAllowed first.
+        // Close hides to the tray: a closed Avalonia window cannot be shown again. Real exit
+        // sets ExitAllowed first (tray Quit).
         Closing += (_, e) =>
         {
             if (ExitAllowed) return;
@@ -68,8 +81,7 @@ public sealed class MainWindow : Window
             Hide();
         };
 
-        // Views are built in C# and cache brushes, so a theme change rebuilds the content.
-        // Posted: Changed can fire from inside a click handler in Settings.
+        // Posted: Changed can fire from inside a click handler on the Appearance tab.
         _onThemeChanged = (_, _) => Dispatcher.UIThread.Post(Rebuild);
         Themes.Changed += _onThemeChanged;
         Rebuild();
@@ -84,69 +96,65 @@ public sealed class MainWindow : Window
         _composition?.Engine?.Start();
     }
 
-    private DockPanel BuildLayout()
+    /// <summary>Opens <paramref name="page"/> and marks it in the navigation.</summary>
+    public void ShowPage(AppPage page)
     {
-        var root = new DockPanel();
-        root.Children.Add(Panels.Docked(BuildRail(), Dock.Left));
-
-        var content = new DockPanel();
-        content.Children.Add(Panels.Docked(BuildTitleStrip(), Dock.Top));
-        if (_composition is not null && !Composition.IsModelInstalled)
+        if (page == AppPage.Settings)
         {
-            content.Children.Add(Panels.Docked(BuildModelBanner(), Dock.Top));
+            // Interim until Task 7 folds Settings into the window.
+            if (_composition is not null)
+            {
+                _ = new SettingsWindow(_composition.Settings, _composition.Engine).ShowDialog(this);
+            }
+
+            return;
         }
 
-        _sectionHost.Margin = new Thickness(
-            Tokens.Space.Roomy, Tokens.Space.Snug, Tokens.Space.Roomy, Tokens.Space.Roomy);
-        content.Children.Add(_sectionHost);
+        _page = page;
+        foreach (var (p, item) in _nav) Shell.Paint(item, Themes.Active.NavSelection, p == page);
 
-        root.Children.Add(content);
-        return root;
+        _host.Content = page switch
+        {
+            AppPage.History => HistoryPage(),
+            AppPage.Dictionary => DictionaryPage(),
+            _ => new HomePage(_composition?.Transcripts, _composition?.Settings, ShowPage, RetypeAsync),
+        };
     }
 
-    private Border BuildRail()
+    /// <summary>Rebuilds every control in the current theme, keeping the page and the search texts.</summary>
+    private void Rebuild()
     {
-        var badge = new Border
+        // A control has one parent and the old ones carry the old theme's brushes: start fresh.
+        _historySearch = _history?.SearchText ?? _historySearch;
+        _dictionarySearch = _dictionary?.SearchText ?? _dictionarySearch;
+        _history = null;
+        _dictionary = null;
+        _historyPage = null;
+        _dictionaryPage = null;
+        _nav.Clear();
+        _host = new ContentControl();
+
+        var content = new Border
         {
-            Width = Tokens.Material.BadgeSize,
-            Height = Tokens.Material.BadgeSize,
-            CornerRadius = new CornerRadius(Tokens.Radius.Chip),
-            Background = new SolidColorBrush(Tokens.Colors.Accent),
-            IsHitTestVisible = false,
-            Margin = new Thickness(0, 0, 0, Tokens.Space.Roomy),
-            Child = new Avalonia.Controls.Shapes.Path
-            {
-                Data = Geometry.Parse(MicIcon),
-                Stroke = Tokens.Brushes.Chassis,
-                StrokeThickness = Tokens.Material.BadgeIconStroke,
-                StrokeLineCap = PenLineCap.Round,
-                Width = Tokens.Material.BadgeIconSize,
-                Height = Tokens.Material.BadgeIconSize,
-                Stretch = Stretch.Uniform,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-            },
+            Padding = new Thickness(Tokens.Space.Panel, Tokens.Space.Base, Tokens.Space.Panel, Tokens.Space.Wide),
+            Child = _host,
         };
-
-        var settings = new RailKey(GearIcon) { HorizontalAlignment = HorizontalAlignment.Center };
-        settings.Click += (_, _) => ShowSettings();
-
-        var rail = new DockPanel { LastChildFill = false };
-        rail.Children.Add(Panels.Docked(new StackPanel
+        if (Themes.Active.ContentOnSurface)
         {
-            Spacing = Tokens.Space.Tight,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            Children = { badge, _transcriptionsKey, _dictionaryKey },
-        }, Dock.Top));
-        rail.Children.Add(Panels.Docked(settings, Dock.Bottom));
+            content.Background = Tokens.Brushes.Panel;
+            content.BorderBrush = Tokens.Brushes.Seam;
+            content.BorderThickness = new Thickness(Tokens.Border.Hairline, Tokens.Border.Hairline, 0, 0);
+            content.CornerRadius = new CornerRadius(Tokens.Radius.Panel, 0, 0, 0);
+        }
 
-        return new Border
-        {
-            Width = Tokens.Material.RailWidth,
-            Background = Tokens.Brushes.Panel,
-            Padding = new Thickness(0, Tokens.Space.Base),
-            Child = rail,
-        };
+        var root = new DockPanel();
+        root.Children.Add(Panels.Docked(BuildTitleStrip(), Dock.Top));
+        root.Children.Add(Panels.Docked(Shell.Nav(ShowPage, _nav), Dock.Left));
+        root.Children.Add(content);
+
+        Background = Tokens.Brushes.Chassis;
+        Content = root;
+        ShowPage(_page);
     }
 
     private static Border BuildTitleStrip() => new()
@@ -157,96 +165,47 @@ public sealed class MainWindow : Window
         {
             Text = "Vox-Scribe",
             FontFamily = Tokens.Fonts.Grotesque,
-            FontSize = Tokens.Fonts.Body,
-            FontWeight = FontWeight.SemiBold,
-            Foreground = Tokens.Brushes.Ink,
+            FontSize = Tokens.Fonts.Label,
+            Foreground = Tokens.Brushes.InkSecondary,
             VerticalAlignment = VerticalAlignment.Center,
             IsHitTestVisible = false,
         },
     };
 
-    private static BrushedPanel BuildModelBanner() => new()
+    private Control HistoryPage()
     {
-        Margin = new Thickness(Tokens.Space.Roomy, 0, Tokens.Space.Roomy, Tokens.Space.Base),
-        Child = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = Tokens.Space.Base,
-            Margin = new Thickness(Tokens.Space.Base),
-            Children =
-            {
-                new Lamp
-                {
-                    IsLit = true,
-                    LampColor = Tokens.Colors.Caution,
-                    VerticalAlignment = VerticalAlignment.Center,
-                },
-                new TextBlock
-                {
-                    Text = "Speech model not installed — Vox-Scribe cannot transcribe yet. "
-                         + "See Settings, or docs/PARAKEET-WINDOWS.md.",
-                    FontFamily = Tokens.Fonts.Grotesque,
-                    FontSize = Tokens.Fonts.Label,
-                    Foreground = Tokens.Brushes.Ink,
-                    TextWrapping = TextWrapping.Wrap,
-                    VerticalAlignment = VerticalAlignment.Center,
-                },
-            },
-        },
+        if (_composition is null) return Panels.EmptyState("NO RECORDINGS", "Hold the push-to-talk key and speak.");
+
+        // Cached: the frame is the view's parent and must not be rebuilt on every visit.
+        _history ??= new TranscriptionsView(_composition.Transcripts) { SearchText = _historySearch };
+        return _historyPage ??= Framed("History", _history);
+    }
+
+    private Control DictionaryPage()
+    {
+        if (_composition is null) return Panels.EmptyState("DICTIONARY EMPTY", "Add words it keeps getting wrong.");
+
+        _dictionary ??= new DictionaryView(_composition.Dictionary, _composition.Transcripts) { SearchText = _dictionarySearch };
+        return _dictionaryPage ??= Framed("Dictionary", _dictionary);
+    }
+
+    private static DockPanel Framed(string title, Control body) => new()
+    {
+        Children = { Panels.Docked(Shell.PageTitle(Shell.Caps(title)), Dock.Top), body },
     };
 
-    private void ShowSection(bool transcriptions)
+    /// <summary>
+    /// "Type again": the button gave focus to this window, so the text would land here. Minimise
+    /// first, give focus a moment to return to the previous app, then type.
+    /// </summary>
+    private async Task RetypeAsync(string text)
     {
-        _transcriptionsKey.IsEngaged = transcriptions;
-        _dictionaryKey.IsEngaged = !transcriptions;
+        if (_composition?.Injector is not { } injector) return;
+        if (_composition.Engine is { State: not DictationState.Idle }) return;
 
-        if (_composition is null)
-        {
-            _sectionHost.Content = Panels.EmptyState(
-                transcriptions ? "NO RECORDINGS" : "DICTIONARY EMPTY",
-                transcriptions ? "Hold the push-to-talk key and speak." : "Add words it keeps getting wrong.");
-            return;
-        }
-
-        // Built once and reused: rebuilding would drop the user's search text.
-        if (transcriptions)
-        {
-            _transcriptionsView ??= new TranscriptionsView(_composition.Transcripts);
-            _sectionHost.Content = _transcriptionsView;
-        }
-        else
-        {
-            _dictionaryView ??= new DictionaryView(_composition.Dictionary, _composition.Transcripts);
-            _sectionHost.Content = _dictionaryView;
-        }
-    }
-
-    private void ShowSettings()
-    {
-        if (_composition is null) return;
-        _ = new SettingsWindow(_composition.Settings, _composition.Engine).ShowDialog(this);
-    }
-
-    /// <summary>Rebuilds the whole window in the current theme, keeping the open section.</summary>
-    private void Rebuild()
-    {
-        var transcriptions = _sectionHost.Content is null || _transcriptionsKey.IsEngaged;
-
-        // A control can have one parent: every rebuild starts from fresh instances. The cached
-        // section views hold the old theme's brushes, so they go too.
-        _transcriptionsView = null;
-        _dictionaryView = null;
-        _sectionHost = new ContentControl();
-        _transcriptionsKey = new RailKey(WaveIcon);
-        _dictionaryKey = new RailKey(BookIcon);
-        Avalonia.Automation.AutomationProperties.SetName(_transcriptionsKey, "Transcriptions");
-        Avalonia.Automation.AutomationProperties.SetName(_dictionaryKey, "Dictionary");
-        _transcriptionsKey.Click += (_, _) => ShowSection(transcriptions: true);
-        _dictionaryKey.Click += (_, _) => ShowSection(transcriptions: false);
-
-        Background = Tokens.Brushes.Chassis;
-        Content = BuildLayout();
-        ShowSection(transcriptions);
+        WindowState = WindowState.Minimized;
+        await Task.Delay(Tokens.Motion.RetypeSettle).ConfigureAwait(true);
+        await injector.InjectAsync(text, CancellationToken.None).ConfigureAwait(true);
     }
 
     /// <inheritdoc />

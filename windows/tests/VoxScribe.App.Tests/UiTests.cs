@@ -74,6 +74,61 @@ public sealed class MainWindowTests
             window.Close();
         }
     }
+
+    [AvaloniaFact]
+    public void Navigation_lists_the_four_pages_in_order()
+    {
+        var window = new MainWindow();
+        window.Show();
+        try
+        {
+            window.GetVisualDescendants().OfType<NavButton>()
+                .Select(b => Avalonia.Automation.AutomationProperties.GetName(b))
+                .ShouldBe(["Home", "History", "Dictionary", "Settings"]);
+            window.CurrentPage.ShouldBe(AppPage.Home);
+        }
+        finally
+        {
+            window.ExitAllowed = true;
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public void Every_page_opens_in_every_theme_light_and_dark()
+    {
+        try
+        {
+            foreach (var theme in Themes.All)
+                foreach (var dark in new[] { false, true })
+                {
+                    Themes.Apply(theme.Id, null, dark);
+                    var window = new MainWindow();
+                    window.Show();
+                    foreach (var page in new[] { AppPage.History, AppPage.Dictionary, AppPage.Home })
+                    {
+                        window.ShowPage(page);
+                        window.CurrentPage.ShouldBe(page, $"{theme.Id} {page}");
+                    }
+
+                    window.ExitAllowed = true;
+                    window.Close();
+                }
+        }
+        finally
+        {
+            Themes.Apply(Themes.DefaultId, null, false);
+        }
+    }
+
+    [AvaloniaFact]
+    public void Shell_icons_parse()
+    {
+        foreach (var data in new[] { Shell.HomeIcon, Shell.HistoryIcon, Shell.DictionaryIcon, Shell.SettingsIcon, Shell.CopyIcon, Shell.RetypeIcon })
+        {
+            Should.NotThrow(() => Avalonia.Media.Geometry.Parse(data), data);
+        }
+    }
 }
 
 /// <summary>The individual pieces of equipment.</summary>
@@ -320,7 +375,7 @@ public sealed class KeyHitAreaTests
     [AvaloniaFact]
     public void Custom_keys_are_hit_testable_across_their_whole_face()
     {
-        Button[] keys = [new TransportKey(), new RailKey("M4,10 V14")];
+        Button[] keys = [new TransportKey()];
 
         foreach (var key in keys) key.Background.ShouldBe(Brushes.Transparent);
     }

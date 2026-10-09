@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Animation;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -282,4 +283,41 @@ internal static class Panels
         box.IsCheckedChanged += (_, _) => onChange(box.IsChecked ?? false);
         return box;
     }
+
+    /// <summary>An accent text link ("See all history →").</summary>
+    public static Button LinkButton(string text) => new()
+    {
+        Content = text,
+        FontFamily = Tokens.Fonts.Grotesque,
+        FontSize = Tokens.Fonts.Body,
+        Foreground = Tokens.Brushes.Accent,
+        Background = Brushes.Transparent,
+        BorderThickness = new Thickness(0),
+        Padding = new Thickness(0),
+        VerticalAlignment = VerticalAlignment.Center,
+    };
+
+    /// <summary>A square icon-only button with an accessible name and tooltip.</summary>
+    public static Button IconButton(string pathData, string name)
+    {
+        var button = new Button
+        {
+            Width = Tokens.Material.RowButtonSize,
+            Height = Tokens.Material.RowButtonSize,
+            Padding = new Thickness(0),
+            Background = Brushes.Transparent,
+            BorderThickness = new Thickness(0),
+            CornerRadius = new CornerRadius(Tokens.Radius.Chip),
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Content = Shell.Icon(pathData, Tokens.Material.RowIconSize, Tokens.Material.RowIconStroke, Tokens.Brushes.InkSecondary),
+        };
+        AutomationProperties.SetName(button, name);
+        ToolTip.SetTip(button, name);
+        return button;
+    }
+
+    /// <summary>A chord as key names joined by " + ", or "not set".</summary>
+    public static string Chord(int[]? keys) =>
+        keys is { Length: > 0 } ? string.Join(" + ", keys.Select(PlatformFactory.KeyDisplayName)) : "not set";
 }

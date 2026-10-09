@@ -28,13 +28,15 @@ public sealed class Composition : IAsyncDisposable
         DictionaryFile dictionary,
         TranscriptStore transcripts,
         DictationEngine? engine,
-        bool platformAvailable)
+        bool platformAvailable,
+        ITextInjector? injector)
     {
         Settings = settings;
         Dictionary = dictionary;
         Transcripts = transcripts;
         Engine = engine;
         IsPlatformAvailable = platformAvailable;
+        Injector = injector;
     }
 
     /// <summary>User preferences.</summary>
@@ -51,6 +53,9 @@ public sealed class Composition : IAsyncDisposable
 
     /// <summary>Whether real audio and hotkey support were found.</summary>
     public bool IsPlatformAvailable { get; }
+
+    /// <summary>The text injector the engine types with, or null without a platform layer. Used by "Type again".</summary>
+    public ITextInjector? Injector { get; }
 
     /// <summary>
     /// Whether transcription is possible: a local model on disk, or a remote endpoint
@@ -217,7 +222,7 @@ public sealed class Composition : IAsyncDisposable
             };
         }
 
-        return new Composition(settings, dictionary, transcripts, engine, available);
+        return new Composition(settings, dictionary, transcripts, engine, available, injector);
     }
 
     /// <inheritdoc />

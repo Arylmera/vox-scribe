@@ -289,9 +289,6 @@ public static class Tokens
 
         /// <summary>The pill body (theme <c>radius.pill</c>).</summary>
         public static double Pill { get; internal set; } = 3;
-
-        /// <summary>Navigation rail keys (removed with the rail in Task 6).</summary>
-        public const double RailKey = 12;
     }
 
     /// <summary>Line weights. All 1 — a machined edge reads the same at any density.</summary>
@@ -324,29 +321,44 @@ public static class Tokens
         /// <summary>A lit lamp's lens highlight — a specular dot, not a bloom.</summary>
         public const double LampSpecular = 0.45;
 
-        /// <summary>Width of the navigation rail on the left edge.</summary>
-        public const double RailWidth = 64;
-
-        /// <summary>A square rail key (icon button).</summary>
-        public const double RailKeySize = 40;
-
-        /// <summary>Stroke-icon canvas inside a rail key.</summary>
-        public const double RailIconSize = 18;
-
-        /// <summary>Stroke weight of rail icons.</summary>
-        public const double RailIconStroke = 1.7;
-
-        /// <summary>The app badge at the head of the rail.</summary>
-        public const double BadgeSize = 26;
-
-        /// <summary>The mark inside the app badge.</summary>
-        public const double BadgeIconSize = 14;
-
-        /// <summary>Stroke weight of the badge mark — heavier than a rail icon, it is smaller.</summary>
-        public const double BadgeIconStroke = 2.2;
-
         /// <summary>Height of the custom title strip; also the extended-chrome hint.</summary>
         public const double TitleBarHeight = 44;
+
+        /// <summary>A sidebar nav item's height.</summary>
+        public const double NavItemHeight = 40;
+
+        /// <summary>A rail nav item (Orb): width.</summary>
+        public const double RailItemWidth = 60;
+
+        /// <summary>A rail nav item (Orb): height, icon over caption.</summary>
+        public const double RailItemHeight = 56;
+
+        /// <summary>Nav icon canvas.</summary>
+        public const double NavIconSize = 18;
+
+        /// <summary>Nav icon stroke.</summary>
+        public const double NavIconStroke = 1.6;
+
+        /// <summary>A recent-dictation row on Home.</summary>
+        public const double RowHeight = 46;
+
+        /// <summary>The time column of a recent row.</summary>
+        public const double RowTimeWidth = 44;
+
+        /// <summary>Copy / Type-again buttons.</summary>
+        public const double RowButtonSize = 32;
+
+        /// <summary>Icon inside a row button.</summary>
+        public const double RowIconSize = 15;
+
+        /// <summary>Row icon stroke.</summary>
+        public const double RowIconStroke = 1.7;
+
+        /// <summary>The orb mark at the head of Orb's rail.</summary>
+        public const double OrbMarkSize = 34;
+
+        /// <summary>The orb in Orb's Home header card.</summary>
+        public const double HeroOrbSize = 132;
 
         /// <summary>Space reserved right of the title strip for the system caption buttons.</summary>
         public const double CaptionButtonsReserve = 140;
@@ -430,6 +442,12 @@ public static class Tokens
         /// Display-only — the audio itself is untouched.
         /// </summary>
         public const double LevelGain = 2.5;
+
+        /// <summary>
+        /// After minimising for "Type again", how long focus is given to return to the previous
+        /// window before the text is sent. Hand-tuned; raise it if the text lands nowhere.
+        /// </summary>
+        public static TimeSpan RetypeSettle { get; } = TimeSpan.FromMilliseconds(350);
     }
 
     /// <summary>Window sizes.</summary>

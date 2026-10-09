@@ -30,6 +30,13 @@ public sealed class DictionaryView : UserControl
     // after a restart turns out to annoy.
     private readonly HashSet<(string Hear, string Write)> _dismissed = [];
 
+    /// <summary>The search box's text, so a theme rebuild can carry it over.</summary>
+    public string SearchText
+    {
+        get => _search.Text ?? string.Empty;
+        set => _search.Text = value;
+    }
+
     /// <summary>Builds the view over <paramref name="file"/>, mining <paramref name="transcripts"/> for suggestions.</summary>
     public DictionaryView(DictionaryFile file, TranscriptStore transcripts)
     {

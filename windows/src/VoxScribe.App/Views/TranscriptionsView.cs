@@ -23,6 +23,13 @@ public sealed class TranscriptionsView : UserControl
     private readonly StackPanel _list;
     private readonly Silkscreen _count;
 
+    /// <summary>The search box's text, so a theme rebuild can carry it over.</summary>
+    public string SearchText
+    {
+        get => _search.Text ?? string.Empty;
+        set => _search.Text = value;
+    }
+
     /// <summary>Builds the view over <paramref name="store"/>.</summary>
     public TranscriptionsView(TranscriptStore store)
     {
