@@ -2,7 +2,6 @@ using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
-using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using VoxScribe.App.Controls;
@@ -112,7 +111,9 @@ internal sealed class SettingsPage : UserControl
             bar.Children.Add(button);
         }
 
-        KeyboardNavigation.SetTabNavigation(_host, KeyboardNavigationMode.Cycle);
+        // No KeyboardNavigation scope on _host: Tab must leave the open section and reach the
+        // tab bar, the sidebar and the rest of the window (WCAG 2.1.2 — no keyboard trap). A
+        // dialog could cycle within itself; a page cannot.
         Content = new DockPanel
         {
             Children =

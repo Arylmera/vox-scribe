@@ -420,6 +420,25 @@ public sealed class SettingsPageTests : IDisposable
             window.Close();
         }
     }
+
+    [AvaloniaFact]
+    public void Tab_from_the_last_control_in_a_section_leaves_the_section()
+    {
+        var page = new SettingsPage(new AppSettings(_path), null, SettingsTab.General);
+        var after = new Button { Content = "After" };
+        var window = new Window { Content = new StackPanel { Children = { page, after } } };
+        window.Show();
+
+        var lastInSection = page.GetVisualDescendants().OfType<CheckBox>().Last();
+        lastInSection.Focus();
+        window.FocusManager?.GetFocusedElement().ShouldBe(lastInSection);
+
+        // A page must not trap Tab inside the open section (WCAG 2.1.2): it has to reach the
+        // tab bar, the sidebar and the rest of the window, same as any other page content.
+        window.KeyPressQwerty(Avalonia.Input.PhysicalKey.Tab, Avalonia.Input.RawInputModifiers.None);
+
+        window.FocusManager?.GetFocusedElement().ShouldBe(after);
+    }
 }
 
 /// <summary>
