@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
 using VoxScribe.App.Views;
 using VoxScribe.Speech;
 
@@ -46,6 +47,14 @@ public partial class App : Application
             // The dictation pill manages its own visibility from the engine state; it only
             // needs to exist. Never becomes MainWindow — it must never own focus.
             if (_composition.Engine is not null) _ = new HudWindow(_composition.Engine);
+
+            // The pill only shows while dictating, so a read-aloud failure also lands on the
+            // tray tooltip, where it stays until the next one. Raised off the UI thread.
+            if (_composition.ReadAloud is { } readAloud && TrayIcon.GetIcons(this) is [var tray, ..])
+            {
+                readAloud.Failed += (_, message) =>
+                    Dispatcher.UIThread.Post(() => tray.ToolTipText = $"Vox-Scribe — {message}");
+            }
 
             // Closing the window leaves VoxScribe running in the tray — the hotkey still works,
             // which is the whole point of a dictation app. Quit is explicit, from the tray

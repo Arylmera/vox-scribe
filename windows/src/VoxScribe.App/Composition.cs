@@ -31,9 +31,11 @@ public sealed class Composition : IAsyncDisposable
         TranscriptStore transcripts,
         DictationEngine? engine,
         bool platformAvailable,
-        MicrophoneMuter? muter)
+        MicrophoneMuter? muter,
+        ReadAloud? readAloud)
     {
         _muter = muter;
+        ReadAloud = readAloud;
         Settings = settings;
         Dictionary = dictionary;
         Transcripts = transcripts;
@@ -54,6 +56,9 @@ public sealed class Composition : IAsyncDisposable
 
     /// <summary>The dictation engine, or null when no platform layer is available.</summary>
     public DictationEngine? Engine { get; }
+
+    /// <summary>The /parle player, or null when no platform layer is available.</summary>
+    public ReadAloud? ReadAloud { get; }
 
     /// <summary>Whether real audio and hotkey support were found.</summary>
     public bool IsPlatformAvailable { get; }
@@ -113,6 +118,7 @@ public sealed class Composition : IAsyncDisposable
 
         DictationEngine? engine = null;
         MicrophoneMuter? muter = null;
+        ReadAloud? readAloud = null;
         var available = capture is not null && hotkey is not null && injector is not null;
 
         if (available)
@@ -233,6 +239,24 @@ public sealed class Composition : IAsyncDisposable
                 engine.Changed += (_, _) => mutes.OnStateChanged(live.State);
             }
 
+            // /parle from Claude Code: read the reply aloud. Settings are read per request,
+            // so the toggle applies at once. Any push-to-talk press silences it — the hooks
+            // are subscribed directly, so the engine's own behaviour is untouched.
+            if (PlatformFactory.CreateAudioPlayer() is { } player)
+            {
+                readAloud = new ReadAloud(() => settings.Data, player);
+                // The log only, not the engine's notice: the pill is hidden while idle, and a
+                // notice raised then would eat the next dictation failure's linger. The tray
+                // tooltip shows it instead (App).
+                readAloud.Failed += (_, message) => Program.LogNotice(message);
+                readAloud.Watch(ReadAloud.DefaultDirectory);
+                var reader = readAloud;
+                foreach (var key in new[] { hotkey, cleanupHotkey, commandHotkey })
+                {
+                    if (key is not null) key.Pressed += (_, _) => reader.Stop();
+                }
+            }
+
             engine.Completed += (_, result) =>
             {
                 if (!settings.Data.KeepHistory) return;
@@ -249,7 +273,7 @@ public sealed class Composition : IAsyncDisposable
             };
         }
 
-        return new Composition(settings, dictionary, transcripts, engine, available, muter);
+        return new Composition(settings, dictionary, transcripts, engine, available, muter, readAloud);
     }
 
     /// <inheritdoc />
@@ -257,6 +281,7 @@ public sealed class Composition : IAsyncDisposable
     {
         // Before the engine: whatever happens to it, Discord gets its microphone back.
         _muter?.Dispose();
+        ReadAloud?.Dispose();
         if (Engine is not null) await Engine.DisposeAsync().ConfigureAwait(false);
     }
 }

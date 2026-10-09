@@ -93,6 +93,10 @@ internal static class PlatformFactory
         }
     }
 
+    /// <summary>Creates the speech playback device, or null off Windows.</summary>
+    public static IAudioPlayer? CreateAudioPlayer() =>
+        Create<IAudioPlayer>("WaveOutPlayer", []);
+
     /// <summary>Creates the per-app microphone stream mixer, or null off Windows.</summary>
     public static ICaptureSessions? CreateCaptureSessions() =>
         Create<ICaptureSessions>("WasapiCaptureSessions", []);
