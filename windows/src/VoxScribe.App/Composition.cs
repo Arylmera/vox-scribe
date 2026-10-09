@@ -213,8 +213,10 @@ public sealed class Composition : IAsyncDisposable
             };
 
             // /parle from Claude Code: read the reply aloud. Settings are read per request,
-            // so the toggle applies at once. Any push-to-talk press silences it — the hooks
-            // are subscribed directly, so the engine's own behaviour is untouched.
+            // so the toggle applies at once. Any push-to-talk press, or Escape, silences it —
+            // the hooks are subscribed directly, so the engine's own behaviour is untouched.
+            // Escape is observed, not swallowed: it still reaches the focused app (and
+            // interrupts Claude Code if it is still answering).
             if (PlatformFactory.CreateAudioPlayer() is { } player)
             {
                 readAloud = new ReadAloud(() => settings.Data, player);
@@ -224,7 +226,7 @@ public sealed class Composition : IAsyncDisposable
                 readAloud.Failed += (_, message) => Program.LogNotice(message);
                 readAloud.Watch(ReadAloud.DefaultDirectory);
                 var reader = readAloud;
-                foreach (var key in new[] { hotkey, cleanupHotkey, commandHotkey })
+                foreach (var key in new[] { hotkey, cleanupHotkey, commandHotkey, cancelHotkey })
                 {
                     if (key is not null) key.Pressed += (_, _) => reader.Stop();
                 }
