@@ -647,7 +647,7 @@ public sealed class DictationEngine : IAsyncDisposable
         if (spoken.Length == 0) return;
 
         var joined = new StringBuilder();
-        foreach (var segment in spoken) joined.Append(Separator(joined)).Append(segment.Text);
+        foreach (var segment in spoken) joined.Append(Separator(joined.ToString())).Append(segment.Text);
         var text = joined.ToString();
 
         // Before Completed, so the history keeps what was actually typed. Skipped in

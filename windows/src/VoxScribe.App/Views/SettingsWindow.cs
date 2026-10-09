@@ -55,7 +55,11 @@ public sealed class SettingsWindow : Window
         foreach (var slot in Enum.GetValues<ShortcutSlot>())
         {
             var key = new TransportKey();
-            key.Click += (_, _) => _recorder is null ? StartRecording(slot) : CancelRecording();
+            key.Click += (_, _) =>
+            {
+                if (_recorder is null) StartRecording(slot);
+                else CancelRecording();
+            };
             _keys[slot] = key;
         }
 
