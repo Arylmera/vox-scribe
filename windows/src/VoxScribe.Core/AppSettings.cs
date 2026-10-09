@@ -17,7 +17,7 @@ public sealed record SettingsData
     /// Right Alt is AltGr — it is how those users type <c>@</c>, <c>€</c>, <c>\</c> and
     /// <c>|</c>. Right Ctrl produces no character on any layout.
     /// </remarks>
-    public int PushToTalkKey { get; init; } = 0xA3;
+    public int PushToTalkKey { get; set; } = 0xA3;
 
     /// <summary>
     /// The full push-to-talk chord as virtual-key codes, or null for pre-chord settings
@@ -41,7 +41,7 @@ public sealed record SettingsData
     public string? ModelDirectory { get; init; }
 
     /// <summary>Whether to type the transcript into the focused app.</summary>
-    public bool InjectText { get; init; } = true;
+    public bool InjectText { get; set; } = true;
 
     /// <summary>
     /// Whether each phrase is typed as soon as it is transcribed, rather than the whole
@@ -75,10 +75,10 @@ public sealed record SettingsData
     /// together at release, because typing them as they land would send them to whatever the
     /// user is clicking on at that moment.
     /// </remarks>
-    public bool AnchorFocus { get; init; } = true;
+    public bool AnchorFocus { get; set; } = true;
 
     /// <summary>Whether to keep a transcript history.</summary>
-    public bool KeepHistory { get; init; } = true;
+    public bool KeepHistory { get; set; } = true;
 
     /// <summary>
     /// Process names (e.g. <c>Discord</c>) whose microphone stream is muted while a dictation
@@ -99,7 +99,7 @@ public sealed record SettingsData
     public string? SttEndpoint { get; init; }
 
     /// <summary>Model name the remote gateway routes on.</summary>
-    public string SttModel { get; init; } = "stt-mac";
+    public string SttModel { get; set; } = "stt-mac";
 
     /// <summary>Bearer key for the remote endpoint, or null when unauthenticated.</summary>
     public string? SttApiKey { get; init; }
@@ -129,7 +129,7 @@ public sealed record SettingsData
     public int[]? CommandKeys { get; init; }
 
     /// <summary>Title fragment that identifies the command-mode target window.</summary>
-    public string CommandWindowTitle { get; init; } = "Claude";
+    public string CommandWindowTitle { get; set; } = "Claude";
 
     /// <summary>
     /// OpenAI-compatible chat API base used to tidy the transcript before it is typed, or
@@ -147,7 +147,7 @@ public sealed record SettingsData
     /// <c>local-light</c> deliberately: non-thinking, and with no <c>free-*</c> fallback
     /// chain, so dictated text never leaves the LAN when the Mac is asleep.
     /// </remarks>
-    public string CleanupModel { get; init; } = "local-light";
+    public string CleanupModel { get; set; } = "local-light";
 
     /// <summary>Bearer key for the cleanup endpoint, or null when unauthenticated.</summary>
     public string? CleanupApiKey { get; init; }
@@ -210,14 +210,14 @@ public sealed record SettingsData
     /// Accent colour as <c>#RRGGBB</c> — tints the dictation pill and highlights. Part of
     /// the Void Glass redesign; the default is its cyan.
     /// </summary>
-    public string AccentColor { get; init; } = "#4FD8E8";
+    public string AccentColor { get; set; } = "#4FD8E8";
 
     /// <summary>
     /// Visual theme id ("deep-field", "signal-house", "manuscript"). Applied once at
     /// startup; changing it takes effect at next start. Unknown values fall back to the
     /// default, so old or hand-edited files keep working.
     /// </summary>
-    public string Theme { get; init; } = "deep-field";
+    public string Theme { get; set; } = "deep-field";
 }
 
 /// <summary>Settings, persisted as JSON.</summary>
