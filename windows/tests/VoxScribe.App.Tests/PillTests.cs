@@ -112,6 +112,22 @@ public sealed class PillTests
     });
 
     [AvaloniaFact]
+    public void A_raw_working_phase_claims_no_cleanup() => EachTheme((theme, face) =>
+    {
+        const string RawCleanupWording = "clean";
+
+        face.Update(new PillState(PillPhase.Working, 0.4, TimeSpan.FromSeconds(3), "RAW", "bonjour"));
+        var rawText = string.Join(' ', face.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text))
+            .ToLowerInvariant();
+        rawText.Contains(RawCleanupWording, StringComparison.Ordinal).ShouldBeFalse(theme.Id);
+
+        face.Update(new PillState(PillPhase.Working, 0.4, TimeSpan.FromSeconds(3), "CLEAN", "bonjour"));
+        var cleanText = string.Join(' ', face.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text))
+            .ToLowerInvariant();
+        cleanText.Contains(RawCleanupWording, StringComparison.Ordinal).ShouldBeTrue(theme.Id);
+    });
+
+    [AvaloniaFact]
     public void Cleanup_collapses_the_preview_immediately() => EachTheme((theme, face) =>
     {
         // The width eases open over Tokens.Motion.PillExpand; disabling the transition here

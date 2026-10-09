@@ -213,6 +213,7 @@ public sealed class MainWindow : Window
 
         WindowState = WindowState.Minimized;
         await Task.Delay(Tokens.Motion.RetypeSettle).ConfigureAwait(true);
+        if (_composition.Engine is { State: not DictationState.Idle }) return;
         await injector.InjectAsync(text, CancellationToken.None).ConfigureAwait(true);
     }
 

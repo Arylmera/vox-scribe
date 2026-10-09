@@ -82,6 +82,11 @@ public sealed class DictionaryView : UserControl
         // subscription held past that point would keep refreshing a control with no parent.
         _file.Changed += OnFileChanged;
         _transcripts.Changed += OnTranscriptsChanged;
+
+        // Either source may have changed while this view was detached (e.g. Dictionary →
+        // Home → dictate → back to Dictionary): catch up now rather than show stale rows.
+        Refresh();
+        RefreshSuggestions();
     }
 
     /// <inheritdoc />

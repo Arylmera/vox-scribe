@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Media;
 
 namespace VoxScribe.App.Design;
@@ -22,6 +23,15 @@ internal static class Themes
     private const uint PositiveDark = 0x6CCB5F;
     private const uint CautionLight = 0x8A5200;
     private const uint CautionDark = 0xFFB13D;
+
+    // Fluent's checkbox/toggle/radio chrome reads these resources for the OS accent, not
+    // Tokens — without repainting them here a red Windows accent still shows through on
+    // Fluent controls even once the rest of the app follows the chosen theme.
+    private const double AccentLight1Ratio = 0.15;
+    private const double AccentLight2Ratio = 0.30;
+    private const double AccentLight3Ratio = 0.45;
+    private const double AccentDark2Ratio = 0.15;
+    private const double AccentDark3Ratio = 0.30;
 
     private static bool _applied;
 
@@ -56,6 +66,13 @@ internal static class Themes
 
         if (_applied && ReferenceEquals(theme, Active) && ReferenceEquals(variant, ActiveVariant) && dark == IsDark)
         {
+            // Tokens and Changed are skipped because nothing they feed has changed — but the
+            // system-accent resources live on Application.Current, which is per test/process
+            // and was not necessarily the current app the last time this theme was actually
+            // painted. Sync it every call, even a no-op one, so it is never left unset.
+            var unchangedAccent = Tokens.Colors.Rgb(dark ? variant.Dark : variant.Light);
+            var unchangedFill = theme.AccentFillFromDark ? Tokens.Colors.Rgb(variant.Dark) : unchangedAccent;
+            ApplySystemAccent(unchangedAccent, unchangedFill);
             return false;
         }
 
@@ -99,7 +116,40 @@ internal static class Themes
         Tokens.Fonts.Mono = theme.Mono;
         Tokens.Fonts.Display = theme.Display;
 
+        ApplySystemAccent(accent, Tokens.Colors.AccentFill);
+
         Changed?.Invoke(null, EventArgs.Empty);
         return true;
     }
+
+    /// <summary>
+    /// Fluent's built-in controls (CheckBox, ToggleSwitch, RadioButton, …) paint themselves from
+    /// the <c>SystemAccentColor</c> resource family — the Windows accent colour — not from
+    /// <see cref="Tokens"/>. Overwriting that family with the resolved variant keeps those
+    /// controls in step with the chosen theme instead of a red (or otherwise mismatched) OS
+    /// accent. <paramref name="accentFill"/> anchors the three darker steps so they still read
+    /// as "this theme's accent, pressed/hovered" rather than a disconnected shade.
+    /// </summary>
+    private static void ApplySystemAccent(Color accent, Color accentFill)
+    {
+        if (Application.Current is not { } app) return;
+
+        app.Resources["SystemAccentColor"] = accent;
+        app.Resources["SystemAccentColorLight1"] = Lighten(accent, AccentLight1Ratio);
+        app.Resources["SystemAccentColorLight2"] = Lighten(accent, AccentLight2Ratio);
+        app.Resources["SystemAccentColorLight3"] = Lighten(accent, AccentLight3Ratio);
+        app.Resources["SystemAccentColorDark1"] = accentFill;
+        app.Resources["SystemAccentColorDark2"] = Darken(accentFill, AccentDark2Ratio);
+        app.Resources["SystemAccentColorDark3"] = Darken(accentFill, AccentDark3Ratio);
+    }
+
+    private static Color Lighten(Color c, double ratio) => Color.FromRgb(
+        (byte)(c.R + ((255 - c.R) * ratio)),
+        (byte)(c.G + ((255 - c.G) * ratio)),
+        (byte)(c.B + ((255 - c.B) * ratio)));
+
+    private static Color Darken(Color c, double ratio) => Color.FromRgb(
+        (byte)(c.R * (1 - ratio)),
+        (byte)(c.G * (1 - ratio)),
+        (byte)(c.B * (1 - ratio)));
 }

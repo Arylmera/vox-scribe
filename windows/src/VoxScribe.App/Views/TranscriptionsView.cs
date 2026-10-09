@@ -64,6 +64,10 @@ public sealed class TranscriptionsView : UserControl
         // A theme switch rebuilds the window from fresh instances and discards this one — a
         // subscription held past that point would keep refreshing a control with no parent.
         _store.Changed += OnStoreChanged;
+
+        // The store may have changed while this view was detached (e.g. History → Home →
+        // dictate → back to History): catch up now rather than show whatever was last drawn.
+        Refresh();
     }
 
     /// <inheritdoc />
@@ -96,8 +100,16 @@ public sealed class TranscriptionsView : UserControl
         var copy = Panels.DeckButton("COPY");
         copy.Click += async (_, _) =>
         {
-            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
-            if (clipboard is not null) await clipboard.SetTextAsync(record.Text).ConfigureAwait(true);
+            try
+            {
+                var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+                if (clipboard is not null) await clipboard.SetTextAsync(record.Text).ConfigureAwait(true);
+            }
+            catch (Exception)
+            {
+                // Copying is a convenience; clipboard contention from another app must
+                // never take the app down over an async void handler.
+            }
 
             copy.Content = "COPIED";
             await Task.Delay(Tokens.Motion.CopyHold).ConfigureAwait(true);

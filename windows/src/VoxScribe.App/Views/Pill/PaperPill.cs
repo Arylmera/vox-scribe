@@ -100,7 +100,7 @@ internal sealed class PaperPill : PillFace
         _head.Text = state.Phase switch
         {
             PillPhase.Recording => "listening",
-            PillPhase.Working => "tidying…",
+            PillPhase.Working => state.Mode == "CLEAN" ? "tidying…" : "transcribing…",
             PillPhase.Notice => "note",
             _ => "done",
         };

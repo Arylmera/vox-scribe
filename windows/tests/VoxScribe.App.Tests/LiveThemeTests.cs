@@ -40,6 +40,27 @@ public sealed class LiveThemeTests
     }
 
     [AvaloniaFact]
+    public void Applying_a_theme_repaints_the_fluent_system_accent_resources()
+    {
+        try
+        {
+            Themes.Apply("paper", "plum", dark: false);
+            var plum = (Color)Avalonia.Application.Current!.Resources["SystemAccentColor"]!;
+            plum.ShouldBe(Tokens.Colors.Accent);
+
+            Themes.Apply("paper", "moss", dark: false);
+            var moss = (Color)Avalonia.Application.Current!.Resources["SystemAccentColor"]!;
+            moss.ShouldBe(Tokens.Colors.Accent);
+
+            moss.ShouldNotBe(plum, "a Windows accent colour must not leak through Fluent controls between themes");
+        }
+        finally
+        {
+            Themes.Apply(Themes.DefaultId, null, false);
+        }
+    }
+
+    [AvaloniaFact]
     public void Shared_controls_take_the_theme_painted_when_they_are_built()
     {
         try
@@ -89,19 +110,59 @@ public sealed class ViewLifecycleTests
         var store = new TranscriptStore(Path.Combine(Path.GetTempPath(), $"vox-{Guid.NewGuid():N}.jsonl"));
         var view = new TranscriptionsView(store);
         var window = new Window { Content = view };
-        window.Show();
+        try
+        {
+            window.Show();
 
-        var counter = view.GetVisualDescendants().OfType<Silkscreen>()
-            .First(s => s.Text is { } text && text.Contains("RECORDING", StringComparison.Ordinal));
-        counter.Text.ShouldBe("0 RECORDINGS");
+            var counter = view.GetVisualDescendants().OfType<Silkscreen>()
+                .First(s => s.Text is { } text && text.Contains("RECORDING", StringComparison.Ordinal));
+            counter.Text.ShouldBe("0 RECORDINGS");
 
-        // Stands in for what Rebuild does to the old section view: detach it and move on.
-        window.Content = null;
+            // Stands in for what Rebuild does to the old section view: detach it and move on.
+            window.Content = null;
 
-        store.Add(new TranscriptRecord { Text = "hello" });
-        Dispatcher.UIThread.RunJobs();
+            store.Add(new TranscriptRecord { Text = "hello" });
+            Dispatcher.UIThread.RunJobs();
 
-        counter.Text.ShouldBe(
-            "0 RECORDINGS", "a detached view must not still be refreshing from the store it no longer owns");
+            counter.Text.ShouldBe(
+                "0 RECORDINGS", "a detached view must not still be refreshing from the store it no longer owns");
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public void A_reattached_transcriptions_view_catches_up_on_what_changed_while_it_was_away()
+    {
+        // History → Home → dictate → History: the view is detached, a record is added while
+        // it has no subscription, then it comes back on screen. OnAttachedToVisualTree must
+        // refresh immediately rather than wait for the next Changed event it missed.
+        var store = new TranscriptStore(Path.Combine(Path.GetTempPath(), $"vox-{Guid.NewGuid():N}.jsonl"));
+        var view = new TranscriptionsView(store);
+        var window = new Window { Content = view };
+        try
+        {
+            window.Show();
+
+            var counter = view.GetVisualDescendants().OfType<Silkscreen>()
+                .First(s => s.Text is { } text && text.Contains("RECORDING", StringComparison.Ordinal));
+            counter.Text.ShouldBe("0 RECORDINGS");
+
+            window.Content = null;
+            store.Add(new TranscriptRecord { Text = "hello" });
+            Dispatcher.UIThread.RunJobs();
+
+            window.Content = view;
+            Dispatcher.UIThread.RunJobs();
+
+            counter.Text.ShouldBe(
+                "1 RECORDING", "re-attaching must refresh from the store, not keep showing a stale count");
+        }
+        finally
+        {
+            window.Close();
+        }
     }
 }

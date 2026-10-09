@@ -326,7 +326,18 @@ internal sealed class HomePage : UserControl
             }
         };
         var again = Panels.IconButton(Shell.RetypeIcon, "Type again");
-        again.Click += async (_, _) => await _retype(record.Text).ConfigureAwait(true);
+        again.Click += async (_, _) =>
+        {
+            try
+            {
+                await _retype(record.Text).ConfigureAwait(true);
+            }
+            catch (Exception)
+            {
+                // "Type again" is a convenience; a clash with a fresh dictation must never
+                // take the app down over an async void handler.
+            }
+        };
 
         var badge = Badge(cleaned: record.RawText is not null);
         badge.Margin = new Thickness(0, 0, Tokens.Space.Snug, 0);

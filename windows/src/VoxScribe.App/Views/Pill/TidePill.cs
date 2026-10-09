@@ -48,7 +48,6 @@ internal sealed class TidePill : PillFace
 
         _working = Text(Tokens.Fonts.Grotesque, WorkingSize, Tokens.Brushes.Accent);
         _working.FontWeight = FontWeight.Bold;
-        _working.Text = "Smoothing it out";
         _timer = Text(Tokens.Fonts.Grotesque, MetaSize, Tokens.Brushes.InkSecondary);
         _timer.FontWeight = FontWeight.SemiBold;
         _badge = Text(Tokens.Fonts.Grotesque, BadgeSize, Tokens.Brushes.Accent);
@@ -93,6 +92,7 @@ internal sealed class TidePill : PillFace
         var working = state.Phase == PillPhase.Working;
         _dot.IsVisible = recording;
         _working.IsVisible = working;
+        _working.Text = state.Mode == "CLEAN" ? "Smoothing it out" : "Transcribing…";
         _wave.Push(recording ? state.Level : 0, working);
         _timer.Text = Timer(state);
         _badge.Text = state.Mode switch { "CLEAN" => "Clean", "CMD" => "Command", _ => "Raw" };

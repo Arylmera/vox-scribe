@@ -108,7 +108,7 @@ internal sealed class MonoPill : PillFace
         _state.Text = state.Phase switch
         {
             PillPhase.Recording => "REC",
-            PillPhase.Working => "CLEAN",
+            PillPhase.Working => state.Mode == "CLEAN" ? "CLEAN" : state.Mode,
             PillPhase.Notice => "NOTE",
             _ => "DONE",
         };
