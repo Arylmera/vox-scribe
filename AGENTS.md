@@ -14,8 +14,9 @@ Parakeet through sherpa-onnx for speech, all under `windows/`.
 
 It works and is in daily use (version in `windows/Directory.Version.props`): push-to-talk with a recordable chord,
 streaming transcription while you speak, a dictation pill, tray, start-at-login, an
-installer, and the Void Glass theme with a user-selectable accent. Local Parakeet and a
-remote OpenAI-compatible STT gateway are both wired and both exercised by hand.
+installer, and five selectable themes (Paper, Orb, Tide, Mono, Fluent), each with light and
+dark palettes and curated accents. Local Parakeet and a remote OpenAI-compatible STT gateway
+are both wired and both exercised by hand.
 
 **There was a macOS build in Swift, and it was deleted on 2026-08-28** at the owner's
 request, to leave one app in the tree while the Windows side is the one being worked on. It
@@ -81,17 +82,36 @@ listener registry, which is the opposite arrangement — but keep chord state pe
 
 `windows/src/VoxScribe.App/Design/DesignTokens.cs` defines every colour, size, radius and
 duration token. **Views must not contain literal values.** If a component needs a number that
-isn't a token, add the token rather than inlining it.
+isn't a token, add the token rather than inlining it. A number only one control's own drawing
+uses (a pill face's width, a wave's frequency) is a named `private const` in that control.
 
-The direction is **Void Glass**: a cool near-black ground (`#0A0D12`), flat glass cards with
-hairline borders, generous radii, pill buttons, Segoe UI Variable and Cascadia Mono. The
-accent is a user setting — `Tokens.Colors.Accent` is mutable and applied live — so nothing
-may hard-code it.
+**Five themes, one skeleton.** A theme is data — `Design/ThemeCatalog.cs`: a light and a dark
+`Palette`, curated `AccentVariant`s (each with a light and a dark value), its fonts, and a
+handful of layout knobs (`ThemeModel.cs`). `Themes.Apply(theme, variant, dark)` writes them into
+`Tokens` and raises `Themes.Changed`; every window rebuilds its C#-built content on that
+event. The app follows Windows light/dark through Avalonia's `ActualThemeVariant` — no Win32.
+Paper is the default; any unknown or retired theme id falls back to it.
 
-Two rules that are not negotiable, and `VoxScribe.App.Tests/UiTests.cs` pins them:
+The main window is one sidebar shell (Home · History · Dictionary · Settings) for every theme.
+Only the dictation pill differs per theme: `Views/Pill/*Pill.cs`, one `PillFace` each, fed by
+`HudWindow`'s unchanged polling state machine. A pill face captures its theme's colours at
+construction, so it never recolours mid-dictation; the pill swaps faces between dictations
+instead. Views subscribe to `Themes.Changed` only while attached to an app lifetime, so a
+theme rebuild discards stale subscriptions rather than leaking them. The mockups that specify
+all of it live in `.superpowers/mockups/`.
 
-- **Red means recording.** Nothing else in the app is red.
-- **Amber and green are instrumentation only** — level meters, never UI chrome.
+Fonts: Instrument Serif, Geist, Geist Mono, Figtree and JetBrains Mono are bundled under
+`Assets/Fonts/` with their OFL licences; Fluent uses system Segoe UI Variable and Cascadia Mono.
+
+Two rules that are not negotiable, pinned by `VoxScribe.App.Tests/Design/`:
+
+- **Red means recording.** `#E5484D` is the recording dot and nothing else, in every theme —
+  `DoctrineTests` scans every colour token of every theme, mode and variant.
+- **WCAG AA.** `ContrastTests` checks every text/ground pair the views draw, 4.5:1, across all
+  themes, modes and variants. Accent text never sits on `Hover`.
+
+Green and amber are ordinary colours now (`Positive`, `Caution`, accent variants) — the old
+"instrumentation only" rule is gone.
 
 ---
 

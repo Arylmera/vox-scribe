@@ -2,8 +2,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="VoxScribe.App.App"
              RequestedThemeVariant="Default">
-  <!-- Default, not a fixed variant: the app follows the system, which is what picks
-       between the silver face and the black face. -->
+  <!-- Default, not a fixed variant: the app follows Windows light/dark. App.axaml.cs re-applies
+       the VoxScribe theme on ActualThemeVariantChanged. -->
   <Application.Styles>
     <FluentTheme />
   </Application.Styles>
