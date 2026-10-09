@@ -375,6 +375,21 @@ public static class Tokens
         /// <summary>An accent swatch in Settings.</summary>
         public const double SwatchSize = 30;
 
+        /// <summary>A theme card in Appearance.</summary>
+        public const double ThemeCardWidth = 150;
+
+        /// <summary>The mini preview at the top of a theme card.</summary>
+        public const double ThemePreviewHeight = 56;
+
+        /// <summary>Largest corner a theme preview takes from its theme.</summary>
+        public const double ThemePreviewRadius = 8;
+
+        /// <summary>The accent bar inside a theme preview: thickness.</summary>
+        public const double ThemePreviewBar = 4;
+
+        /// <summary>The accent bar inside a theme preview: length.</summary>
+        public const double ThemePreviewBarWidth = 40;
+
         /// <summary>Width of the FIX / TERM tag column, so the words beside them line up.</summary>
         public const double EntryTagWidth = 34;
 
