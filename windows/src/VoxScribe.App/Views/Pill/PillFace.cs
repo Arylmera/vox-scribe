@@ -67,8 +67,10 @@ internal abstract class PillFace : Border
     public static PillFace Create(PillKind kind) => kind switch
     {
         PillKind.Paper => new PaperPill(),
+        PillKind.Orb => new OrbPill(),
         PillKind.Tide => new TidePill(),
-        _ => new FluentPill(), // Orb and Mono arrive in Task 10.
+        PillKind.Mono => new MonoPill(),
+        _ => new FluentPill(),
     };
 
     /// <summary>A circular arc, clockwise from <paramref name="startDegrees"/> (0 = 3 o'clock).</summary>
@@ -182,8 +184,19 @@ internal abstract class PillFace : Border
 /// </summary>
 internal sealed class TailClip : Decorator
 {
+    private bool _tail;
+
     /// <summary>True while streaming a preview tail-first; false for a head-first notice.</summary>
-    public bool Tail { get; set; }
+    public bool Tail
+    {
+        get => _tail;
+        set
+        {
+            if (_tail == value) return;
+            _tail = value;
+            InvalidateMeasure();
+        }
+    }
 
     /// <inheritdoc />
     protected override Size MeasureOverride(Size availableSize)

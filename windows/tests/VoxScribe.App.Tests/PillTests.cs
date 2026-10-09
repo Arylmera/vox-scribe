@@ -126,6 +126,26 @@ public sealed class PillTests
         face.Width.ShouldBeLessThan(recordingWidth, theme.Id);
     });
 
+    [AvaloniaFact]
+    public void Every_theme_wears_its_own_silhouette()
+    {
+        PillFace.Create(PillKind.Paper).ShouldBeOfType<PaperPill>();
+        PillFace.Create(PillKind.Orb).ShouldBeOfType<OrbPill>();
+        PillFace.Create(PillKind.Tide).ShouldBeOfType<TidePill>();
+        PillFace.Create(PillKind.Mono).ShouldBeOfType<MonoPill>();
+        PillFace.Create(PillKind.Fluent).ShouldBeOfType<FluentPill>();
+    }
+
+    [AvaloniaFact]
+    public void The_orb_grows_with_the_voice()
+    {
+        var orb = new OrbGlyph();
+        for (var i = 0; i < 30; i++) orb.Push(0, working: false);
+        orb.Diameter.ShouldBe(36, 0.5);
+        for (var i = 0; i < 30; i++) orb.Push(1, working: false);
+        orb.Diameter.ShouldBe(76, 0.5);
+    }
+
     // A_liquid_wave_keeps_its_accent_once_built / A_mic_halo_keeps_its_accent_brushes_once_built
     // were removed: they read `readonly` fields that can never change once set, so they would
     // stay green even if Render went back to reading Tokens.Colors.Accent live. Headless
