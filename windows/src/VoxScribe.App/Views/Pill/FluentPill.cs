@@ -29,6 +29,7 @@ internal sealed class FluentPill : PillFace
     private readonly TextBlock _title;
     private readonly TextBlock _meta;
     private readonly TextBlock _line;
+    private readonly Border _lineHost;
     private readonly IBrush _ink = Tokens.Brushes.Ink;
     private readonly IBrush _muted = Tokens.Brushes.InkSecondary;
 
@@ -55,12 +56,13 @@ internal sealed class FluentPill : PillFace
         _title.FontWeight = FontWeight.SemiBold;
         _meta = Text(Tokens.Fonts.Grotesque, MetaSize, _muted);
         _line = Text(Tokens.Fonts.Grotesque, LineSize, _muted);
+        _lineHost = TailHost(_line);
 
         var head = new DockPanel();
         head.Children.Add(Panels.Docked(_meta, Dock.Right));
         head.Children.Add(_title);
 
-        var body = new StackPanel { Spacing = Tokens.Space.Hair, VerticalAlignment = VerticalAlignment.Center, Children = { head, _line } };
+        var body = new StackPanel { Spacing = Tokens.Space.Hair, VerticalAlignment = VerticalAlignment.Center, Children = { head, _lineHost } };
         var row = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), ColumnSpacing = Tokens.Space.Base };
         row.Children.Add(new Grid { Children = { _mic, _dot } });
         Grid.SetColumn(body, 1);
@@ -87,10 +89,21 @@ internal sealed class FluentPill : PillFace
         };
         _meta.Text = $"{Timer(state)} · {(state.Mode switch { "CLEAN" => "Cleaned", "CMD" => "Command", _ => "Raw" })}";
 
-        var preview = Tail(state.Text, PreviewChars);
-        _line.Text = preview.Length > 0 ? preview : working ? "Polishing the transcript" : "Speak now — release to type";
-        _line.Foreground = preview.Length > 0 ? _ink : _muted;
-        Width = preview.Length > 0 ? PreviewWidth : CompactWidth;
+        var showPreview = HasPreview(state);
+        if (showPreview)
+        {
+            ShowPreview(_line, state, PreviewChars);
+            _line.Foreground = _ink;
+        }
+        else
+        {
+            _line.HorizontalAlignment = HorizontalAlignment.Stretch;
+            _line.TextTrimming = TextTrimming.None;
+            _line.Text = working ? "Polishing the transcript" : "Speak now — release to type";
+            _line.Foreground = _muted;
+        }
+
+        Width = showPreview ? PreviewWidth : CompactWidth;
     }
 }
 
@@ -113,15 +126,29 @@ internal sealed class MicHalo : Control
         + "M3.5,7.5 A4.5,4.5 0 0 0 12.5,7.5 M8,12 V14.5";
 
     private readonly Geometry _glyph = Geometry.Parse(GlyphData);
+
+    /// <summary>The halo fill this mic was built with. Captured once — see <see cref="TidePill"/>'s <c>LiquidWave.Accent</c>.</summary>
+    internal readonly IBrush HaloBrush;
+
+    /// <summary>The button fill this mic was built with. Captured once, not re-read per frame.</summary>
+    internal readonly IBrush ButtonBrush;
+
+    private readonly Pen _spinnerPen;
+    private readonly Pen _glyphPen;
+
     private double _level;
     private double _spin;
     private bool _working;
 
-    /// <summary>Creates the 48 px mic area.</summary>
+    /// <summary>Creates the 48 px mic area and captures the active theme's accent brushes.</summary>
     public MicHalo()
     {
         Width = Box;
         Height = Box;
+        HaloBrush = new SolidColorBrush(Tokens.Colors.Accent, HaloOpacity);
+        ButtonBrush = Tokens.Brushes.AccentFill;
+        _spinnerPen = new Pen(Tokens.Brushes.Accent, SpinnerStroke, lineCap: PenLineCap.Round);
+        _glyphPen = new Pen(Tokens.Brushes.OnAccent, GlyphStroke, lineCap: PenLineCap.Round);
     }
 
     /// <summary>Feeds one frame.</summary>
@@ -138,18 +165,17 @@ internal sealed class MicHalo : Control
     {
         var centre = new Point(Bounds.Width / 2, Bounds.Height / 2);
         var halo = (HaloMin + (HaloRange * _level)) / 2;
-        context.DrawEllipse(new SolidColorBrush(Tokens.Colors.Accent, HaloOpacity), null, centre, halo, halo);
+        context.DrawEllipse(HaloBrush, null, centre, halo, halo);
 
         if (_working)
         {
-            context.DrawGeometry(null, new Pen(Tokens.Brushes.Accent, SpinnerStroke, lineCap: PenLineCap.Round),
-                PillFace.Arc(centre, SpinnerSize / 2, _spin, SpinnerSweep));
+            context.DrawGeometry(null, _spinnerPen, PillFace.Arc(centre, SpinnerSize / 2, _spin, SpinnerSweep));
         }
 
-        context.DrawEllipse(Tokens.Brushes.AccentFill, null, centre, ButtonSize / 2, ButtonSize / 2);
+        context.DrawEllipse(ButtonBrush, null, centre, ButtonSize / 2, ButtonSize / 2);
         using (context.PushTransform(Matrix.CreateTranslation(centre.X - (GlyphBox / 2), centre.Y - (GlyphBox / 2))))
         {
-            context.DrawGeometry(null, new Pen(Tokens.Brushes.OnAccent, GlyphStroke, lineCap: PenLineCap.Round), _glyph);
+            context.DrawGeometry(null, _glyphPen, _glyph);
         }
     }
 }

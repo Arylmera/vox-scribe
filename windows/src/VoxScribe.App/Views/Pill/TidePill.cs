@@ -29,6 +29,7 @@ internal sealed class TidePill : PillFace
     private readonly TextBlock _timer;
     private readonly TextBlock _badge;
     private readonly TextBlock _preview;
+    private readonly Border _previewHost;
 
     /// <summary>Builds the capsule in the active theme.</summary>
     public TidePill()
@@ -54,7 +55,8 @@ internal sealed class TidePill : PillFace
         _badge.FontWeight = FontWeight.Bold;
         _preview = Text(Tokens.Fonts.Grotesque, PreviewSize, Tokens.Brushes.Ink);
         _preview.FontWeight = FontWeight.Medium;
-        _preview.IsVisible = false;
+        _previewHost = TailHost(_preview);
+        _previewHost.IsVisible = false;
 
         var chip = new Border
         {
@@ -78,7 +80,7 @@ internal sealed class TidePill : PillFace
             row.Children.Add(cells[i]);
         }
 
-        Child = new StackPanel { Spacing = Tokens.Space.Tight, Children = { row, _preview } };
+        Child = new StackPanel { Spacing = Tokens.Space.Tight, Children = { row, _previewHost } };
     }
 
     /// <inheritdoc />
@@ -95,11 +97,11 @@ internal sealed class TidePill : PillFace
         _timer.Text = Timer(state);
         _badge.Text = state.Mode switch { "CLEAN" => "Clean", "CMD" => "Command", _ => "Raw" };
 
-        var preview = Tail(state.Text, PreviewChars);
-        _preview.Text = preview;
-        _preview.IsVisible = preview.Length > 0;
-        Width = preview.Length > 0 ? PreviewWidth : CompactWidth;
-        CornerRadius = new CornerRadius(preview.Length > 0 ? Tokens.Radius.Panel : Tokens.Radius.Pill);
+        var showPreview = HasPreview(state);
+        if (showPreview) ShowPreview(_preview, state, PreviewChars);
+        _previewHost.IsVisible = showPreview;
+        Width = showPreview ? PreviewWidth : CompactWidth;
+        CornerRadius = new CornerRadius(showPreview ? Tokens.Radius.Panel : Tokens.Radius.Pill);
     }
 }
 
@@ -121,9 +123,29 @@ internal sealed class LiquidWave : Control
     private const double MainStroke = 2.4;
     private const double SecondStroke = 1.6;
 
+    /// <summary>
+    /// The accent this wave was built with. Captured once, not re-read from <see cref="Tokens"/>
+    /// on every frame: a theme change must repaint only between dictations, never recolour a
+    /// wave mid-utterance.
+    /// </summary>
+    internal readonly Color Accent;
+
+    private readonly IBrush _fillBrush;
+    private readonly Pen _mainPen;
+    private readonly Pen _secondPen;
+
     private double _amplitude;
     private double _phase;
     private bool _working;
+
+    /// <summary>Captures the active theme's accent and builds the brushes/pens once.</summary>
+    public LiquidWave()
+    {
+        Accent = Tokens.Colors.Accent;
+        _fillBrush = new SolidColorBrush(Accent, FillOpacity);
+        _mainPen = new Pen(new SolidColorBrush(Accent), MainStroke, lineCap: PenLineCap.Round);
+        _secondPen = new Pen(new SolidColorBrush(Accent, SecondOpacity), SecondStroke, lineCap: PenLineCap.Round);
+    }
 
     /// <summary>Feeds one frame.</summary>
     public void Push(double level, bool working)
@@ -144,13 +166,10 @@ internal sealed class LiquidWave : Control
 
         var mid = height / 2;
         var frequency = _working ? WorkingFrequency : Frequency;
-        var accent = Tokens.Colors.Accent;
 
-        context.DrawGeometry(new SolidColorBrush(accent, FillOpacity), null,
-            Wave(width, height, mid, _amplitude, frequency, _phase, closed: true));
-        context.DrawGeometry(null, new Pen(new SolidColorBrush(accent), MainStroke, lineCap: PenLineCap.Round),
-            Wave(width, height, mid, _amplitude, frequency, _phase, closed: false));
-        context.DrawGeometry(null, new Pen(new SolidColorBrush(accent, SecondOpacity), SecondStroke, lineCap: PenLineCap.Round),
+        context.DrawGeometry(_fillBrush, null, Wave(width, height, mid, _amplitude, frequency, _phase, closed: true));
+        context.DrawGeometry(null, _mainPen, Wave(width, height, mid, _amplitude, frequency, _phase, closed: false));
+        context.DrawGeometry(null, _secondPen,
             Wave(width, height, mid, _amplitude * SecondScale, SecondFrequency, _phase + SecondPhase, closed: false));
     }
 

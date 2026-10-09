@@ -95,6 +95,44 @@ internal abstract class PillFace : Border
     /// <summary>The last <paramref name="max"/> characters, led by an ellipsis when cut.</summary>
     protected static string Tail(string text, int max) => text.Length <= max ? text : "…" + text[^max..];
 
+    /// <summary>
+    /// Whether the preview/notice line has anything to show. False while cleaning (the
+    /// <see cref="PillPhase.Working"/> phase collapses to the compact width, matching the
+    /// mockups), even if the engine's last partial text is still sitting there.
+    /// </summary>
+    protected static bool HasPreview(PillState state) => state.Phase != PillPhase.Working && state.Text.Length > 0;
+
+    /// <summary>
+    /// A one-line host that clips its child to its own bounds. Paired with
+    /// <see cref="ShowPreview"/>: while streaming, the child overflows to the left (the oldest
+    /// words) and is cropped there, keeping the newest word — the one the user just said — on
+    /// screen. A plain <see cref="TextBlock"/> left-clips itself instead, which would hide the
+    /// newest text, not the oldest.
+    /// </summary>
+    protected static Border TailHost(TextBlock text) => new() { ClipToBounds = true, Child = text };
+
+    /// <summary>
+    /// Paints <paramref name="text"/> for the preview/notice line. A lingering failure notice
+    /// is shown head-first, trimmed on the right with an ellipsis — the subject of a notice is
+    /// at its start. A streaming preview is shown tail-first (right-aligned in its
+    /// <see cref="TailHost"/>, untrimmed) so the newest word is always visible.
+    /// </summary>
+    protected static void ShowPreview(TextBlock text, PillState state, int tailChars)
+    {
+        if (state.Phase == PillPhase.Notice)
+        {
+            text.HorizontalAlignment = HorizontalAlignment.Stretch;
+            text.TextTrimming = TextTrimming.CharacterEllipsis;
+            text.Text = state.Text;
+        }
+        else
+        {
+            text.HorizontalAlignment = HorizontalAlignment.Right;
+            text.TextTrimming = TextTrimming.None;
+            text.Text = Tail(state.Text, tailChars);
+        }
+    }
+
     /// <summary>"0:04".</summary>
     protected static string Clock(TimeSpan t) =>
         string.Create(CultureInfo.InvariantCulture, $"{(int)t.TotalMinutes}:{t.Seconds:00}");

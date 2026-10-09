@@ -30,6 +30,7 @@ internal sealed class PaperPill : PillFace
     private readonly TextBlock _head;
     private readonly TextBlock _meta;
     private readonly TextBlock _preview;
+    private readonly Border _previewHost;
     private readonly PenStroke _stroke = new() { Height = StrokeHeight };
     private readonly Border _working;
     private readonly IBrush _ink = Tokens.Brushes.Ink;
@@ -53,7 +54,8 @@ internal sealed class PaperPill : PillFace
         _preview = Text(Tokens.Fonts.Display, PreviewSize, _ink);
         _preview.FontStyle = FontStyle.Italic;
         _preview.Height = PreviewLine;
-        _preview.IsVisible = false;
+        _previewHost = TailHost(_preview);
+        _previewHost.IsVisible = false;
 
         _working = new Border
         {
@@ -80,7 +82,7 @@ internal sealed class PaperPill : PillFace
             {
                 head,
                 _stroke,
-                _preview,
+                _previewHost,
                 new Border { Height = Tokens.Border.Hairline, Background = new SolidColorBrush(Tokens.Colors.PillRule) },
                 _working,
             },
@@ -107,10 +109,10 @@ internal sealed class PaperPill : PillFace
         _stroke.Push(recording ? state.Level : 0, flat: !recording);
         _working.IsVisible = state.Phase == PillPhase.Working;
 
-        var preview = Tail(state.Text, PreviewChars);
-        _preview.Text = preview;
-        _preview.IsVisible = preview.Length > 0;
-        Width = preview.Length > 0 ? PreviewWidth : CompactWidth;
+        var showPreview = HasPreview(state);
+        if (showPreview) ShowPreview(_preview, state, PreviewChars);
+        _previewHost.IsVisible = showPreview;
+        Width = showPreview ? PreviewWidth : CompactWidth;
     }
 }
 
