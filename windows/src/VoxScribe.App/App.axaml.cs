@@ -2,6 +2,9 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Styling;
+using Avalonia.Threading;
+using VoxScribe.App.Design;
 using VoxScribe.App.Views;
 using VoxScribe.Speech;
 
@@ -22,6 +25,17 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             _composition = Composition.Create();
+
+            // The theme follows three inputs: the saved theme, the saved variant, and Windows'
+            // light/dark mode. Apply is a no-op when nothing changed, so a settings save that
+            // touches something else (a chord, an endpoint) does not rebuild any window.
+            var settings = _composition.Settings;
+            void ApplyTheme() => Themes.Apply(
+                settings.Data.Theme, settings.Data.AccentVariant, ActualThemeVariant == ThemeVariant.Dark);
+            ApplyTheme();
+            ActualThemeVariantChanged += (_, _) => ApplyTheme();
+            settings.Changed += (_, _) => Dispatcher.UIThread.Post(ApplyTheme);
+
             _main = new MainWindow(_composition);
 
             // The lifetime shows whatever MainWindow is set to. Started from the login entry
@@ -77,7 +91,7 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// Quits and relaunches, so a next-start setting (the theme) applies now. The new copy
+    /// Quits and relaunches, so a freshly downloaded model is picked up. The new copy
     /// is started first with <c>--restarted</c>, which lets it wait for the single-instance
     /// mutex this process still holds while tearing down.
     /// </summary>

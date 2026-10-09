@@ -16,7 +16,7 @@ public sealed class BrushedPanel : Decorator
 {
     /// <summary>Corner radius of the card.</summary>
     public static readonly StyledProperty<double> CornerRadiusProperty =
-        AvaloniaProperty.Register<BrushedPanel, double>(nameof(CornerRadius), Tokens.Radius.Panel);
+        AvaloniaProperty.Register<BrushedPanel, double>(nameof(CornerRadius), 0);
 
     /// <inheritdoc cref="CornerRadiusProperty"/>
     public double CornerRadius
@@ -26,6 +26,9 @@ public sealed class BrushedPanel : Decorator
     }
 
     static BrushedPanel() => AffectsRender<BrushedPanel>(CornerRadiusProperty);
+
+    /// <summary>Creates a panel at the active theme's card radius.</summary>
+    public BrushedPanel() => CornerRadius = Tokens.Radius.Panel;
 
     /// <inheritdoc />
     public override void Render(DrawingContext context)

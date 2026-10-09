@@ -3,6 +3,7 @@ using Avalonia.Animation;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Threading;
 using VoxScribe.App.Controls;
 using VoxScribe.App.Design;
 
@@ -27,9 +28,10 @@ public sealed class MainWindow : Window
     private const string MicIcon = "M12,4 V13 M8,8 V11 M16,8 V11 M12,17 V20 M7,13 a5,5 0 0 0 10,0";
 
     private readonly Composition? _composition;
-    private readonly ContentControl _sectionHost = new();
-    private readonly RailKey _transcriptionsKey;
-    private readonly RailKey _dictionaryKey;
+    private ContentControl _sectionHost = new();
+    private RailKey _transcriptionsKey = new(WaveIcon);
+    private RailKey _dictionaryKey = new(BookIcon);
+    private readonly EventHandler _onThemeChanged;
 
     private Control? _transcriptionsView;
     private Control? _dictionaryView;
@@ -66,15 +68,11 @@ public sealed class MainWindow : Window
             Hide();
         };
 
-        _transcriptionsKey = new RailKey(WaveIcon) { IsEngaged = true };
-        Avalonia.Automation.AutomationProperties.SetName(_transcriptionsKey, "Transcriptions");
-        _dictionaryKey = new RailKey(BookIcon);
-        Avalonia.Automation.AutomationProperties.SetName(_dictionaryKey, "Dictionary");
-        _transcriptionsKey.Click += (_, _) => ShowSection(transcriptions: true);
-        _dictionaryKey.Click += (_, _) => ShowSection(transcriptions: false);
-
-        Content = BuildLayout();
-        ShowSection(transcriptions: true);
+        // Views are built in C# and cache brushes, so a theme change rebuilds the content.
+        // Posted: Changed can fire from inside a click handler in Settings.
+        _onThemeChanged = (_, _) => Dispatcher.UIThread.Post(Rebuild);
+        Themes.Changed += _onThemeChanged;
+        Rebuild();
 
         Opacity = Tokens.Motion.FadeInFrom;
         Transitions = new Transitions
@@ -227,5 +225,34 @@ public sealed class MainWindow : Window
     {
         if (_composition is null) return;
         _ = new SettingsWindow(_composition.Settings, _composition.Engine).ShowDialog(this);
+    }
+
+    /// <summary>Rebuilds the whole window in the current theme, keeping the open section.</summary>
+    private void Rebuild()
+    {
+        var transcriptions = _sectionHost.Content is null || _transcriptionsKey.IsEngaged;
+
+        // A control can have one parent: every rebuild starts from fresh instances. The cached
+        // section views hold the old theme's brushes, so they go too.
+        _transcriptionsView = null;
+        _dictionaryView = null;
+        _sectionHost = new ContentControl();
+        _transcriptionsKey = new RailKey(WaveIcon);
+        _dictionaryKey = new RailKey(BookIcon);
+        Avalonia.Automation.AutomationProperties.SetName(_transcriptionsKey, "Transcriptions");
+        Avalonia.Automation.AutomationProperties.SetName(_dictionaryKey, "Dictionary");
+        _transcriptionsKey.Click += (_, _) => ShowSection(transcriptions: true);
+        _dictionaryKey.Click += (_, _) => ShowSection(transcriptions: false);
+
+        Background = Tokens.Brushes.Chassis;
+        Content = BuildLayout();
+        ShowSection(transcriptions);
+    }
+
+    /// <inheritdoc />
+    protected override void OnClosed(EventArgs e)
+    {
+        Themes.Changed -= _onThemeChanged;
+        base.OnClosed(e);
     }
 }

@@ -31,7 +31,7 @@ public sealed class TransportKey : Button
     /// the rule that nothing but the transport is red.
     /// </summary>
     public static readonly StyledProperty<Color> EngagedColorProperty =
-        AvaloniaProperty.Register<TransportKey, Color>(nameof(EngagedColor), Tokens.Colors.Ink);
+        AvaloniaProperty.Register<TransportKey, Color>(nameof(EngagedColor), default);
 
     /// <inheritdoc cref="IsEngagedProperty"/>
     public bool IsEngaged
@@ -66,6 +66,7 @@ public sealed class TransportKey : Button
         FontSize = Tokens.Fonts.Silkscreen;
         FontWeight = Avalonia.Media.FontWeight.Medium;
         Foreground = Tokens.Brushes.Ink;
+        EngagedColor = Tokens.Colors.Ink;
     }
 
     /// <inheritdoc />

@@ -1,5 +1,4 @@
 ﻿using VoxScribe.Abstractions;
-using VoxScribe.App.Design;
 using VoxScribe.Core;
 using VoxScribe.Dictionary;
 using VoxScribe.Speech;
@@ -83,10 +82,6 @@ public sealed class Composition : IAsyncDisposable
     public static Composition Create()
     {
         var settings = new AppSettings(AppSettings.DefaultPath);
-
-        // Theme first, before any window exists. Task 4 moves this into App and makes it live.
-        Themes.Apply(settings.Data.Theme, settings.Data.AccentVariant,
-            Avalonia.Application.Current?.ActualThemeVariant == Avalonia.Styling.ThemeVariant.Dark);
 
         var dictionary = new DictionaryFile(DictionaryFile.DefaultPath);
         var transcripts = new TranscriptStore(TranscriptStore.DefaultPath);

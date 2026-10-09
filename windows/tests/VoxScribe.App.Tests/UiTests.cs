@@ -46,9 +46,16 @@ public sealed class MainWindowTests
     {
         var window = new MainWindow();
         window.Show();
-
-        window.Bounds.Width.ShouldBeGreaterThan(0);
-        window.Bounds.Height.ShouldBeGreaterThan(0);
+        try
+        {
+            window.Bounds.Width.ShouldBeGreaterThan(0);
+            window.Bounds.Height.ShouldBeGreaterThan(0);
+        }
+        finally
+        {
+            window.ExitAllowed = true;
+            window.Close();
+        }
     }
 
     [AvaloniaFact]
@@ -56,9 +63,16 @@ public sealed class MainWindowTests
     {
         var window = new MainWindow();
         window.Show();
-
-        window.MinWidth.ShouldBe(Tokens.Size.MainMinWidth);
-        window.MinHeight.ShouldBe(Tokens.Size.MainMinHeight);
+        try
+        {
+            window.MinWidth.ShouldBe(Tokens.Size.MainMinWidth);
+            window.MinHeight.ShouldBe(Tokens.Size.MainMinHeight);
+        }
+        finally
+        {
+            window.ExitAllowed = true;
+            window.Close();
+        }
     }
 }
 
@@ -199,6 +213,8 @@ public sealed class DesignSystemTests
                     var window = new MainWindow();
                     window.Show();
                     window.Bounds.Width.ShouldBeGreaterThan(0, theme.Id);
+                    window.ExitAllowed = true;
+                    window.Close();
                 }
         }
         finally

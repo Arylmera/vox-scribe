@@ -33,7 +33,7 @@ public sealed class Lamp : Control
     /// one lamp that means that says so itself rather than inheriting it from every lamp.
     /// </summary>
     public static readonly StyledProperty<Color> LampColorProperty =
-        AvaloniaProperty.Register<Lamp, Color>(nameof(LampColor), Tokens.Colors.Silkscreen);
+        AvaloniaProperty.Register<Lamp, Color>(nameof(LampColor), default);
 
     /// <inheritdoc cref="IsLitProperty"/>
     public bool IsLit
@@ -54,6 +54,7 @@ public sealed class Lamp : Control
     /// <summary>Creates a lamp at the token size.</summary>
     public Lamp()
     {
+        LampColor = Tokens.Colors.Silkscreen;
         Width = Tokens.Material.LampSize;
         Height = Tokens.Material.LampSize;
     }

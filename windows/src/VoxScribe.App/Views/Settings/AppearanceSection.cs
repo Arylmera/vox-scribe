@@ -1,4 +1,3 @@
-using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using VoxScribe.App.Design;
@@ -17,7 +16,7 @@ internal static class AppearanceSection
             Children =
             {
                 BuildThemeRow(settings, save, engine),
-                Panels.Note("Theme — pick one, then APPLY restarts Vox-Scribe with it."),
+                Panels.Note("Theme — applies immediately and follows Windows light and dark mode."),
             },
         });
 
@@ -27,16 +26,6 @@ internal static class AppearanceSection
     private static StackPanel BuildThemeRow(AppSettings settings, Action<SettingsData> save, DictationEngine? engine)
     {
         var keys = new List<(string Id, Button Key)>();
-
-        var apply = Panels.DeckButton("APPLY — RESTARTS VOX-SCRIBE");
-        Avalonia.Automation.AutomationProperties.SetName(apply, "Apply theme changes");
-        apply.Click += (_, _) =>
-        {
-            if (IsBusy(engine)) return;
-            (Application.Current as App)?.Restart();
-        };
-
-        void SyncApply() => apply.IsVisible = Themes.Find(settings.Data.Theme).Id != Themes.Active.Id;
 
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = Tokens.Space.Snug };
         foreach (var theme in Themes.All)
@@ -48,15 +37,12 @@ internal static class AppearanceSection
                 if (IsBusy(engine)) return;
                 save(settings.Data with { Theme = theme.Id, AccentVariant = null });
                 Mark(settings, keys);
-                SyncApply();
             };
             keys.Add((theme.Id, key));
             row.Children.Add(key);
         }
 
-        row.Children.Add(apply);
         Mark(settings, keys);
-        SyncApply();
         return row;
     }
 

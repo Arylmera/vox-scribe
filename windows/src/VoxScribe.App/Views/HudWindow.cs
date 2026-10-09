@@ -77,6 +77,9 @@ public sealed class HudWindow : Window
     /// <summary>Display frames since the pill appeared, used to pace the topmost re-assert.</summary>
     private int _frames;
 
+    /// <summary>Set when a theme change arrives while the pill is hidden, pending repaint.</summary>
+    private bool _themeStale;
+
     /// <summary>Builds the pill over <paramref name="engine"/> and starts watching it.</summary>
     public HudWindow(DictationEngine engine)
     {
@@ -171,6 +174,8 @@ public sealed class HudWindow : Window
         };
         _timerTick.Tick += (_, _) => Sync();
         _timerTick.Start();
+
+        Themes.Changed += (_, _) => _themeStale = true;
     }
 
     /// <summary>Lamp and mode readout on the left, bars in the middle, timer on the right.</summary>
@@ -270,6 +275,7 @@ public sealed class HudWindow : Window
             _latencyClock.Reset();
 
             if (IsVisible) Hide();
+            if (_themeStale) RepaintTheme();
 
             // Forget the painted state: the accent can change while the pill is hidden, and
             // the next utterance must repaint rather than keep a stale brush.
@@ -350,6 +356,20 @@ public sealed class HudWindow : Window
         // The pill is anchored to the bottom of the screen, so a taller one has to move up
         // to keep its lower edge where it was — otherwise it grows off the screen.
         if (IsVisible) PositionBottomCenter();
+    }
+
+    /// <summary>Picks up a theme change. Only called while hidden, never mid-dictation.</summary>
+    private void RepaintTheme()
+    {
+        _themeStale = false;
+        _shown = null;
+        _shell.Background = new SolidColorBrush(Tokens.Colors.Glass);
+        _shell.CornerRadius = new CornerRadius(Tokens.Radius.Pill);
+        _preview.FontFamily = Tokens.Fonts.Prose;
+        _preview.Foreground = Tokens.Brushes.InkOnDeck;
+        _mode.FontFamily = Tokens.Fonts.Mono;
+        _timer.FontFamily = Tokens.Fonts.Mono;
+        _hint.FontFamily = Tokens.Fonts.Mono;
     }
 
     private void PositionBottomCenter()
