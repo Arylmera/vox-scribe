@@ -2,7 +2,7 @@
 
 The Windows port of VoxScribe — push-to-talk dictation, on-device.
 
-> **Status: shipped as 1.0.0 and in daily use.** Push-to-talk with a recordable chord,
+> **Status: shipped and in daily use** (version in `Directory.Version.props`). Push-to-talk with a recordable chord,
 > streaming transcription while you speak, a dictation pill, tray, start-at-login, an
 > installer, and the Void Glass theme. Local Parakeet and a remote OpenAI-compatible STT
 > gateway are both wired and both used. What is still unverified is listed under

@@ -58,13 +58,17 @@ internal static class AppearanceSection
             Spacing = Tokens.Space.Snug,
             Children =
             {
-                BuildThemeRow(settings, save),
+                BuildThemeRow(settings, save, engine),
                 Panels.Note("Theme — pick one, then APPLY restarts Vox-Scribe with it."),
                 row,
                 Panels.Note("Accent colour — tints the dictation pill and highlights. Applies immediately."),
             },
         });
     }
+
+    // No engine (platform layer absent) means nothing can be recording.
+    private static bool IsBusy(DictationEngine? engine) =>
+        engine is { State: not DictationState.Idle };
 
     /// <summary>One key per theme; the saved one is engaged. Picking a theme other than the
     /// one on screen reveals an apply key that restarts the app. Disabled while recording.</summary>
@@ -77,12 +81,8 @@ internal static class AppearanceSection
         Avalonia.Automation.AutomationProperties.SetHelpText(apply, "Restarts Vox-Scribe with the selected theme. Only available when a different theme is selected.");
         apply.Click += (_, _) =>
         {
-            // Warn if restarting while recording, then proceed
-            if (engine?.State != DictationState.Idle)
-            {
-                // App will close settings and restart. Simple confirmation without blocking.
-                // ponytail: skipped modal dialog — just log and proceed. User initiated it.
-            }
+            // A restart mid-dictation would drop the utterance; wait for the engine to settle.
+            if (IsBusy(engine)) return;
             (Application.Current as App)?.Restart();
         };
 
@@ -98,10 +98,7 @@ internal static class AppearanceSection
             key.Click += (_, _) =>
             {
                 // Disable changing theme while recording
-                if (engine?.State != DictationState.Idle)
-                {
-                    return;
-                }
+                if (IsBusy(engine)) return;
                 save(settings.Data with { Theme = id });
                 MarkSelectedTheme(settings, keys);
                 SyncApply();

@@ -3,7 +3,7 @@
 Push-to-talk dictation for Windows. Hold a key, talk, release — cleaned-up text lands in
 whatever text field has focus. Native, and on-device by default.
 
-**Status:** shipped as 1.0.0 and in daily use.
+**Status:** shipped (see `windows/Directory.Version.props` for the current version) and in daily use.
 
 The app lives in [`windows/`](windows/). Start there — [`windows/README.md`](windows/README.md)
 covers building, the model, and what is and isn't verified.
@@ -37,19 +37,17 @@ Every feature — shortcuts, undo, the pill's states, settings — is walked thr
 
 ## Quick start
 
-```bash
+```powershell
 cd windows
-dotnet publish src/VoxScribe.App/VoxScribe.App.csproj -c Release -r win-x64 \
-  --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
-  -o publish
-iscc installer\voxscribe.iss
+.\build-installer.ps1
 ```
 
-Then run `installer/Output/VoxScribe-Setup-1.0.0.exe`. Settings, transcripts, the dictionary
-and the speech model live in `%LOCALAPPDATA%\VoxScribe`.
+It publishes the app, reads the version from `Directory.Version.props`, and builds
+`installer/Output/VoxScribe-Setup-<version>.exe` with Inno Setup 6. Settings, transcripts,
+the dictionary and the speech model live in `%LOCALAPPDATA%\VoxScribe`.
 
-Transcription needs either a downloaded Parakeet model — see
-[`docs/PARAKEET-WINDOWS.md`](docs/PARAKEET-WINDOWS.md) — or a remote endpoint configured in
+Transcription needs either the Parakeet model — offered for download on first launch, or by
+hand per [`docs/PARAKEET-WINDOWS.md`](docs/PARAKEET-WINDOWS.md) — or a remote endpoint configured in
 Settings.
 
 ---

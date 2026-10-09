@@ -117,6 +117,7 @@ dictations (`kubernets → kubernetes`), it appears at the top of the list with 
 | TYPING | Type into focused app (on), anchor focus (on), incremental typing (off), spoken punctuation (off) |
 | CLEANUP | OpenAI-compatible endpoint, model (`local-light`), API key, TEST CONNECTION |
 | SPEECH | Microphone, local model status, or a remote OpenAI-compatible transcription endpoint + model + API key |
+| VOICE CHAT | Apps currently using a microphone, each with a toggle. Ticked apps (Discord, Teams…) are muted while a dictation shortcut is held and hear you again on release. REFRESH re-scans; a ticked app stays listed while it is closed |
 | GENERAL | Keep history, start at login (minimised to tray) |
 | APPEARANCE | Theme — Deep Field (dark), Signal House (warm hardware), Manuscript (paper-light, serif transcripts); an APPLY key restarts the app with the new theme. Accent colour — five swatches, applies immediately |
 
@@ -124,8 +125,8 @@ Speech settings (microphone, remote server) take effect at next start; the rest 
 immediate.
 
 **Local or remote speech.** By default Parakeet runs on your CPU via sherpa-onnx — nothing
-leaves the machine, but the model (~661 MB) must be downloaded first (see
-[PARAKEET-WINDOWS.md](PARAKEET-WINDOWS.md); the app shows a banner while it is missing).
+leaves the machine, but the model (~670 MB) must be downloaded first: the app offers it on first launch, or
+follow [PARAKEET-WINDOWS.md](PARAKEET-WINDOWS.md) by hand.
 Point SPEECH → REMOTE SERVER at an OpenAI-compatible endpoint — a LiteLLM gateway in front
 of a faster machine, for instance — and transcription happens there instead.
 
@@ -135,4 +136,5 @@ never stored in plain text.
 ## Where things live
 
 `%LOCALAPPDATA%\VoxScribe\` holds `settings.json`, `dictionary.txt`, `transcripts.jsonl`
-and `models\parakeet-v2\`. Delete the folder and the app starts fresh.
+and the model under `models\parakeet-v3\` (or `parakeet-v2\`). `muted-apps.txt` exists only
+while a dictation has another app muted. Delete the folder and the app starts fresh.

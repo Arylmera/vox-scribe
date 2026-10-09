@@ -30,14 +30,18 @@ public sealed class Composition : IAsyncDisposable
         DictionaryFile dictionary,
         TranscriptStore transcripts,
         DictationEngine? engine,
-        bool platformAvailable)
+        bool platformAvailable,
+        MicrophoneMuter? muter)
     {
+        _muter = muter;
         Settings = settings;
         Dictionary = dictionary;
         Transcripts = transcripts;
         Engine = engine;
         IsPlatformAvailable = platformAvailable;
     }
+
+    private readonly MicrophoneMuter? _muter;
 
     /// <summary>User preferences.</summary>
     public AppSettings Settings { get; }
@@ -108,6 +112,7 @@ public sealed class Composition : IAsyncDisposable
         var focusAnchor = PlatformFactory.CreateFocusAnchor();
 
         DictationEngine? engine = null;
+        MicrophoneMuter? muter = null;
         var available = capture is not null && hotkey is not null && injector is not null;
 
         if (available)
@@ -217,6 +222,17 @@ public sealed class Composition : IAsyncDisposable
                 live.Cleanup = BuildCleanup();
             };
 
+            // Voice chat must not hear the dictation. Settings are read at each press, so
+            // toggling an app applies to the next one.
+            if (PlatformFactory.CreateCaptureSessions() is { } sessions)
+            {
+                muter = new MicrophoneMuter(sessions, () => settings.Data.MuteAppsWhileDictating,
+                    MicrophoneMuter.DefaultLedgerPath, report: ReportFailure);
+                muter.RecoverFromCrash();
+                var mutes = muter;
+                engine.Changed += (_, _) => mutes.OnStateChanged(live.State);
+            }
+
             engine.Completed += (_, result) =>
             {
                 if (!settings.Data.KeepHistory) return;
@@ -233,12 +249,14 @@ public sealed class Composition : IAsyncDisposable
             };
         }
 
-        return new Composition(settings, dictionary, transcripts, engine, available);
+        return new Composition(settings, dictionary, transcripts, engine, available, muter);
     }
 
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
+        // Before the engine: whatever happens to it, Discord gets its microphone back.
+        _muter?.Dispose();
         if (Engine is not null) await Engine.DisposeAsync().ConfigureAwait(false);
     }
 }

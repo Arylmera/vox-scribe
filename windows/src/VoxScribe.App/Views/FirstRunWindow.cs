@@ -6,6 +6,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using VoxScribe.App.Controls;
 using VoxScribe.App.Design;
+using VoxScribe.Speech;
 
 namespace VoxScribe.App.Views;
 
@@ -105,10 +106,11 @@ public sealed class FirstRunWindow : Window, IAsyncDisposable
         try
         {
             await DownloadModel(_downloadCts.Token);
-            ShowStatus("✓ Model downloaded successfully. You can now use Vox-Scribe for dictation.");
+            // The engine was built with no model at startup; only a restart picks it up.
+            ShowStatus("✓ Model downloaded. Restarting Vox-Scribe to load it...");
             _progress.IsVisible = false;
             await Task.Delay(2000);
-            Close();
+            (Application.Current as App)?.Restart();
         }
         catch (OperationCanceledException)
         {
@@ -128,46 +130,18 @@ public sealed class FirstRunWindow : Window, IAsyncDisposable
 
     private async Task DownloadModel(CancellationToken ct)
     {
-        var modelDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "VoxScribe", "model");
-        var modelPath = Path.Combine(modelDir, "parakeet.onnx");
+        // Infinite timeout: the default 100 s also bounds the body read, and the encoder alone
+        // is 650 MB. The Cancel path is the token.
+        using var http = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
 
-        // ponytail: hardcoded URL for now. In production, use a config/updates API.
-        const string modelUrl = "https://huggingface.co/espnet/espnet-model/resolve/main/models/eng/parakeet/parakeet.onnx";
-
-        if (File.Exists(modelPath))
+        // Progress<T> captures the UI context here, so Report lands on the UI thread.
+        var progress = new Progress<(string File, double Fraction)>(p =>
         {
-            ShowStatus("✓ Model already present.");
-            return;
-        }
+            _progress.IsIndeterminate = false;
+            _progress.Value = p.Fraction * 100;
+            ShowStatus($"Downloading {p.File}... {p.Fraction * 100:F0}%");
+        });
 
-        Directory.CreateDirectory(modelDir);
-
-        using var http = new HttpClient();
-        using var response = await http.GetAsync(modelUrl, HttpCompletionOption.ResponseHeadersRead, ct);
-        response.EnsureSuccessStatusCode();
-
-        var totalBytes = response.Content.Headers.ContentLength ?? -1L;
-        using var contentStream = await response.Content.ReadAsStreamAsync(ct);
-        using var fileStream = File.Create(modelPath);
-
-        var buffer = new byte[8192];
-        var downloadedBytes = 0L;
-        int bytesRead;
-
-        while ((bytesRead = await contentStream.ReadAsync(new Memory<byte>(buffer), ct).ConfigureAwait(false)) != 0)
-        {
-            await fileStream.WriteAsync(new ReadOnlyMemory<byte>(buffer, 0, bytesRead), ct).ConfigureAwait(false);
-            downloadedBytes += bytesRead;
-
-            if (totalBytes > 0)
-            {
-                var percent = (double)downloadedBytes / totalBytes;
-                _progress.IsIndeterminate = false;
-                _progress.Value = percent * 100;
-                ShowStatus($"Downloading... {(percent * 100):F0}%");
-            }
-        }
+        await ModelDownloader.DownloadAsync(http, ModelDownloader.Destination, progress, ct);
     }
 }

@@ -309,7 +309,7 @@ public sealed class SettingsWindowTests : IDisposable
             .Select(s => s.Text)
             .ToArray();
 
-        labels.ShouldBe(["SHORTCUTS", "TYPING", "CLEANUP", "SPEECH", "GENERAL", "APPEARANCE"]);
+        labels.ShouldBe(["SHORTCUTS", "TYPING", "CLEANUP", "SPEECH", "VOICE CHAT", "GENERAL", "APPEARANCE"]);
     }
 }
 

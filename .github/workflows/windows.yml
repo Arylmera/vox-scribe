@@ -7,6 +7,8 @@ name: Windows
 on:
   push:
     branches: [main]
+    # The release job runs only for these; without the trigger it could never fire.
+    tags: ['v*']
     paths: ['windows/**', 'shared/**', '.github/workflows/windows.yml']
   pull_request:
     paths: ['windows/**', 'shared/**', '.github/workflows/windows.yml']

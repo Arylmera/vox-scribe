@@ -13,9 +13,10 @@
 #define MyAppName "Vox-Scribe"
 #define MyAppExeName "VoxScribe.App.exe"
 
-; Version passed from build script (reads from Directory.Version.props). Fallback for manual builds:
+; Version comes from Directory.Version.props via /DAppVersion (build-installer.ps1 and CI
+; both pass it). No fallback, so a hand build cannot quietly ship the wrong version.
 #ifndef AppVersion
-  #define AppVersion "1.0.0"
+  #error AppVersion not set - run build-installer.ps1, or pass /DAppVersion=x.y.z
 #endif
 #define MyAppVersion AppVersion
 
