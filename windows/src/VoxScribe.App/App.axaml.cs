@@ -46,17 +46,6 @@ public partial class App : Application
                 desktop.MainWindow = _main;
             }
 
-            // Offer the model download only when transcription has nowhere to run: no model
-            // found or configured, and no remote gateway (machines using one have no local
-            // model on purpose). Show, not ShowDialog — the main window is not open yet, and
-            // never opens at all when started from the login entry.
-            var data = _composition.Settings.Data;
-            if (data.ModelDirectory is null && data.SttEndpoint is not { Length: > 0 }
-                && ParakeetTranscriber.Locate() is null)
-            {
-                new FirstRunWindow().Show();
-            }
-
             // The dictation pill manages its own visibility from the engine state; it only
             // needs to exist. Never becomes MainWindow — it must never own focus.
             if (_composition.Engine is not null) _ = new HudWindow(_composition.Engine);

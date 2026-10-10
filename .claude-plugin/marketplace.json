@@ -1,0 +1,16 @@
+{
+  "name": "vox-scribe",
+  "owner": {
+    "name": "Arylmera"
+  },
+  "metadata": {
+    "description": "Vox-Scribe companions for Claude Code."
+  },
+  "plugins": [
+    {
+      "name": "voxscribe",
+      "source": "./claude-plugin",
+      "description": "/parle and /say: Vox-Scribe reads Claude Code's previous reply aloud, in French or English."
+    }
+  ]
+}

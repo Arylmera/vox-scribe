@@ -1,3 +1,5 @@
+using System.Net.Http;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using VoxScribe.App.Controls;
@@ -92,16 +94,81 @@ internal static class SpeechSection
             },
         };
 
-        var detail = found
-            // Showing the resolved path matters: "model not found" is unactionable without
-            // knowing which directory was actually checked.
-            ? Panels.Note($"Loaded from {located}")
-            : Panels.Note("Windows has no built-in speech engine equivalent to Apple's, so Vox-Scribe "
-                 + "cannot transcribe until the Parakeet model is downloaded (~661 MB). "
-                 + "See docs/PARAKEET-WINDOWS.md. Expected in:\n"
-                 + string.Join("\n", ParakeetTranscriber.DefaultSearchPaths()));
+        // Showing the resolved path matters: "model not found" is unactionable without
+        // knowing which directory was actually checked.
+        if (found)
+        {
+            return new StackPanel { Spacing = Tokens.Space.Snug, Children = { status, Panels.Note($"Loaded from {located}") } };
+        }
 
-        return new StackPanel { Spacing = Tokens.Space.Snug, Children = { status, detail } };
+        return new StackPanel
+        {
+            Spacing = Tokens.Space.Snug,
+            Children =
+            {
+                status,
+                Panels.Note("Optional. Parakeet transcribes on this PC's processor, with no server: "
+                    + "download it once (about 661 MB). Not needed when a remote server is set below."),
+                Download(),
+            },
+        };
+    }
+
+    /// <summary>DOWNLOAD MODEL, which turns into CANCEL while it runs, and its progress.</summary>
+    /// <remarks>The engine is built at startup, so a finished download restarts the app.</remarks>
+    private static StackPanel Download()
+    {
+        var progress = Panels.Note("");
+        progress.VerticalAlignment = VerticalAlignment.Center;
+        var button = new TransportKey { Content = "DOWNLOAD MODEL" };
+        CancellationTokenSource? running = null;
+
+        button.Click += async (_, _) =>
+        {
+            if (running is not null)
+            {
+                await running.CancelAsync();
+                return;
+            }
+
+            running = new CancellationTokenSource();
+            button.Content = "CANCEL";
+            try
+            {
+                // Infinite timeout: the default 100 s also bounds the body read, and the
+                // encoder alone is 650 MB. Cancel is the token.
+                using var http = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
+
+                // Progress<T> captures the UI context here, so Report lands on the UI thread.
+                var report = new Progress<(string File, double Fraction)>(p =>
+                    progress.Text = $"Downloading {p.File}… {p.Fraction * 100:F0}%");
+                await ModelDownloader.DownloadAsync(http, ModelDownloader.Destination, report, running.Token);
+
+                progress.Text = "Downloaded. Restarting Vox-Scribe to load it…";
+                await Task.Delay(Tokens.Motion.StatusHold);
+                (Application.Current as App)?.Restart();
+                return;
+            }
+            catch (OperationCanceledException)
+            {
+                progress.Text = "Download cancelled. Finished files are kept.";
+            }
+            catch (Exception e)
+            {
+                progress.Text = $"Download failed: {e.Message}";
+            }
+
+            running.Dispose();
+            running = null;
+            button.Content = "DOWNLOAD MODEL";
+        };
+
+        return new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = Tokens.Space.Snug,
+            Children = { button, progress },
+        };
     }
 
     private static StackPanel Remote(AppSettings settings, Action<SettingsData> save)

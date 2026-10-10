@@ -70,6 +70,13 @@ to the first visible window whose title contains `CommandWindowTitle`, then Retu
 window matches, or it will not come forward, the engine posts a notice and types nothing —
 a prompt meant for Claude landing in the focused spreadsheet is the worse failure.
 
+**The Claude Code plugin is almost empty on purpose.** `claude-plugin/` (listed by
+`.claude-plugin/marketplace.json`, so `/plugin marketplace add Arylmera/vox-scribe` works)
+holds `/parle`, `/say` and a PowerShell hook that only drops the transcript path and the
+command name into `%LOCALAPPDATA%\VoxScribe\speak\request.json`. Finding the reply
+(`ReadAloud.LastReply`), rewriting and speaking it all live in the app, where they are tested.
+The hook must stay Windows PowerShell 5.1 compatible and saved with a BOM.
+
 **One `WH_KEYBOARD_LL` hook per process, in `KeyboardHook`.** Every shortcut is a listener on
 it, not a hook of its own. `PushToTalkHook` once kept a callback and a "current instance" in
 statics, which made it a singleton: a second hook overwrote the first, and the loser reported
@@ -97,7 +104,7 @@ Only the dictation pill differs per theme: `Views/Pill/*Pill.cs`, one `PillFace`
 `HudWindow`'s unchanged polling state machine. A pill face captures its theme's colours at
 construction, so it never recolours mid-dictation; the pill swaps faces between dictations
 instead. A theme change rebuilds windows live and never restarts the app; `App.Restart()`
-survives only for the first-run model download. `MainWindow` and `HudWindow` hold their
+survives only for the Parakeet download on the Speech page. `MainWindow` and `HudWindow` hold their
 `Themes.Changed` subscription for the window's lifetime and drop it on close. The page views
 (`HomePage`, `TranscriptionsView`, `DictionaryView`) subscribe to their data's `Changed` events
 only while attached to the visual tree, so the instances a rebuild discards stop refreshing
@@ -186,8 +193,9 @@ lookahead, `\p{L}`, and `$1`–`$9` in replacements. Nothing else.
 
 1. **Code signing.** The installer is unsigned, so users meet SmartScreen.
 
-Built since this list was first written: a first-run window that downloads Parakeet v3
-(`ModelDownloader`), a GitHub release published by CI on a `v*` tag, and one version source,
+Built since this list was first written: a DOWNLOAD MODEL button on the Speech page that
+fetches Parakeet v3 (`ModelDownloader`) — never automatically, since cleanup and read-aloud
+always need the user's own endpoint anyway, a GitHub release published by CI on a `v*` tag, and one version source,
 `windows/Directory.Version.props` — the installer refuses to build without it.
 
 ## What no amount of CI can verify

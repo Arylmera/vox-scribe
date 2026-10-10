@@ -141,7 +141,7 @@ public sealed record SettingsData
     public string? CleanupApiKey { get; init; }
 
     /// <summary>
-    /// Whether a <c>/parle</c> request from Claude Code is read aloud, or null for a file
+    /// Whether a <c>/parle</c> or <c>/say</c> request from Claude Code is read aloud, or null for a file
     /// from before read-aloud existed. Read through <see cref="ReadAloudEnabled"/>.
     /// </summary>
     /// <remarks>
@@ -168,10 +168,18 @@ public sealed record SettingsData
     /// <summary>System prompt of the oral rewrite.</summary>
     public string OralPrompt { get => Or(_oralPrompt, DefaultOralPrompt); init => _oralPrompt = value; }
 
+    /// <summary>Voice <c>/say</c> speaks with; its prefix picks the language.</summary>
+    public string EnglishVoice { get => Or(_englishVoice, "af_heart"); init => _englishVoice = value; }
+
+    /// <summary>System prompt of the <c>/say</c> rewrite, which also translates.</summary>
+    public string EnglishOralPrompt { get => Or(_englishOralPrompt, DefaultEnglishOralPrompt); init => _englishOralPrompt = value; }
+
     private readonly string? _oralModel;
     private readonly string? _ttsModel;
     private readonly string? _ttsVoice;
     private readonly string? _oralPrompt;
+    private readonly string? _englishVoice;
+    private readonly string? _englishOralPrompt;
 
     private static string Or(string? value, string fallback) => value is { Length: > 0 } ? value : fallback;
 
@@ -186,6 +194,19 @@ public sealed record SettingsData
         - Garde les décisions, les résultats chiffrés qui comptent (au plus deux ou trois), les problèmes rencontrés et la question finale s'il y en a une.
         - N'invente rien : pas de jugement, de comparaison ou de conclusion absents du texte. Ne réponds pas à la question, rapporte-la.
         - Entre quatre et huit phrases au total, quelle que soit la longueur d'origine.
+        """;
+
+    /// <summary>The <c>/say</c> counterpart of <see cref="DefaultOralPrompt"/>.</summary>
+    public const string DefaultEnglishOralPrompt = """
+        You rewrite a coding assistant's written reply so it can be spoken aloud, like a colleague telling you in person what they just did. The reply may be in another language: always answer in English.
+
+        Strict rules:
+        - Natural spoken English, short sentences. No "So", no "Here is", no "Good news".
+        - No lists, tables, headings, symbols or emoji. A table becomes one or two sentences saying what it shows.
+        - Never say a file name, path, URL, command, commit id or exact version. Say what it is instead: "the spec", "the hook", "the gateway config".
+        - Keep the decisions, the numbers that matter (two or three at most), the problems met and the closing question if there is one.
+        - Invent nothing: no judgement, comparison or conclusion that is not in the text. Do not answer the question, report it.
+        - Four to eight sentences in total, whatever the original length.
         """;
 
     /// <summary>

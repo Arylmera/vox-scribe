@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Text.Json.Nodes;
 using System.Threading.Channels;
 using VoxScribe.Abstractions;
@@ -10,7 +11,7 @@ using VoxScribe.Abstractions;
 namespace VoxScribe.Core;
 
 /// <summary>
-/// Reads a Claude Code reply aloud when <c>/parle</c> drops it in the speak folder.
+/// Reads a Claude Code reply aloud when the <c>/parle</c> or <c>/say</c> hook asks for it.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -54,7 +55,7 @@ public sealed class ReadAloud : IDisposable
     /// <summary>One short sentence saying why a reading failed or fell back.</summary>
     public event EventHandler<string>? Failed;
 
-    /// <summary>The folder the <c>/parle</c> hook drops <c>request.json</c> into.</summary>
+    /// <summary>The folder the plugin hook drops <c>request.json</c> into.</summary>
     public static string DefaultDirectory => DataDirectory.File("speak");
 
     /// <summary>Starts watching <paramref name="directory"/> for requests.</summary>
@@ -99,7 +100,7 @@ public sealed class ReadAloud : IDisposable
         try
         {
             await Task.Delay(150, cancellationToken).ConfigureAwait(false);
-            if (await ReadRequestAsync(path, cancellationToken).ConfigureAwait(false) is not var (id, text)) return;
+            if (await ReadRequestAsync(path, cancellationToken).ConfigureAwait(false) is not var (id, text, english)) return;
 
             // A late Changed (antivirus, indexer) re-raises the same request; restarting
             // the reading for it would cut the user off mid-sentence.
@@ -113,7 +114,7 @@ public sealed class ReadAloud : IDisposable
 
             var reading = new CancellationTokenSource();
             Interlocked.Exchange(ref _reading, reading)?.Cancel();
-            await SpeakAsync(text, reading.Token).ConfigureAwait(false);
+            await SpeakAsync(text, english, reading.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -125,8 +126,11 @@ public sealed class ReadAloud : IDisposable
         }
     }
 
-    /// <summary>The request's identity (its timestamp) and text, or null when unreadable.</summary>
-    private static async Task<(string Id, string Text)?> ReadRequestAsync(string path, CancellationToken cancellationToken)
+    /// <summary>
+    /// The request's identity (its timestamp), the reply it points at and whether <c>/say</c>
+    /// asked for English, or null when unreadable or there is nothing to read.
+    /// </summary>
+    private static async Task<(string Id, string Text, bool English)?> ReadRequestAsync(string path, CancellationToken cancellationToken)
     {
         // The writer may still hold the file for a moment: retry on a sharing violation.
         for (var attempt = 0; ; attempt++)
@@ -135,10 +139,14 @@ public sealed class ReadAloud : IDisposable
             {
                 using var json = JsonDocument.Parse(await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false));
                 var root = json.RootElement;
-                var text = root.TryGetProperty("text", out var t) ? t.GetString() : null;
+                var transcript = root.TryGetProperty("transcript_path", out var t) ? t.GetString() : null;
+                if (transcript is not { Length: > 0 } || !File.Exists(transcript)) return null;
+                var text = LastReply(ReadShared(transcript));
                 if (string.IsNullOrWhiteSpace(text)) return null;
                 var id = root.TryGetProperty("ts", out var ts) ? ts.GetRawText() : Guid.NewGuid().ToString();
-                return (id, text);
+                var english = root.TryGetProperty("command", out var c)
+                    && string.Equals(c.GetString(), "say", StringComparison.OrdinalIgnoreCase);
+                return (id, text, english);
             }
             catch (IOException) when (attempt < 10)
             {
@@ -151,11 +159,80 @@ public sealed class ReadAloud : IDisposable
         }
     }
 
+    /// <summary>Claude Code may be appending to the transcript while it is read.</summary>
+    private static IEnumerable<string> ReadShared(string path)
+    {
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var reader = new StreamReader(stream, Encoding.UTF8);
+        while (reader.ReadLine() is { } line) yield return line;
+    }
+
+    /// <summary>Wrappers Claude Code puts around injected context, never part of a reply.</summary>
+    private static readonly Regex Noise = new(
+        @"<(system-reminder|command-message|command-name|local-command-[a-z-]+|task-notification|persisted-output)(?:\s[^>]*)?>.*?</\1>",
+        RegexOptions.Singleline | RegexOptions.CultureInvariant);
+
+    /// <summary>The text of the last assistant line of a Claude Code JSONL transcript, or "".</summary>
+    /// <remarks>
+    /// Only the last line: a turn writes each block on its own line, and the earlier text
+    /// lines are progress notes between tool calls. Sidechain (subagent) and meta lines are
+    /// not the conversation. Unparseable lines are skipped.
+    /// </remarks>
+    public static string LastReply(IEnumerable<string> lines)
+    {
+        ArgumentNullException.ThrowIfNull(lines);
+        var last = "";
+        foreach (var line in lines)
+        {
+            if (string.IsNullOrWhiteSpace(line)) continue;
+            try
+            {
+                using var doc = JsonDocument.Parse(line);
+                var root = doc.RootElement;
+                if (root.ValueKind != JsonValueKind.Object
+                    || !root.TryGetProperty("type", out var type) || type.GetString() != "assistant"
+                    || IsTrue(root, "isMeta") || IsTrue(root, "isSidechain")
+                    || !root.TryGetProperty("message", out var message) || message.ValueKind != JsonValueKind.Object
+                    || !message.TryGetProperty("content", out var content))
+                {
+                    continue;
+                }
+
+                var text = content.ValueKind switch
+                {
+                    JsonValueKind.String => content.GetString() ?? "",
+                    JsonValueKind.Array => string.Join("\n", content.EnumerateArray()
+                        .Where(b => b.ValueKind == JsonValueKind.Object
+                            && b.TryGetProperty("type", out var k) && k.GetString() == "text"
+                            && b.TryGetProperty("text", out var v) && v.ValueKind == JsonValueKind.String)
+                        .Select(b => b.GetProperty("text").GetString())),
+                    _ => "",
+                };
+                text = Noise.Replace(text, "").Trim();
+                if (text.Length > 0) last = text;
+            }
+            catch (JsonException)
+            {
+                // A partial last line, or not a transcript line at all.
+            }
+        }
+
+        return last;
+    }
+
+    private static bool IsTrue(JsonElement element, string name) =>
+        element.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.True;
+
     /// <summary>Speaks <paramref name="markdown"/> through the whole pipeline.</summary>
+    /// <param name="markdown">The reply as Claude Code wrote it.</param>
+    /// <param name="english">Spoken in English (<c>/say</c>) rather than French (<c>/parle</c>).</param>
+    /// <param name="cancellationToken">Stops the reading.</param>
     /// <remarks>Public for the live harness; the watcher is the normal caller.</remarks>
-    public async Task SpeakAsync(string markdown, CancellationToken cancellationToken)
+    public async Task SpeakAsync(string markdown, bool english, CancellationToken cancellationToken)
     {
         var settings = _settings();
+        var prompt = english ? settings.EnglishOralPrompt : settings.OralPrompt;
+        var voice = english ? settings.EnglishVoice : settings.TtsVoice;
 
         // The cleanup endpoint is the chat gateway; machines that only set STT use that one.
         var (endpoint, key) = settings.CleanupEndpoint is { Length: > 0 } cleanup
@@ -189,7 +266,7 @@ public sealed class ReadAloud : IDisposable
             var failed = false;
             try
             {
-                await foreach (var delta in StreamOralAsync(baseUrl, key, settings, clean, token).ConfigureAwait(false))
+                await foreach (var delta in StreamOralAsync(baseUrl, key, settings.OralModel, prompt, clean, token).ConfigureAwait(false))
                 {
                     firstToken ??= clock.Elapsed.TotalSeconds;
                     spoken |= !string.IsNullOrWhiteSpace(delta);
@@ -219,7 +296,7 @@ public sealed class ReadAloud : IDisposable
             await foreach (var sentence in sentences.Reader.ReadAllAsync(token).ConfigureAwait(false))
             {
                 await clips.Writer.WriteAsync(
-                    await SynthesiseAsync(baseUrl, key, settings, sentence, token).ConfigureAwait(false),
+                    await SynthesiseAsync(baseUrl, key, settings.TtsModel, voice, sentence, token).ConfigureAwait(false),
                     token).ConfigureAwait(false);
             }
         }
@@ -271,15 +348,15 @@ public sealed class ReadAloud : IDisposable
 
     /// <summary>Streams the <c>oral</c> rewrite as content deltas.</summary>
     private static async IAsyncEnumerable<string> StreamOralAsync(
-        string baseUrl, string? key, SettingsData settings, string text,
+        string baseUrl, string? key, string model, string prompt, string text,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var body = new JsonObject
         {
-            ["model"] = settings.OralModel,
+            ["model"] = model,
             ["stream"] = true,
             ["messages"] = new JsonArray(
-                new JsonObject { ["role"] = "system", ["content"] = settings.OralPrompt },
+                new JsonObject { ["role"] = "system", ["content"] = prompt },
                 new JsonObject { ["role"] = "user", ["content"] = text }),
         };
 
@@ -325,13 +402,13 @@ public sealed class ReadAloud : IDisposable
 
     /// <summary>Renders one chunk as a WAV clip through the <c>tts</c> alias.</summary>
     private static async Task<byte[]> SynthesiseAsync(
-        string baseUrl, string? key, SettingsData settings, string text, CancellationToken cancellationToken)
+        string baseUrl, string? key, string model, string voice, string text, CancellationToken cancellationToken)
     {
         var body = new JsonObject
         {
-            ["model"] = settings.TtsModel,
+            ["model"] = model,
             ["input"] = text,
-            ["voice"] = settings.TtsVoice,
+            ["voice"] = voice,
             ["response_format"] = "wav",
         };
 

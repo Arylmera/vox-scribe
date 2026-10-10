@@ -1,0 +1,9 @@
+{
+  "name": "voxscribe",
+  "description": "/parle and /say: Vox-Scribe reads Claude Code's previous reply aloud, in French or English.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Arylmera"
+  },
+  "homepage": "https://github.com/Arylmera/vox-scribe"
+}

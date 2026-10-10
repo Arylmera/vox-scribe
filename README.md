@@ -21,9 +21,14 @@ second sends it to a small language model first — punctuation, capitalisation,
 — and types the repaired line. The choice is made when you speak, not in a settings toggle,
 and the pill's badge says which one is running.
 
-**Speech runs locally or remotely.** Parakeet through sherpa-onnx on the CPU needs nothing
-but the model on disk. Point the app at an OpenAI-compatible endpoint instead and
-transcription happens there — a LiteLLM gateway in front of a faster machine, for instance.
+**Bring your own endpoint.** Cleanup and read-aloud call an OpenAI-compatible endpoint you
+run or rent — a LiteLLM gateway, for instance; no model ships with the app. Transcription can
+use that endpoint too, or Parakeet on this PC's processor: an optional download from
+Settings → SPEECH, and the one thing the app can do with no server at all.
+
+**Claude Code reads its replies aloud.** Type `/parle` (French) or `/say` (English) in Claude
+Code and Vox-Scribe speaks the previous reply, rewritten for the ear. It comes as a Claude Code
+plugin from this repository — see the [user guide](docs/GUIDE.md#reading-claude-code-replies-aloud).
 
 **A correction dictionary** rewrites the words a speech model reliably gets wrong — names,
 jargon, glued-together compounds. Its behaviour is specified by
@@ -46,9 +51,9 @@ It publishes the app, reads the version from `Directory.Version.props`, and buil
 `installer/Output/VoxScribe-Setup-<version>.exe` with Inno Setup 6. Settings, transcripts,
 the dictionary and the speech model live in `%LOCALAPPDATA%\VoxScribe`.
 
-Transcription needs either the Parakeet model — offered for download on first launch, or by
-hand per [`docs/PARAKEET-WINDOWS.md`](docs/PARAKEET-WINDOWS.md) — or a remote endpoint configured in
-Settings.
+Transcription needs either a remote endpoint configured in Settings → SPEECH, or the Parakeet
+model — DOWNLOAD MODEL on that same page, or by hand per
+[`docs/PARAKEET-WINDOWS.md`](docs/PARAKEET-WINDOWS.md). Nothing is downloaded until you ask.
 
 ---
 

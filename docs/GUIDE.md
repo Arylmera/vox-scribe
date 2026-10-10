@@ -115,22 +115,54 @@ dictations (`kubernets → kubernetes`), it appears at the top of the list with 
 |---|---|
 | SHORTCUTS | Raw, cleanup, undo and command chords, the command window title, toggle mode. Escape while binding cancels — on the optional slots it *unbinds*. Every shortcut works the moment it is recorded. |
 | TYPING | Type into focused app (on), anchor focus (on), incremental typing (off), spoken punctuation (off) |
-| CLEANUP | OpenAI-compatible endpoint, model (`local-light`), API key, TEST CONNECTION |
-| SPEECH | Microphone, local model status, or a remote OpenAI-compatible transcription endpoint + model + API key |
+| CLEANUP | OpenAI-compatible endpoint, model (`local-light`), API key, TEST CONNECTION; the /parle and /say read-aloud toggle |
+| SPEECH | Microphone, local model status and its DOWNLOAD MODEL button, or a remote OpenAI-compatible transcription endpoint + model + API key |
 | GENERAL | Keep history, start at login (minimised to tray) |
 | APPEARANCE | Theme — Deep Field (dark), Signal House (warm hardware), Manuscript (paper-light, serif transcripts); an APPLY key restarts the app with the new theme. Accent colour — five swatches, applies immediately |
 
 Speech settings (microphone, remote server) take effect at next start; the rest is
 immediate.
 
-**Local or remote speech.** By default Parakeet runs on your CPU via sherpa-onnx — nothing
-leaves the machine, but the model (~670 MB) must be downloaded first: the app offers it on first launch, or
-follow [PARAKEET-WINDOWS.md](PARAKEET-WINDOWS.md) by hand.
-Point SPEECH → REMOTE SERVER at an OpenAI-compatible endpoint — a LiteLLM gateway in front
-of a faster machine, for instance — and transcription happens there instead.
+**Your endpoint, or Parakeet.** Point SPEECH → REMOTE SERVER at an OpenAI-compatible
+endpoint — a LiteLLM gateway in front of a faster machine, for instance — and transcription
+happens there. Without one, Parakeet can run on this PC's processor via sherpa-onnx, so nothing
+leaves the machine: press SPEECH → MODEL → DOWNLOAD MODEL (about 661 MB, once; Vox-Scribe
+restarts to load it), or follow [PARAKEET-WINDOWS.md](PARAKEET-WINDOWS.md) by hand. The app
+never downloads it on its own. Cleanup and read-aloud have no local option: they always use
+your endpoint.
 
 **API keys are encrypted** with Windows DPAPI before they touch `settings.json`; they are
 never stored in plain text.
+
+## Reading Claude Code replies aloud
+
+In Claude Code, type **`/parle`** and Vox-Scribe reads the previous reply aloud in French;
+**`/say`** does the same in English, translating if needed. The reply is rewritten for the ear
+first — no paths, no tables, four to eight sentences — then spoken while the rest renders.
+Push-to-talk or Escape stops it; a new `/parle` replaces it. The command itself never reaches
+the model, so it costs nothing.
+
+**Install it** once, in Claude Code (Vox-Scribe must be installed and running):
+
+```
+/plugin marketplace add Arylmera/vox-scribe
+/plugin install voxscribe@vox-scribe
+```
+
+The plugin is a hook and two commands; it only tells Vox-Scribe which conversation to read.
+It needs Windows PowerShell, which every Windows machine has.
+
+**What your endpoint must serve.** Read-aloud uses the CLEANUP endpoint and key (the SPEECH
+ones when cleanup is unset), and two model names on it:
+
+| Model | Endpoint | Used for |
+|---|---|---|
+| `oral` | `/chat/completions`, streamed | Rewriting the reply for speech. A non-thinking model; if it fails, the reply is read as written |
+| `tts` | `/audio/speech`, `response_format: wav` | The voice: `ff_siwis` for `/parle`, `af_heart` for `/say` (Kokoro voice names) |
+
+The model names, voices and prompts are `OralModel`, `TtsModel`, `TtsVoice`, `EnglishVoice`,
+`OralPrompt` and `EnglishOralPrompt` in `settings.json`. Turn the whole thing off with the
+read-aloud toggle under CLEANUP. A failure shows on the tray icon's tooltip.
 
 ## Where things live
 

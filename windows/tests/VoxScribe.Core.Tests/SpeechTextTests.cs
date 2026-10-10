@@ -216,3 +216,41 @@ public sealed class ReadAloudSettingsTests
         }
     }
 }
+
+/// <summary>Which reply /parle and /say read: the last assistant text line of the transcript.</summary>
+public class LastReplyTests
+{
+    private static string Assistant(string text, string extra = "") =>
+        $$$"""{"type":"assistant"{{{extra}}},"message":{"role":"assistant","content":[{"type":"text","text":"{{{text}}}"}]}}""";
+
+    [Fact]
+    public void The_last_assistant_text_line_wins_and_user_lines_after_it_are_ignored()
+    {
+        ReadAloud.LastReply([
+            """{"type":"user","message":{"role":"user","content":"q1"}}""",
+            Assistant("progress note"),
+            """{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash","input":{}}]}}""",
+            Assistant("final answer"),
+            """{"type":"user","message":{"role":"user","content":"/parle"}}""",
+        ]).ShouldBe("final answer");
+    }
+
+    [Fact]
+    public void Sidechain_meta_partial_and_tool_only_lines_carry_no_reply()
+    {
+        ReadAloud.LastReply([
+            Assistant("main"),
+            Assistant("subagent", ",\"isSidechain\":true"),
+            Assistant("meta", ",\"isMeta\":true"),
+            """{"type":"assistant","message":{"content":[{"type":"thinking","thinking":"hm"}]}}""",
+            """{"type":"assistant","message":{"con""",
+        ]).ShouldBe("main");
+    }
+
+    [Fact]
+    public void Injected_context_is_stripped_and_an_empty_transcript_reads_nothing()
+    {
+        ReadAloud.LastReply([Assistant("<system-reminder>x</system-reminder>Done.")]).ShouldBe("Done.");
+        ReadAloud.LastReply([]).ShouldBe("");
+    }
+}
