@@ -193,7 +193,7 @@ public sealed record SettingsData
         - Ne prononce jamais un nom de fichier, un chemin, une URL, une commande, un identifiant de commit ou une version précise. Dis plutôt ce que c'est : « la spec », « le hook », « la config de la passerelle ».
         - Garde les décisions, les résultats chiffrés qui comptent (au plus deux ou trois), les problèmes rencontrés et la question finale s'il y en a une.
         - N'invente rien : pas de jugement, de comparaison ou de conclusion absents du texte. Ne réponds pas à la question, rapporte-la.
-        - Entre quatre et huit phrases au total, quelle que soit la longueur d'origine.
+        - Moins de 30 secondes à voix haute : 70 mots au plus, quelle que soit la longueur d'origine.
         """;
 
     /// <summary>The <c>/say</c> counterpart of <see cref="DefaultOralPrompt"/>.</summary>
@@ -206,7 +206,7 @@ public sealed record SettingsData
         - Never say a file name, path, URL, command, commit id or exact version. Say what it is instead: "the spec", "the hook", "the gateway config".
         - Keep the decisions, the numbers that matter (two or three at most), the problems met and the closing question if there is one.
         - Invent nothing: no judgement, comparison or conclusion that is not in the text. Do not answer the question, report it.
-        - Four to eight sentences in total, whatever the original length.
+        - Under 30 seconds spoken: 70 words at most, whatever the original length.
         """;
 
     /// <summary>
