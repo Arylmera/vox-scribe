@@ -202,8 +202,9 @@ public sealed class ClaudeBridgeTests : IDisposable
     public void A_malformed_mic_request_is_ignored(string json) =>
         ClaudeBridge.ParseMic(json, 0).ShouldBeNull();
 
+    /// <summary>A late re-raise of the same request (antivirus, indexer) must not start a second recording.</summary>
     [Fact]
-    public async Task A_mic_request_written_after_start_is_raised_once()
+    public async Task A_late_re_raise_of_the_same_mic_request_is_raised_once()
     {
         using var bridge = new ClaudeBridge(_dir);
         var seen = new List<MicAction>();
@@ -212,10 +213,15 @@ public sealed class ClaudeBridgeTests : IDisposable
 
         var json = JsonSerializer.Serialize(new { session_id = Session, action = "start", ts = DateTimeOffset.Now.ToUnixTimeMilliseconds() });
         File.WriteAllText(Path.Combine(_dir, "mic.json"), json);
-        File.WriteAllText(Path.Combine(_dir, "mic.json"), json); // a second write of the same request
 
+        // Wait for the first Start to land before re-raising, so the debounce has already
+        // settled on the first write and cannot simply collapse both writes into one.
         for (var i = 0; i < 300 && seen.Count == 0; i++) await Task.Delay(10);
-        await Task.Delay(300);
+        lock (seen) seen.ShouldBe([MicAction.Start]);
+
+        File.WriteAllText(Path.Combine(_dir, "mic.json"), json); // a late re-raise of the identical request
+
+        await Task.Delay(400); // well past the 100 ms debounce
         lock (seen) seen.ShouldBe([MicAction.Start]);
     }
 }
