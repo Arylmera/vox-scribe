@@ -23,7 +23,7 @@ namespace VoxScribe.App;
 /// </remarks>
 public sealed class Composition : IAsyncDisposable
 {
-    private Composition(
+    internal Composition(
         AppSettings settings,
         DictionaryFile dictionary,
         TranscriptStore transcripts,

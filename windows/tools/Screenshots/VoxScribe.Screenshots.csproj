@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Renders the README screenshots headlessly from seeded demo data — never the user's own
+       %LOCALAPPDATA% folder. Not part of the solution. Run: dotnet run -c Release -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- -windows so the platform layer sits beside the exe: real, layout-local key names. -->
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <AnalysisLevel>none</AnalysisLevel>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Headless" />
+    <PackageReference Include="Avalonia.Skia" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\VoxScribe.App\VoxScribe.App.csproj" />
+    <ProjectReference Include="..\..\src\VoxScribe.Platform.Windows\VoxScribe.Platform.Windows.csproj" />
+  </ItemGroup>
+</Project>

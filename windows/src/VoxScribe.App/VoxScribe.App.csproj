@@ -26,6 +26,8 @@
   <!-- The headless UI tests exercise the internal view furniture (Panels) directly. -->
   <ItemGroup>
     <InternalsVisibleTo Include="VoxScribe.App.Tests" />
+    <!-- tools/Screenshots renders the README images from seeded demo data. -->
+    <InternalsVisibleTo Include="VoxScribe.Screenshots" />
   </ItemGroup>
 
   <ItemGroup>
