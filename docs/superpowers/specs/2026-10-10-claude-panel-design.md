@@ -54,8 +54,8 @@ answer, on this machine:
 
 Constraints learned on the way:
 - The module loader checks `$` statically: always `$.noun.verb(...)` at the call site; `$.fs` etc. can never be used as a value.
-- In template literals write paths with `/` or `\`: a single `` is a vertical tab, and the read/write silently misses.
-- The band does not redraw by itself: call `$.ui.invalidate('ui.render')` when its data changes.
+- In template literals, paths use `/` or `\\` (escaped backslash); a single backslash before `v` is a vertical tab, and the read/write silently misses.
+- The band does not redraw by itself: call `$.ui.invalidate('ui.render')` when its data changes. (The shipped band instead redraws through `$.state` atoms — a write redraws its readers — so no explicit `$.ui.invalidate` is needed there.)
 - Claude Code generates the full API types into `claude-plugin/.claude-plugin/types/claude-code/index.d.ts` (git-ignored) and a `claude-plugin/tsconfig.json`.
 - The owner wants a real visual design for the band (desktop and terminal) before it ships.
 
@@ -117,14 +117,14 @@ Directory `%LOCALAPPDATA%\VoxScribe\claude\`, JSON, UTF-8.
 |---|---|---|---|
 | `target.json` | module | `session_id`, `beat` (ms) | Armed session. One file: last writer wins, so arming is exclusive. |
 | `mic.json` | module | `session_id`, `action` (`start`/`stop`/`cancel`), `ts` | Click-to-talk requests. |
-| `status.json` | app | `state` (`idle`/`listening`/`transcribing`), `session_id`, `since`, `beat` | What the band shows; proof the app is running. |
+| `status.json` | app | `state` (`idle`/`listening`/`transcribing`), `session_id`, `since`, `beat`, `accent_dark`, `accent_light` | What the band shows; proof the app is running. |
 | `outbox/<session_id>.json` | app | `id`, `text`, `ts` | Text to submit in that session. |
 | `outbox/<id>.ack` | module | empty | Delivery acknowledgement. |
 
 Timing: module polls `status.json` and its outbox every ~300 ms; the armed session
 refreshes `beat` every 2 s; a target or status older than 6 s is dead. Every band re-reads
-`target.json`, so a session shows "inactive" as soon as another takes the target. Disarming
-clears `target.json`.
+`target.json`, so a session falls back to the ready pill ("Vox · prêt") as soon as another
+takes the target. Disarming clears `target.json`.
 
 ### Chord flow
 
@@ -132,11 +132,13 @@ clears `target.json`.
 2. At the final step `ClaudeBridge.TryDeliverAsync(text)`:
    - live target → write `outbox/<id>.json`;
    - no live target → **NoTarget**, today's window-title path.
-3. Target module sees its outbox: deletes it **first**, then `$.prompt.submit`, then writes
-   the ack (at-most-once). If `$.fs` cannot delete (spike Q5): module writes the ack, the
-   app deletes the outbox, and the module ignores any already-acked `id`.
-4. No ack within 3 s → **NotAcknowledged** → notice "Dictée non livrée à Claude Code". No
-   fallback (a late submit would double-send). The text is in History like every transcript.
+3. Target module sees its outbox: the module never deletes it. A `$.state` atom
+   `lastHandled` (test-and-set) keeps the outbox at most once per `id`, then
+   `$.prompt.submit`, then the module writes the ack; the app withdraws the outbox once
+   acked.
+4. No ack within 3 s → **NotAcknowledged** → notice "Claude Code did not take the command —
+   command not sent". No fallback (a late submit would double-send). The text is in History
+   like every transcript.
 
 ### Click-to-talk flow
 

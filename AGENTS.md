@@ -78,7 +78,8 @@ command name into `%LOCALAPPDATA%\VoxScribe\speak\request.json`. Finding the rep
 The hook must stay Windows PowerShell 5.1 compatible and saved with a BOM.
 `claude-plugin/hooks/register.tsx` draws a band above the prompt (experimental: Claude Code's
 undocumented plugin-module API, tested with `claude plugin test`). It only writes `target.json`
-and `mic.json` and submits `outbox/<session>.json`, all in `%LOCALAPPDATA%\VoxScribe\claude`;
+and `mic.json`, submits `outbox/<session>.json`, and writes `outbox/<id>.ack`, all in
+`%LOCALAPPDATA%\VoxScribe\claude`;
 every rule (which session is live, acknowledgement, staleness) is in `ClaudeBridge`. An armed
 session overrides only the command chord; with none armed, command mode is unchanged.
 `NotAcknowledged` never falls back to typing. The pill takes the theme accent from
