@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 using System.Text;
 using System.Text.Json;
 
@@ -79,6 +80,8 @@ public static class ClaudePlugin
     public static async Task<(int ExitCode, string Output)> RunAsync(IReadOnlyList<string> args, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(args);
+        // claude.cmd is a batch file: Windows routes its arguments through cmd.exe's own parsing,
+        // so callers must only pass fixed literals here (no quotes or cmd metacharacters).
         foreach (var exe in new[] { "claude", "claude.cmd" })
         {
             var info = new ProcessStartInfo(exe)
@@ -117,6 +120,15 @@ public static class ClaudePlugin
                 catch (OperationCanceledException)
                 {
                     process.Kill(entireProcessTree: true);
+                    try
+                    {
+                        await Task.WhenAll(stdout, stderr).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) { }
+                    catch (IOException) { }
+                    catch (InvalidOperationException) { }
+
+                    cancellationToken.ThrowIfCancellationRequested();
                     return (1, "claude did not answer within two minutes");
                 }
 
