@@ -72,6 +72,26 @@ public sealed class CommandModeTests
         injector.Enters.ShouldBe(1);
     }
 
+    /// <summary>
+    /// Typing phrase by phrase is for raw dictation. A command must still go, whole, to the
+    /// named window — not phrase by phrase into whatever has focus.
+    /// </summary>
+    [Fact]
+    public async Task A_command_ignores_typing_as_you_speak()
+    {
+        var (engine, _, command, _, injector, anchor) = Build();
+        await using var _ = engine;
+        engine.AnchorFocus = false;
+        engine.IncrementalInjection = true;
+        anchor.WindowTitles.Add("Claude");
+
+        await DictateAsync(command, engine);
+
+        anchor.LastFind.ShouldBe("Claude");
+        injector.Injected.ShouldBe(["le build passe"]);
+        injector.Enters.ShouldBe(1);
+    }
+
     /// <summary>A prompt meant for Claude must never land in whatever field happens to have focus.</summary>
     [Fact]
     public async Task No_matching_window_means_nothing_is_typed_anywhere()

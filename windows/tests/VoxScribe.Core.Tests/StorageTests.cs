@@ -236,11 +236,11 @@ public sealed class AppSettingsTests : IDisposable
     public void Settings_round_trip()
     {
         var settings = new AppSettings(_path);
-        settings.Update(settings.Data with { PushToTalkKey = 0x7C, InjectText = false });
+        settings.Update(settings.Data with { PushToTalkKey = 0x7C, KeepHistory = false });
 
         var reopened = new AppSettings(_path);
         reopened.Data.PushToTalkKey.ShouldBe(0x7C);
-        reopened.Data.InjectText.ShouldBeFalse();
+        reopened.Data.KeepHistory.ShouldBeFalse();
     }
 
     [Fact]
@@ -316,7 +316,6 @@ public sealed class SettingsUpgradeTests
         data.SttModel.ShouldBe("stt-mac");
         data.Theme.ShouldBe("paper");
         data.AnchorFocus.ShouldBeTrue();
-        data.InjectText.ShouldBeTrue();
         data.KeepHistory.ShouldBeTrue();
     }
 }

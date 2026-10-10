@@ -40,9 +40,6 @@ public sealed record SettingsData
     /// <summary>Where the speech model lives, or null to search the default locations.</summary>
     public string? ModelDirectory { get; init; }
 
-    /// <summary>Whether to type the transcript into the focused app.</summary>
-    public bool InjectText { get; set; } = true;
-
     /// <summary>
     /// Whether each phrase is typed as soon as it is transcribed, rather than the whole
     /// utterance at the end.

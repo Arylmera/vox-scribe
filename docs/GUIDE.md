@@ -31,11 +31,18 @@ in a spreadsheet. The pill's badge reads `CMD`.
 **Toggle mode** (Settings → SHORTCUTS): press once to start, press again to stop, instead
 of holding the key down.
 
-**Focus anchoring** (on by default): the text goes to the field that had focus when you
-*pressed* the shortcut, even if you clicked elsewhere while talking.
+**When the text is typed** (Settings → TYPING), one of three:
 
-**Incremental typing** (off by default, raw shortcut only): each phrase is typed as you
-speak it instead of everything at the end.
+- **On release, in the field where you started** (default) — switch windows or click
+  elsewhere while you talk; on release the field that had focus when you *pressed* the
+  shortcut comes back and the whole dictation is typed there.
+- **As you speak, phrase by phrase** — each phrase is typed the moment it is transcribed,
+  into whatever has focus right then.
+- **On release, wherever you are** — the whole dictation is typed into whatever has focus
+  when you let go.
+
+The pill shows the words as they arrive in all three. The cleanup and command shortcuts
+always type once, on release: the model needs the whole sentence.
 
 **Spoken punctuation** (off by default, Settings → TYPING): say the mark and it is written.
 French and English — *virgule*, *point*, *point d'interrogation*, *point d'exclamation*,
@@ -114,7 +121,7 @@ dictations (`kubernets → kubernetes`), it appears at the top of the list with 
 | Section | What's there |
 |---|---|
 | SHORTCUTS | Raw, cleanup, undo and command chords, the command window title, toggle mode. Escape while binding cancels — on the optional slots it *unbinds*. Every shortcut works the moment it is recorded. |
-| TYPING | Type into focused app (on), anchor focus (on), incremental typing (off), spoken punctuation (off) |
+| TYPING | When the text is typed (on release in the field where you started, as you speak, or on release wherever you are), spoken punctuation (off) |
 | CLEANUP | OpenAI-compatible endpoint, model (`local-light`), API key, TEST CONNECTION; the /parle and /say read-aloud toggle |
 | SPEECH | Microphone, local model status and its DOWNLOAD MODEL button, or a remote OpenAI-compatible transcription endpoint + model + API key |
 | GENERAL | Keep history, start at login (minimised to tray) |

@@ -48,8 +48,11 @@ internal static class ShortcutsSection
                     + "model before typing it. The raw shortcut stays raw and fast. Escape on "
                     + "this one unbinds it."),
                 Panels.Labelled("UNDO", keys[ShortcutSlot.Undo]),
-                Panels.Note("Deletes the last dictation's text from wherever it landed, without "
-                    + "opening this window. Same as the UNDO key in the voice band. Escape unbinds."),
+                Panels.Note("After a dictation has been typed: deletes its text from wherever it "
+                    + "landed, one dictation deep. Not bound until you record one. Escape unbinds."),
+                Panels.Labelled("CANCEL · FIXED KEY", new TransportKey { Content = "ESC", IsHitTestVisible = false, Focusable = false }),
+                Panels.Note("While recording: stops the microphone and types nothing. Outside a "
+                    + "recording Escape is left alone, so it keeps its usual meaning everywhere."),
                 Panels.Labelled("COMMAND", keys[ShortcutSlot.Command]),
                 Panels.Note("Dictate at Claude Code instead of at a text field: the transcript "
                     + "(tidied when a cleanup model is set) is typed into the window below and "
