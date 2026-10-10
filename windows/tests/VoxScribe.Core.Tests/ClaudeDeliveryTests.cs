@@ -11,17 +11,18 @@ namespace VoxScribe.CoreTests;
 /// </summary>
 public sealed class ClaudeDeliveryTests
 {
-    private static (DictationEngine Engine, FakeHotkeySource Command, RecordingTextInjector Injector,
-        FakeFocusAnchor Anchor, List<string> Delivered) Build(ClaudeDelivery outcome)
+    private static (DictationEngine Engine, FakeHotkeySource Command, FakeHotkeySource Plain,
+        RecordingTextInjector Injector, FakeFocusAnchor Anchor, List<string> Delivered) Build(ClaudeDelivery outcome)
     {
         var command = new FakeHotkeySource();
+        var plain = new FakeHotkeySource();
         var injector = new RecordingTextInjector();
         var anchor = new FakeFocusAnchor(injector);
         anchor.WindowTitles.Add("Claude");
         var delivered = new List<string>();
 
         var engine = new DictationEngine(
-            FakeAudioCapture.Tone(0.4), new FakeHotkeySource(), new FakeTranscriber("lance les tests"), injector,
+            FakeAudioCapture.Tone(0.4), plain, new FakeTranscriber("lance les tests"), injector,
             () => [], new FakeClock(), focusAnchor: anchor, commandHotkey: command)
         {
             DeliverToClaude = (text, _) =>
@@ -31,7 +32,7 @@ public sealed class ClaudeDeliveryTests
             },
         };
 
-        return (engine, command, injector, anchor, delivered);
+        return (engine, command, plain, injector, anchor, delivered);
     }
 
     private static async Task WaitAsync(DictationEngine engine, DictationState state)
@@ -51,7 +52,7 @@ public sealed class ClaudeDeliveryTests
     [Fact]
     public async Task Delivered_types_nothing_and_finds_no_window()
     {
-        var (engine, command, injector, anchor, delivered) = Build(ClaudeDelivery.Delivered);
+        var (engine, command, _, injector, anchor, delivered) = Build(ClaudeDelivery.Delivered);
         await using var _ = engine;
 
         await DictateAsync(command, engine);
@@ -67,7 +68,7 @@ public sealed class ClaudeDeliveryTests
     [Fact]
     public async Task Not_acknowledged_types_nothing_and_says_so()
     {
-        var (engine, command, injector, anchor, _) = Build(ClaudeDelivery.NotAcknowledged);
+        var (engine, command, _, injector, anchor, _) = Build(ClaudeDelivery.NotAcknowledged);
         await using var _ = engine;
 
         await DictateAsync(command, engine);
@@ -80,7 +81,7 @@ public sealed class ClaudeDeliveryTests
     [Fact]
     public async Task No_target_takes_the_window_title_path()
     {
-        var (engine, command, injector, anchor, _) = Build(ClaudeDelivery.NoTarget);
+        var (engine, command, _, injector, anchor, _) = Build(ClaudeDelivery.NoTarget);
         await using var _ = engine;
 
         await DictateAsync(command, engine);
@@ -93,7 +94,7 @@ public sealed class ClaudeDeliveryTests
     [Fact]
     public async Task A_throwing_delivery_types_nothing()
     {
-        var (engine, command, injector, _, _) = Build(ClaudeDelivery.Delivered);
+        var (engine, command, _, injector, _, _) = Build(ClaudeDelivery.Delivered);
         await using var _ = engine;
         engine.DeliverToClaude = (_, _) => throw new InvalidOperationException("boom");
 
@@ -109,7 +110,7 @@ public sealed class ClaudeDeliveryTests
     [InlineData(true)]
     public async Task The_band_button_records_a_command(bool toggleMode)
     {
-        var (engine, _, _, _, delivered) = Build(ClaudeDelivery.Delivered);
+        var (engine, _, _, _, _, delivered) = Build(ClaudeDelivery.Delivered);
         await using var _ = engine;
         engine.ToggleMode = toggleMode;
 
@@ -127,15 +128,18 @@ public sealed class ClaudeDeliveryTests
     [Fact]
     public async Task The_band_button_is_ignored_while_a_dictation_runs()
     {
-        var (engine, command, _, _, _) = Build(ClaudeDelivery.Delivered);
+        var (engine, _, plain, injector, _, delivered) = Build(ClaudeDelivery.Delivered);
         await using var _ = engine;
 
-        command.Press();
+        plain.Press();
         await WaitAsync(engine, DictationState.Recording);
         engine.BeginCommand();
 
-        engine.State.ShouldBe(DictationState.Recording);
-        command.Release();
+        engine.CommandThisUtterance.ShouldBeFalse();
+        plain.Release();
         await WaitAsync(engine, DictationState.Idle);
+
+        injector.Injected.ShouldBe(["lance les tests"]);
+        delivered.ShouldBeEmpty();
     }
 }
