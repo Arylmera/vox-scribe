@@ -48,9 +48,9 @@ internal static class Updates
         var path = Path.Combine(Path.GetTempPath(), $"VoxScribe-Setup-{update.Version.ToString(3)}.exe");
         await UpdateChecker.DownloadAsync(Http, update, path, progress, CancellationToken.None).ConfigureAwait(true);
 
-        // /SILENT shows only a progress bar; /CLOSEAPPLICATIONS closes this copy if it is
-        // still exiting when the installer gets there.
-        Process.Start(new ProcessStartInfo(path, "/SILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS")
+        // /SILENT shows only a progress bar. If this copy is still exiting when the installer
+        // gets there, a polite close is refused (closing hides to the tray), so it is forced.
+        Process.Start(new ProcessStartInfo(path, "/SILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS")
         {
             UseShellExecute = true,
         });
