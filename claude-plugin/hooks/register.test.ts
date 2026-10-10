@@ -75,3 +75,25 @@ test('an outbox for this session is submitted once and acknowledged', async ($, 
   expect(submitted).toEqual(['bonjour'])
   expect(files.has(`${DIR}/outbox/abc.ack`)).toBe(true)
 })
+
+test('cibler arms this session until another one takes the target; parler asks for the mic', async ($, on) => {
+  const files = new Map([[`${DIR}/status.json`, JSON.stringify({ state: 'idle', session_id: null, since: T0, beat: T0 })]])
+  const clock = world(on, files)
+  const ui = await $.ui.mount({ plugin: 'voxscribe', surface: 'terminal', component: 'AbovePrompt', props: PROPS })
+  await clock.advance(600)
+
+  await ui.press({ key: 'vox-arm' })
+  expect((await ui.find({ key: 'vox-pill' }))?.text).toContain('Vox · cible')
+  expect(JSON.parse(files.get(`${DIR}/target.json`) ?? '{}').session_id).toBe(SESSION)
+
+  await clock.advance(2400) // polls and a heartbeat later, still armed
+  expect((await ui.find({ key: 'vox-pill' }))?.text).toContain('Vox · cible')
+
+  files.set(`${DIR}/target.json`, JSON.stringify({ session_id: 'session-b', beat: clock.now() }))
+  await clock.advance(600)
+  expect((await ui.find({ key: 'vox-pill' }))?.text).toContain('Vox · prêt')
+
+  await ui.press({ key: 'vox-talk' })
+  expect(JSON.parse(files.get(`${DIR}/mic.json`) ?? '{}')).toMatchObject({ session_id: SESSION, action: 'start' })
+  expect(JSON.parse(files.get(`${DIR}/target.json`) ?? '{}').session_id).toBe(SESSION)
+})

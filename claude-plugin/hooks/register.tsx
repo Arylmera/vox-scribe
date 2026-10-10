@@ -37,6 +37,7 @@ let lastBeat = 0
 let errors = 0
 let ticks = 0
 let polling = false
+let presses = 0 // bumped at each click, before any await: a poll that saw one change keeps its hands off `armed`
 let timer: { cancel: () => void } | null = null
 
 async function base($: EngineInterface): Promise<string> {
@@ -74,8 +75,13 @@ async function writeMic($: EngineInterface, action: 'start' | 'stop' | 'cancel')
 async function drainOutbox($: EngineInterface, d: string, session: string, t: number) {
   const o = await readJson($, `${d}/outbox/${session}.json`)
   if (!o || typeof o.id !== 'string' || typeof o.text !== 'string' || typeof o.ts !== 'number') return
-  if (o.id === (await read($, lastHandled))) return
-  await update($, lastHandled, () => o.id) // before submitting: at most once, never twice
+  // Test-and-set before submitting: at most once, never twice, even with two polls in flight.
+  let fresh = false
+  await update($, lastHandled, v => {
+    fresh = v !== o.id
+    return o.id
+  })
+  if (!fresh) return
   if (t - o.ts > STALE_MS || o.text.trim() === '' || o.text.length > MAX_TEXT) return
   // Spike Q3b: while Claude is busy, submit resolves only when the queued message is sent, so
   // the ack cannot wait for it. An early rejection (no session bound yet) means not sent: give
@@ -103,11 +109,13 @@ function deep(hex: string): string {
 async function poll($: EngineInterface, t: number) {
   const d = await base($)
   const session = await me($)
-  const was = await read($, band)
-  let armed = was.armed
-
+  const seen = presses
   const target = await readJson($, `${d}/target.json`)
-  if (armed && target?.session_id !== session) armed = false // another session took the target
+  const was = await read($, band)
+  // Another session took the target, unless a click here raced the read.
+  const taken = target?.session_id !== session
+  const armedNow = (cur: VoxBand) => cur.armed && !(taken && presses === seen)
+  const armed = armedNow(was)
   if (armed && t - lastBeat >= BEAT_MS) await writeTarget($, session)
 
   const s = await readJson($, `${d}/status.json`)
@@ -120,7 +128,7 @@ async function poll($: EngineInterface, t: number) {
       ? s.state
       : 'ready'
   const next: VoxBand = { kind, armed, since: kind === 'listening' ? Number(s.since) || t : 0, accent }
-  if (JSON.stringify(next) !== JSON.stringify(was)) await update($, band, () => next)
+  if (JSON.stringify(next) !== JSON.stringify(was)) await update($, band, cur => ({ ...next, armed: armedNow(cur) }))
 
   await drainOutbox($, d, session, t)
 }
@@ -151,10 +159,12 @@ function startTimer($: EngineInterface) {
 
 /** A button's work, then a poll so the band answers at once; never throws into Claude Code. */
 function press($: EngineInterface, run: () => Promise<unknown>) {
-  return () =>
+  return () => {
+    presses++
     void run()
       .then(async () => poll($, await $.clock.now()))
       .catch(() => undefined)
+  }
 }
 
 function wave(t: number) {
