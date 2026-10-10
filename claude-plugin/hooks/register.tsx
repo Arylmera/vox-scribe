@@ -99,10 +99,10 @@ async function drainOutbox($: EngineInterface, d: string, session: string, t: nu
   await $.fs.write(`${d}/outbox/${o.id}.ack`, '')
 }
 
-/** The accent, deep: the pill's ground (mixed with black, 80 %). */
+/** The accent, deep: the pill's ground (mixed with black, ~75 %, matching the approved demo). */
 function deep(hex: string): string {
   const n = parseInt(hex.slice(1), 16)
-  const c = (shift: number) => Math.round(((n >> shift) & 0xff) * 0.2).toString(16).padStart(2, '0')
+  const c = (shift: number) => Math.round(((n >> shift) & 0xff) * 0.25).toString(16).padStart(2, '0')
   return `#${c(16)}${c(8)}${c(0)}`
 }
 
@@ -134,21 +134,25 @@ async function poll($: EngineInterface, t: number) {
 }
 
 async function tick($: EngineInterface) {
-  const t = await $.clock.now()
-  const shown = await read($, band)
-  if (shown.kind === 'listening' || shown.kind === 'transcribing') await update($, now, () => t)
-  if (ticks++ % 2 !== 0 || polling) return
-  polling = true
+  // The whole body sits in the try: a failure of clock, read or update must trip the breaker
+  // too, not just a failure inside poll.
   try {
-    await poll($, t)
+    const t = await $.clock.now()
+    const shown = await read($, band)
+    if (shown.kind === 'listening' || shown.kind === 'transcribing') await update($, now, () => t)
+    if (ticks++ % 2 !== 0 || polling) return
+    polling = true
+    try {
+      await poll($, t)
+    } finally {
+      polling = false
+    }
     errors = 0
   } catch {
     if (++errors >= TRIP_AFTER) {
       timer?.cancel()
       await update($, band, (b): VoxBand => ({ ...b, kind: 'broken' }))
     }
-  } finally {
-    polling = false
   }
 }
 
@@ -187,9 +191,12 @@ export const register: Register = on => {
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    // `next(e)` runs exactly once, however the try below ends: computing `ours` throwing must
+    // never cause it to run a second time.
+    let ours: JSX.Element | null = null
+    const { Box, Text, Button } = $.ui.resolve(e)
     try {
       startTimer($) // a plugin reload may draw before any session start
-      const { Box, Text, Button } = $.ui.resolve(e)
       const b = await read($, band)
       const busy = b.kind === 'listening' || b.kind === 'transcribing'
       const t = busy ? await read($, now) : 0
@@ -204,7 +211,6 @@ export const register: Register = on => {
         </Box>
       )
 
-      let ours
       if (b.kind === 'offline' || b.kind === 'broken') {
         ours = (
           <Box key="vox-band" flexDirection="row" gap={1} alignItems="center">
@@ -257,16 +263,16 @@ export const register: Register = on => {
           </Box>
         )
       }
-
-      const rest = await next(e)
-      return (
-        <Box key="vox-col" flexDirection="column">
-          {ours}
-          {rest}
-        </Box>
-      )
     } catch {
-      return next(e)
+      ours = null
     }
+    const rest = await next(e)
+    if (!ours) return rest
+    return (
+      <Box key="vox-col" flexDirection="column">
+        {ours}
+        {rest}
+      </Box>
+    )
   })
 }

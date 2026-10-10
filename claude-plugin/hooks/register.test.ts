@@ -76,6 +76,61 @@ test('an outbox for this session is submitted once and acknowledged', async ($, 
   expect(files.has(`${DIR}/outbox/abc.ack`)).toBe(true)
 })
 
+test('a stale outbox (older than 6s) is never submitted and not acked', async ($, on) => {
+  const files = new Map<string, string>()
+  const clock = world(on, files)
+  const submitted: string[] = []
+  on('prompt.submit', ($, e) => {
+    submitted.push(e.text)
+    return new Promise(() => undefined)
+  })
+  files.set(`${DIR}/status.json`, JSON.stringify({ state: 'idle', session_id: null, since: T0, beat: T0 }))
+  // Already older than STALE_MS (6000ms) the moment the first poll reads it.
+  files.set(`${DIR}/outbox/${SESSION}.json`, JSON.stringify({ id: 'stale', text: 'bonjour', ts: T0 - 7000 }))
+
+  await $.ui.mount({ plugin: 'voxscribe', surface: 'terminal', component: 'AbovePrompt', props: PROPS })
+  await clock.advance(1500)
+
+  expect(submitted).toEqual([])
+  expect(files.has(`${DIR}/outbox/stale.ack`)).toBe(false)
+})
+
+test('an oversized outbox text is never submitted', async ($, on) => {
+  const files = new Map<string, string>()
+  const clock = world(on, files)
+  const submitted: string[] = []
+  on('prompt.submit', ($, e) => {
+    submitted.push(e.text)
+    return new Promise(() => undefined)
+  })
+  files.set(`${DIR}/status.json`, JSON.stringify({ state: 'idle', session_id: null, since: T0, beat: T0 }))
+  files.set(`${DIR}/outbox/${SESSION}.json`, JSON.stringify({ id: 'big', text: 'x'.repeat(40_000), ts: T0 }))
+
+  await $.ui.mount({ plugin: 'voxscribe', surface: 'terminal', component: 'AbovePrompt', props: PROPS })
+  await clock.advance(1500)
+
+  expect(submitted).toEqual([])
+  expect(files.has(`${DIR}/outbox/big.ack`)).toBe(false)
+})
+
+test('a blank outbox text is never submitted', async ($, on) => {
+  const files = new Map<string, string>()
+  const clock = world(on, files)
+  const submitted: string[] = []
+  on('prompt.submit', ($, e) => {
+    submitted.push(e.text)
+    return new Promise(() => undefined)
+  })
+  files.set(`${DIR}/status.json`, JSON.stringify({ state: 'idle', session_id: null, since: T0, beat: T0 }))
+  files.set(`${DIR}/outbox/${SESSION}.json`, JSON.stringify({ id: 'blank', text: '   ', ts: T0 }))
+
+  await $.ui.mount({ plugin: 'voxscribe', surface: 'terminal', component: 'AbovePrompt', props: PROPS })
+  await clock.advance(1500)
+
+  expect(submitted).toEqual([])
+  expect(files.has(`${DIR}/outbox/blank.ack`)).toBe(false)
+})
+
 test('cibler arms this session until another one takes the target; parler asks for the mic', async ($, on) => {
   const files = new Map([[`${DIR}/status.json`, JSON.stringify({ state: 'idle', session_id: null, since: T0, beat: T0 })]])
   const clock = world(on, files)
