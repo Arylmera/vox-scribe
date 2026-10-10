@@ -249,9 +249,12 @@ public sealed class Composition : IAsyncDisposable
             engine.Changed += (_, _) =>
             {
                 // Changed fires at buffer rate for the meter; the band only cares about state.
-                if (live.State == shown) return;
-                shown = live.State;
-                bridge.PublishStatus(shown, live.CommandThisUtterance);
+                // Read live.State into a local once: a racing call could otherwise publish a
+                // newer or older value than the one just compared against `shown`.
+                var s = live.State;
+                if (s == shown) return;
+                shown = s;
+                bridge.PublishStatus(s, live.CommandThisUtterance);
             };
             bridge.Mic += (_, action) =>
             {

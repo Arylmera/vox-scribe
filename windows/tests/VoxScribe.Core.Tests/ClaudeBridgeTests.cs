@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using VoxScribe.Core;
 using VoxScribe.Testing;
@@ -88,6 +89,39 @@ public sealed class ClaudeBridgeTests : IDisposable
         using var bridge = Build();
         File.WriteAllText(Path.Combine(_dir, "target.json"), "{ not json");
         bridge.LiveTarget().ShouldBeNull();
+    }
+
+    /// <summary>
+    /// The module rewrites target.json non-atomically every beat; a read landing mid-write
+    /// must retry rather than fall back to the window-title path for a session still armed.
+    /// </summary>
+    [Fact]
+    public void A_target_file_corrupt_mid_write_is_still_found_on_retry()
+    {
+        using var bridge = Build();
+        File.WriteAllText(Path.Combine(_dir, "target.json"), "{ not json");
+
+        // A dedicated OS thread, not the (possibly busy) thread pool, so the rewrite lands
+        // well inside the retry window regardless of what else is running concurrently.
+        // Thread.Sleep under ~15 ms is imprecise on Windows (rounds to the timer quantum),
+        // which raced against the product's own retry sleep; a busy-wait on a stopwatch is
+        // not.
+        var rewrite = new Thread(() =>
+        {
+            var sw = Stopwatch.StartNew();
+            while (sw.ElapsedMilliseconds < 5) Thread.SpinWait(500);
+            Arm(Session, TimeSpan.Zero);
+        });
+        rewrite.Start();
+
+        try
+        {
+            bridge.LiveTarget().ShouldBe(Session);
+        }
+        finally
+        {
+            rewrite.Join();
+        }
     }
 
     [Fact]

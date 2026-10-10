@@ -185,19 +185,39 @@ public sealed partial class ClaudeBridge : IDisposable
     {
         try
         {
-            using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(_directory, "target.json")));
-            var root = json.RootElement;
-            if (!root.TryGetProperty("session_id", out var s) || s.ValueKind != JsonValueKind.String) return null;
-            if (!root.TryGetProperty("beat", out var b) || !b.TryGetInt64(out var beat)) return null;
-
-            var session = s.GetString()!;
-            if (!SessionId().IsMatch(session)) return null;
-            return Now - beat <= (long)Stale.TotalMilliseconds ? session : null;
+            return ReadTarget();
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException)
+        catch (Exception e) when (e is JsonException or IOException)
+        {
+            // The module rewrites target.json non-atomically every beat: a read landing
+            // mid-write throws. One retry outlasts that window instead of falling back to
+            // the window-title path for a session that is, in fact, still armed.
+            Thread.Sleep(20);
+            try
+            {
+                return ReadTarget();
+            }
+            catch (Exception e2) when (e2 is IOException or UnauthorizedAccessException or JsonException)
+            {
+                return null;
+            }
+        }
+        catch (UnauthorizedAccessException)
         {
             return null;
         }
+    }
+
+    private string? ReadTarget()
+    {
+        using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(_directory, "target.json")));
+        var root = json.RootElement;
+        if (!root.TryGetProperty("session_id", out var s) || s.ValueKind != JsonValueKind.String) return null;
+        if (!root.TryGetProperty("beat", out var b) || !b.TryGetInt64(out var beat)) return null;
+
+        var session = s.GetString()!;
+        if (!SessionId().IsMatch(session)) return null;
+        return Now - beat <= (long)Stale.TotalMilliseconds ? session : null;
     }
 
     /// <summary>
