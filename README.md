@@ -14,6 +14,7 @@
 ![.NET 10](https://img.shields.io/badge/.NET-10-6A3D9A?style=flat-square&logo=dotnet&logoColor=white)
 ![Avalonia](https://img.shields.io/badge/UI-Avalonia-1E1A15?style=flat-square)
 ![Speech: local or remote](https://img.shields.io/badge/speech-local%20or%20remote-4D6A35?style=flat-square)
+[![MIT licence](https://img.shields.io/badge/licence-MIT-6B6153?style=flat-square)](LICENSE)
 
 **Push-to-talk dictation for Windows.** Hold a key, talk, let go —<br>
 and the sentence is typed into whatever had focus. Any app, any text field.
@@ -274,6 +275,11 @@ things that look fine and will bite you — pinned package versions, why the pla
 loaded by reflection, why the keyboard hook must never swallow keys. The correction
 dictionary's behaviour is specified by its test vectors, not by the code: change the vectors
 first, then make them pass.
+
+## 📄 Licence
+
+[MIT](LICENSE) — use it, change it, share it. The bundled fonts keep their own SIL Open Font
+Licences, next to each font under `windows/src/VoxScribe.App/Assets/Fonts/`.
 
 <br>
 
