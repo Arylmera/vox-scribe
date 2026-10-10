@@ -4,7 +4,7 @@ using VoxScribe.Core;
 
 namespace VoxScribe.App.Views.Settings;
 
-/// <summary>History and start-up.</summary>
+/// <summary>History, start-up and the installed version.</summary>
 internal static class GeneralSection
 {
     /// <summary>Builds the section.</summary>
@@ -19,6 +19,9 @@ internal static class GeneralSection
                 Panels.Toggle("Start Vox-Scribe when I log in, minimised to the tray",
                     PlatformFactory.IsLaunchAtLoginEnabled(),
                     PlatformFactory.SetLaunchAtLogin),
+
+                // From Directory.Version.props, the one version source, so it is the installed build.
+                Panels.Note($"Vox-Scribe {typeof(GeneralSection).Assembly.GetName().Version?.ToString(3)}"),
             },
         });
 }
