@@ -74,6 +74,9 @@ public sealed record SettingsData
     /// </remarks>
     public bool AnchorFocus { get; set; } = true;
 
+    /// <summary>Whether to look for a newer release at start-up. It only ever offers.</summary>
+    public bool CheckUpdatesAtStartup { get; set; } = true;
+
     /// <summary>Whether to keep a transcript history.</summary>
     public bool KeepHistory { get; set; } = true;
 

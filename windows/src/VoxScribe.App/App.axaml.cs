@@ -6,6 +6,7 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using VoxScribe.App.Design;
 using VoxScribe.App.Views;
+using VoxScribe.Core;
 using VoxScribe.Speech;
 
 namespace VoxScribe.App;
@@ -58,6 +59,8 @@ public partial class App : Application
                     Dispatcher.UIThread.Post(() => tray.ToolTipText = $"Vox-Scribe — {message}");
             }
 
+            if (settings.Data.CheckUpdatesAtStartup) _ = OfferUpdateAsync();
+
             // Closing the window leaves VoxScribe running in the tray — the hotkey still works,
             // which is the whole point of a dictation app. Quit is explicit, from the tray
             // menu or the app menu.
@@ -77,6 +80,36 @@ public partial class App : Application
     }
 
     private void OnTrayShow(object? sender, EventArgs e) => ShowMain();
+
+    /// <summary>
+    /// The start-up check: a newer release goes on the tray tooltip and the tray menu, which
+    /// opens Settings → GENERAL. Nothing is downloaded; offline simply means no offer.
+    /// </summary>
+    private async Task OfferUpdateAsync()
+    {
+        UpdateInfo? update;
+        try
+        {
+            update = await Updates.CheckAsync();
+        }
+        catch (Exception e) when (e is HttpRequestException or OperationCanceledException or System.Text.Json.JsonException)
+        {
+            return;
+        }
+
+        if (update is null || TrayIcon.GetIcons(this) is not [var tray, ..]) return;
+
+        var version = update.Version.ToString(3);
+        tray.ToolTipText = $"Vox-Scribe — version {version} is available";
+        var item = new NativeMenuItem($"Update to {version}…");
+        item.Click += (_, _) =>
+        {
+            ShowMain();
+            _main?.ShowSettings(SettingsTab.General);
+        };
+        tray.Menu?.Items.Insert(0, item);
+        tray.Menu?.Items.Insert(1, new NativeMenuItemSeparator());
+    }
 
     private void OnTraySettings(object? sender, EventArgs e)
     {
@@ -100,7 +133,10 @@ public partial class App : Application
         OnTrayQuit(this, EventArgs.Empty);
     }
 
-    private void OnTrayQuit(object? sender, EventArgs e)
+    private void OnTrayQuit(object? sender, EventArgs e) => Quit();
+
+    /// <summary>Exits for real, past the hide-to-tray guard.</summary>
+    public void Quit()
     {
         // Lift the hide-to-tray guard first, or Shutdown's window close gets cancelled
         // and the quit silently does nothing.

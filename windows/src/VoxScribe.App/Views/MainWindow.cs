@@ -98,6 +98,15 @@ public sealed class MainWindow : Window
         _composition?.Engine?.Start();
     }
 
+    /// <summary>Opens Settings on <paramref name="tab"/>.</summary>
+    internal void ShowSettings(SettingsTab tab)
+    {
+        if (_host.Content is SettingsPage open) open.CancelRecording();
+        _settingsTab = tab;
+        _host.Content = null;
+        ShowPage(AppPage.Settings);
+    }
+
     /// <summary>Opens <paramref name="page"/> and marks it in the navigation.</summary>
     public void ShowPage(AppPage page)
     {

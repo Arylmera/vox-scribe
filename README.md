@@ -96,6 +96,8 @@ and the sentence is typed into whatever had focus. Any app, any text field.
 4. Optional: set a **cleanup endpoint** in **Settings → Cleanup** to unlock the cleaned-up shortcut. No model ships with the app; it uses yours.
 
 VoxScribe lives in the tray. Closing the window hides it; **Quit** in the tray menu really exits.
+**Updates** are checked at start-up and offered, never forced: **Settings → General → Install**
+downloads the new installer, verifies its SHA-256 and restarts the app on the new version.
 It can start at login, minimised (**Settings → General**).
 
 ## ⌨ How to use it

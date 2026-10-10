@@ -124,7 +124,7 @@ dictations (`kubernets → kubernetes`), it appears at the top of the list with 
 | TYPING | When the text is typed (on release in the field where you started, as you speak, or on release wherever you are), spoken punctuation (off) |
 | CLEANUP | OpenAI-compatible endpoint, model (`local-light`), API key, TEST CONNECTION; the /parle and /say read-aloud toggle |
 | SPEECH | Microphone, local model status and its DOWNLOAD MODEL button, or a remote OpenAI-compatible transcription endpoint + model + API key |
-| GENERAL | Keep history, start at login (minimised to tray) |
+| GENERAL | Keep history, start at login (minimised to tray), the installed version, CHECK FOR UPDATES / INSTALL, and whether to check at start-up (on). A start-up check only offers — on the tray tooltip and as an *Update to …* tray menu entry; INSTALL downloads the installer, verifies it against the SHA-256 in the release notes, installs it silently and restarts Vox-Scribe |
 | APPEARANCE | Theme — Paper (default), Orb, Tide, Mono or Fluent, each with its own dictation pill; accent colour from the theme's curated swatches. Both apply immediately, no restart; light or dark follows Windows |
 
 Speech settings (microphone, remote server) take effect at next start; the rest is
