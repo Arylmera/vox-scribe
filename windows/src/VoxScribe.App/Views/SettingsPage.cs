@@ -23,6 +23,9 @@ internal enum SettingsTab
     /// <summary>The four chords.</summary>
     Shortcuts,
 
+    /// <summary>The Claude Code plugin and the command window.</summary>
+    Claude,
+
     /// <summary>Where and when text is typed.</summary>
     Typing,
 
@@ -33,7 +36,7 @@ internal enum SettingsTab
     Appearance,
 }
 
-/// <summary>Settings as a page of the main window: six tabs over the existing sections.</summary>
+/// <summary>Settings as a page of the main window: seven tabs over the existing sections.</summary>
 internal sealed class SettingsPage : UserControl
 {
     /// <summary>Escape cancels a recording rather than becoming the trigger.</summary>
@@ -84,6 +87,7 @@ internal sealed class SettingsPage : UserControl
         _sections[SettingsTab.General] = GeneralSection.Build(_settings, Save);
         _sections[SettingsTab.Speech] = SpeechSection.Build(_settings, Save);
         _sections[SettingsTab.Shortcuts] = ShortcutsSection.Build(_settings, Save, _keys, _keyWarning);
+        _sections[SettingsTab.Claude] = ClaudeSection.Build(_settings, Save, ClaudePlugin.RunAsync);
         _sections[SettingsTab.Typing] = TypingSection.Build(_settings, Save);
         _sections[SettingsTab.Cleanup] = CleanupSection.Build(_settings, Save);
         _sections[SettingsTab.Appearance] = AppearanceSection.Build(_settings, Save, engine);

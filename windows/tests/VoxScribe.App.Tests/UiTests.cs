@@ -359,7 +359,7 @@ public sealed class PanelsTests
     }
 }
 
-/// <summary>Settings is a page of the main window, in six tabs.</summary>
+/// <summary>Settings is a page of the main window, in seven tabs.</summary>
 public sealed class SettingsPageTests : IDisposable
 {
     private readonly string _path = Path.Combine(
@@ -369,7 +369,7 @@ public sealed class SettingsPageTests : IDisposable
     public void Dispose() { if (File.Exists(_path)) File.Delete(_path); }
 
     [AvaloniaFact]
-    public void Six_tabs_in_order_each_showing_its_section()
+    public void Seven_tabs_in_order_each_showing_its_section()
     {
         var page = new SettingsPage(new AppSettings(_path), null, SettingsTab.General);
         var window = new Window { Content = page };
@@ -380,7 +380,8 @@ public sealed class SettingsPageTests : IDisposable
             .Where(n => n?.StartsWith("Settings tab: ", StringComparison.Ordinal) == true)
             .ShouldBe([
                 "Settings tab: General", "Settings tab: Speech", "Settings tab: Shortcuts",
-                "Settings tab: Typing", "Settings tab: Cleanup", "Settings tab: Appearance",
+                "Settings tab: Claude", "Settings tab: Typing", "Settings tab: Cleanup",
+                "Settings tab: Appearance",
             ]);
 
         foreach (var tab in Enum.GetValues<SettingsTab>())
@@ -389,8 +390,9 @@ public sealed class SettingsPageTests : IDisposable
             Avalonia.Threading.Dispatcher.UIThread.RunJobs();
 
             page.Tab.ShouldBe(tab);
+            var title = tab == SettingsTab.Claude ? "CLAUDE CODE" : tab.ToString().ToUpperInvariant();
             page.GetVisualDescendants().OfType<Silkscreen>().Where(s => s.IsLarge).Select(s => s.Text)
-                .ShouldContain(tab.ToString().ToUpperInvariant());
+                .ShouldContain(title);
         }
     }
 

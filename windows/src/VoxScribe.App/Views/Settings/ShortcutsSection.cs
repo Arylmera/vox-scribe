@@ -29,10 +29,6 @@ internal static class ShortcutsSection
         AppSettings settings, Action<SettingsData> save,
         IReadOnlyDictionary<ShortcutSlot, TransportKey> keys, TextBlock warning)
     {
-        var commandTitle = Panels.Field("Claude",
-            settings.Data.CommandWindowTitle,
-            v => save(settings.Data with { CommandWindowTitle = v ?? "Claude" }));
-
         return Panels.Section("SHORTCUTS", new StackPanel
         {
             Spacing = Tokens.Space.Snug,
@@ -55,12 +51,8 @@ internal static class ShortcutsSection
                     + "recording Escape is left alone, so it keeps its usual meaning everywhere."),
                 Panels.Labelled("COMMAND", keys[ShortcutSlot.Command]),
                 Panels.Note("Dictate at Claude Code instead of at a text field: the transcript "
-                    + "(tidied when a cleanup model is set) is typed into the window below and "
-                    + "submitted with Return, whatever has focus. Escape unbinds."),
-                Panels.Labelled("COMMAND WINDOW TITLE CONTAINS", commandTitle),
-                Panels.Note("The first visible window whose title contains this text. \"Claude\" "
-                    + "matches the desktop app and a terminal tab running Claude Code. If no "
-                    + "window matches, nothing is typed anywhere and the pill says so."),
+                    + "(tidied when a cleanup model is set) goes to the Claude Code session armed in "
+                    + "its band, or else to the window set under CLAUDE, and is submitted. Escape unbinds."),
                 Panels.Toggle("Toggle mode — press once to start, press again to stop",
                     settings.Data.PushToTalkToggle,
                     v => save(settings.Data with { PushToTalkToggle = v })),
