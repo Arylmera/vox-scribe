@@ -139,7 +139,8 @@ static Composition Seed(string dir)
         engine: null,
         platformAvailable: false,
         injector: null,
-        readAloud: null);
+        readAloud: null,
+        claude: null);
 }
 
 internal sealed class ShotApp : Application

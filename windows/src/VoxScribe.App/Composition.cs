@@ -30,7 +30,8 @@ public sealed class Composition : IAsyncDisposable
         DictationEngine? engine,
         bool platformAvailable,
         ITextInjector? injector,
-        ReadAloud? readAloud)
+        ReadAloud? readAloud,
+        ClaudeBridge? claude)
     {
         ReadAloud = readAloud;
         Settings = settings;
@@ -39,6 +40,7 @@ public sealed class Composition : IAsyncDisposable
         Engine = engine;
         IsPlatformAvailable = platformAvailable;
         Injector = injector;
+        Claude = claude;
     }
 
     /// <summary>User preferences.</summary>
@@ -55,6 +57,9 @@ public sealed class Composition : IAsyncDisposable
 
     /// <summary>The /parle player, or null when no platform layer is available.</summary>
     public ReadAloud? ReadAloud { get; }
+
+    /// <summary>The Claude Code band's bridge, or null when no platform layer is available.</summary>
+    public ClaudeBridge? Claude { get; }
 
     /// <summary>Whether real audio and hotkey support were found.</summary>
     public bool IsPlatformAvailable { get; }
@@ -103,6 +108,7 @@ public sealed class Composition : IAsyncDisposable
 
         DictationEngine? engine = null;
         ReadAloud? readAloud = null;
+        ClaudeBridge? claude = null;
         var available = capture is not null && hotkey is not null && injector is not null;
 
         if (available)
@@ -232,6 +238,31 @@ public sealed class Composition : IAsyncDisposable
                 }
             }
 
+            // The voxscribe plugin's band: an armed Claude Code session takes the command chord's
+            // text, and its microphone button drives the same command dictation. Without the
+            // plugin no session is ever armed and command mode is exactly what it was.
+            claude = new ClaudeBridge(ClaudeBridge.DefaultDirectory);
+            var bridge = claude;
+            engine.DeliverToClaude = bridge.TryDeliverAsync;
+            var shown = engine.State;
+            engine.Changed += (_, _) =>
+            {
+                // Changed fires at buffer rate for the meter; the band only cares about state.
+                if (live.State == shown) return;
+                shown = live.State;
+                bridge.PublishStatus(shown, live.CommandThisUtterance);
+            };
+            bridge.Mic += (_, action) =>
+            {
+                switch (action)
+                {
+                    case MicAction.Start: live.BeginCommand(); break;
+                    case MicAction.Stop: live.EndUtterance(); break;
+                    case MicAction.Cancel: _ = live.CancelAsync(); break;
+                }
+            };
+            bridge.Start();
+
             engine.Completed += (_, result) =>
             {
                 if (!settings.Data.KeepHistory) return;
@@ -248,13 +279,14 @@ public sealed class Composition : IAsyncDisposable
             };
         }
 
-        return new Composition(settings, dictionary, transcripts, engine, available, injector, readAloud);
+        return new Composition(settings, dictionary, transcripts, engine, available, injector, readAloud, claude);
     }
 
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
         ReadAloud?.Dispose();
+        Claude?.Dispose();
         if (Engine is not null) await Engine.DisposeAsync().ConfigureAwait(false);
     }
 }
