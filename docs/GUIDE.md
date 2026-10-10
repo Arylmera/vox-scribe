@@ -72,16 +72,16 @@ key during a recording.
 ## Undoing the last dictation
 
 Wrong window, mangled sentence, accidental press: press the **undo shortcut** (Settings →
-SHORTCUTS → UNDO, not bound by default), or open the main window and click **UNDO** in the
-voice band (top strip, next to the tape counter). Either deletes the last dictation's text
+SHORTCUTS → UNDO, not bound by default). It deletes the last dictation's text
 from wherever it was typed by sending the right number of backspaces — so do it while the
 caret is still where the text landed. One dictation deep.
 
 ## Main window
 
-Left icon rail: **Transcriptions** (wave), **Dictionary** (book), **Settings** (gear at the
-foot). The voice band on top has a record button (click = same as the push-to-talk key), a
-VU meter, the tape counter and UNDO.
+A sidebar with **Home**, **History**, **Dictionary** and **Settings**. Home shows the status
+line (speech engine, cleanup model, push-to-talk key), this week's words, your pace, time
+saved and streak, then the latest dictations with **copy** and **retype** buttons, and the
+four shortcuts at the foot.
 
 Closing the window hides it to the tray; the app keeps listening for the shortcut. Only
 the tray menu's **Quit** really exits.
@@ -118,7 +118,7 @@ dictations (`kubernets → kubernetes`), it appears at the top of the list with 
 | CLEANUP | OpenAI-compatible endpoint, model (`local-light`), API key, TEST CONNECTION; the /parle and /say read-aloud toggle |
 | SPEECH | Microphone, local model status and its DOWNLOAD MODEL button, or a remote OpenAI-compatible transcription endpoint + model + API key |
 | GENERAL | Keep history, start at login (minimised to tray) |
-| APPEARANCE | Theme — Deep Field (dark), Signal House (warm hardware), Manuscript (paper-light, serif transcripts); an APPLY key restarts the app with the new theme. Accent colour — five swatches, applies immediately |
+| APPEARANCE | Theme — Paper (default), Orb, Tide, Mono or Fluent, each with its own dictation pill; accent colour from the theme's curated swatches. Both apply immediately, no restart; light or dark follows Windows |
 
 Speech settings (microphone, remote server) take effect at next start; the rest is
 immediate.
