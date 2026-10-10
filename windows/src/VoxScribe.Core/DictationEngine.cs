@@ -293,6 +293,32 @@ public sealed class DictationEngine : IAsyncDisposable
         Toggle();
     }
 
+    /// <summary>
+    /// Starts a command dictation from the Claude Code band's microphone button. Ignored unless
+    /// idle — the engine already refuses a second start.
+    /// </summary>
+    /// <remarks>Never anchors: the band's own session is the target, found at release.</remarks>
+    public void BeginCommand()
+    {
+        if (State != DictationState.Idle) return;
+        _cleanThisUtterance = true;
+        CommandThisUtterance = true;
+        _anchorRequested = false;
+        _ = BeginAsync();
+    }
+
+    /// <summary>
+    /// Ends the dictation in progress as a key release would, in either mode: toggle mode ignores
+    /// releases, and the band's Envoyer button must still stop. No-op unless recording.
+    /// </summary>
+    public void EndUtterance() => _ = EndAsync();
+
+    /// <summary>
+    /// Hands a finished command to the armed Claude Code session before the window-title path is
+    /// tried. Null — no plugin bridge — leaves command mode exactly as it was.
+    /// </summary>
+    public Func<string, CancellationToken, Task<ClaudeDelivery>>? DeliverToClaude { get; set; }
+
     // Backspace pacing mirrors the Windows injector's typing cadence (bursts with a
     // small settle gap) so slow target apps don't drop keystrokes.
     private const int BackspaceBurst = 40;
@@ -698,6 +724,31 @@ public sealed class DictationEngine : IAsyncDisposable
     /// </summary>
     private async Task SendCommandAsync(string text)
     {
+        if (DeliverToClaude is { } deliver)
+        {
+            ClaudeDelivery outcome;
+#pragma warning disable CA1031 // any failure of the bridge must stay inside Vox-Scribe
+            try
+            {
+                outcome = await deliver(text, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                // The outbox may already be written: typing as well could send it twice.
+                outcome = ClaudeDelivery.NotAcknowledged;
+            }
+#pragma warning restore CA1031
+
+            // Not journalled when delivered: undo backspaces into the focused window, and this
+            // text was submitted in Claude Code, never typed there.
+            if (outcome == ClaudeDelivery.Delivered) return;
+            if (outcome == ClaudeDelivery.NotAcknowledged)
+            {
+                ReportNotice("Claude Code did not take the command — command not sent");
+                return;
+            }
+        }
+
         var target = _focusAnchor is null
             ? null
             : await _focusAnchor.FindAsync(CommandWindowTitle, CancellationToken.None).ConfigureAwait(false);
