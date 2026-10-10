@@ -20,6 +20,14 @@ namespace VoxScribe.Platform.Windows;
 /// some terminals and Electron apps drop characters when thousands of synthetic keystrokes
 /// arrive back to back.
 /// </para>
+/// <para>
+/// <b>Classic Win32 text controls get the text directly.</b> When the focused control is an
+/// Edit or RichEdit — Windows 11 Notepad's editor is <c>RichEditD2DPT</c> — the text goes in
+/// with <c>EM_REPLACESEL</c>, as one undoable insertion at the caret. Notepad's autocorrect
+/// rewrites words while synthetic keystrokes are still arriving and mangles them
+/// ("eeeeees cccccc…"), even at one character per 15 ms; measured against the real Notepad in
+/// October 2026, the direct insertion came through exact every time.
+/// </para>
 /// </remarks>
 public sealed class SendInputTextInjector : ITextInjector
 {
@@ -103,6 +111,46 @@ public sealed class SendInputTextInjector : ITextInjector
     [DllImport("user32.dll")]
     private static extern short GetAsyncKeyState(int virtualKey);
 
+    private const uint EM_REPLACESEL = 0x00C2;
+    private const int GWL_STYLE = -16;
+    private const long ES_READONLY = 0x0800;
+    private const uint SMTO_ABORTIFHUNG = 0x0002;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RECT
+    {
+        public int Left, Top, Right, Bottom;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct GUITHREADINFO
+    {
+        public int Size;
+        public uint Flags;
+        public IntPtr Active, Focus, Capture, MenuOwner, MoveSize, Caret;
+        public RECT CaretRect;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetGUIThreadInfo(uint threadId, ref GUITHREADINFO info);
+
+    [DllImport("user32.dll", EntryPoint = "GetClassNameW", CharSet = CharSet.Unicode)]
+    private static extern int GetClassName(IntPtr window, char[] name, int capacity);
+
+    [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
+    private static extern IntPtr GetWindowLongPtr(IntPtr window, int index);
+
+    [DllImport("user32.dll", EntryPoint = "SendMessageTimeoutW", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern IntPtr SendMessageTimeout(
+        IntPtr window, uint message, nint wParam, string lParam, uint flags, uint timeout, out nint result);
+
     [DllImport("user32.dll", EntryPoint = "MapVirtualKeyW")]
     private static extern uint MapVirtualKey(uint code, uint mapType);
 
@@ -120,6 +168,8 @@ public sealed class SendInputTextInjector : ITextInjector
     public async ValueTask<bool> InjectAsync(string text, CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(text)) return true;
+
+        if (TryReplaceSelection(text)) return true;
 
         // Newlines sent as Unicode packets do not reliably produce a new line — many controls
         // want a real VK_RETURN. Long text goes to the clipboard anyway, which handles them.
@@ -158,6 +208,37 @@ public sealed class SendInputTextInjector : ITextInjector
 
         INPUT[] enter = [KeyInput(VK_RETURN, up: false), KeyInput(VK_RETURN, up: true)];
         return ValueTask.FromResult(SendInput(2, enter, InputSize) == 2);
+    }
+
+    /// <summary>
+    /// Inserts <paramref name="text"/> at the caret of the focused control when it is a writable
+    /// Edit or RichEdit; false when it is anything else, so the caller types instead.
+    /// </summary>
+    private static bool TryReplaceSelection(string text)
+    {
+        var foreground = GetForegroundWindow();
+        if (foreground == IntPtr.Zero) return false;
+
+        var info = new GUITHREADINFO { Size = Marshal.SizeOf<GUITHREADINFO>() };
+        if (!GetGUIThreadInfo(GetWindowThreadProcessId(foreground, out _), ref info)) return false;
+
+        var focus = info.Focus;
+        if (focus == IntPtr.Zero) return false;
+
+        var name = new char[64];
+        var length = GetClassName(focus, name, name.Length);
+        var className = new string(name, 0, Math.Max(length, 0));
+        var isEdit = className.Equals("Edit", StringComparison.OrdinalIgnoreCase)
+            || className.StartsWith("RichEdit", StringComparison.OrdinalIgnoreCase);
+
+        // EM_REPLACESEL ignores ES_READONLY, so a read-only field must be left to typing,
+        // which it rejects on its own.
+        if (!isEdit || (GetWindowLongPtr(focus, GWL_STYLE).ToInt64() & ES_READONLY) != 0) return false;
+
+        // Edit controls break lines on CRLF. A hung or higher-integrity target fails the call
+        // instead of blocking it, and typing gets its chance.
+        var normalized = text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace("\n", "\r\n", StringComparison.Ordinal);
+        return SendMessageTimeout(focus, EM_REPLACESEL, 1, normalized, SMTO_ABORTIFHUNG, 1000, out _) != IntPtr.Zero;
     }
 
     /// <summary>Types arbitrary text as Unicode packets.</summary>
