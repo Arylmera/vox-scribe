@@ -48,7 +48,18 @@ internal static class ClaudeSection
 
         async Task RefreshAsync()
         {
-            installed = await ClaudePlugin.CheckAsync(run, CancellationToken.None);
+#pragma warning disable CA1031 // a failing claude CLI must never take the app down
+            try
+            {
+                installed = await ClaudePlugin.CheckAsync(run, CancellationToken.None);
+            }
+            catch (Exception e)
+            {
+                status.Text = $"Could not ask claude: {e.Message}";
+                button.IsEnabled = false;
+                return;
+            }
+#pragma warning restore CA1031
             status.Text = installed switch
             {
                 true => "Installed for Claude Code.",
@@ -62,10 +73,23 @@ internal static class ClaudeSection
         button.Click += async (_, _) =>
         {
             button.IsEnabled = false;
-            status.Text = installed == true ? "Uninstalling…" : "Installing…";
-            var error = installed == true
-                ? await ClaudePlugin.UninstallAsync(run, CancellationToken.None)
-                : await ClaudePlugin.InstallAsync(run, CancellationToken.None);
+            var wasInstalled = installed == true;
+            status.Text = wasInstalled ? "Uninstalling…" : "Installing…";
+            string? error;
+#pragma warning disable CA1031 // a failing claude CLI must never take the app down
+            try
+            {
+                error = wasInstalled
+                    ? await ClaudePlugin.UninstallAsync(run, CancellationToken.None)
+                    : await ClaudePlugin.InstallAsync(run, CancellationToken.None);
+            }
+            catch (Exception e)
+            {
+                status.Text = $"{(wasInstalled ? "Uninstall" : "Install")} failed: {e.Message}";
+                button.IsEnabled = true;
+                return;
+            }
+#pragma warning restore CA1031
             await RefreshAsync();
             if (error is not null) status.Text = $"{status.Text} {error}";
         };

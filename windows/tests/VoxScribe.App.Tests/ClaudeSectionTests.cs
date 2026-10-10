@@ -52,4 +52,18 @@ public sealed class ClaudeSectionTests
 
         calls.ShouldContain("plugin uninstall voxscribe@vox-scribe");
     }
+
+    [AvaloniaFact]
+    public async Task A_throwing_cli_is_reported_instead_of_crashing_the_app()
+    {
+        ClaudePlugin.Runner cli = (_, _) => throw new InvalidOperationException("boom");
+        var section = ClaudeSection.Build(Settings(), _ => { }, cli);
+        new Window { Content = section }.Show(); // attaching triggers the refresh that throws
+
+        var deadline = DateTime.UtcNow.AddSeconds(1);
+        while (DateTime.UtcNow < deadline && !Texts(section).Any(t => t?.Contains("boom") == true))
+            await Task.Delay(10);
+
+        Texts(section).ShouldContain(t => t != null && t.Contains("boom"));
+    }
 }
