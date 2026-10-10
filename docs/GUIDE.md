@@ -145,7 +145,7 @@ never stored in plain text.
 
 In Claude Code, type **`/parle`** and Vox-Scribe reads the previous reply aloud in French;
 **`/say`** does the same in English, translating if needed. The reply is rewritten for the ear
-first — no paths, no tables, four to eight sentences — then spoken while the rest renders.
+first — no paths, no tables, under 30 seconds spoken — then spoken while the rest renders.
 Push-to-talk or Escape stops it; a new `/parle` replaces it. The command itself never reaches
 the model, so it costs nothing.
 
@@ -156,8 +156,17 @@ the model, so it costs nothing.
 /plugin install voxscribe@vox-scribe
 ```
 
-The plugin is a hook and two commands; it only tells Vox-Scribe which conversation to read.
-It needs Windows PowerShell, which every Windows machine has.
+Or press INSTALL under **Settings → Claude**. The plugin is a hook, two commands and a band;
+it only tells Vox-Scribe which conversation to read and where to send a dictation. It needs
+Windows PowerShell, which every Windows machine has.
+
+**The band above the prompt.** Each Claude Code session shows a one-line band while Vox-Scribe
+runs, and none while it is closed. **🎯 cibler** arms the session: the COMMAND shortcut, held in
+any window, then sends its transcript to that session instead of typing into the window titled
+“Claude” — one session at a time, the last armed wins. **🎙 parler** dictates from the band
+(**■ envoyer** / **✕ annuler**); **🔊 fr** and **🔊 en** are `/parle` and `/say`. The desktop
+app draws the band as is; a terminal needs `"CLAUDE_CODE_ENABLE_FUNCTION_HOOKS": "1"` under
+`env` in `~/.claude/settings.json` (COPY THE LINE under **Settings → Claude**), then a restart.
 
 **What your endpoint must serve.** Read-aloud uses the CLEANUP endpoint and key (the SPEECH
 ones when cleanup is unset), and two model names on it:

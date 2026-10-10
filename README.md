@@ -23,7 +23,7 @@ and the sentence is typed into whatever had focus. Any app, any text field.
 
 <a href="https://github.com/Arylmera/vox-scribe/releases/latest"><img src="https://img.shields.io/badge/Download_for_Windows-6A3D9A?style=for-the-badge&logo=windows11&logoColor=white" alt="Download for Windows" height="44"></a>
 
-<sub><a href="#-install">Install</a> · <a href="#-how-to-use-it">How to use it</a> · <a href="#-themes">Themes</a> · <a href="#-claude-code-reads-its-replies-aloud">Claude Code</a> · <a href="docs/GUIDE.md">User guide</a> · <a href="#-build-from-source">Build</a></sub>
+<sub><a href="#-install">Install</a> · <a href="#-how-to-use-it">How to use it</a> · <a href="#-themes">Themes</a> · <a href="#-talk-to-claude-code">Claude Code</a> · <a href="docs/GUIDE.md">User guide</a> · <a href="#-build-from-source">Build</a></sub>
 
 </div>
 
@@ -66,8 +66,8 @@ and the sentence is typed into whatever had focus. Any app, any text field.
 </td>
 <td valign="top">
 
-**🤖 Talks to Claude Code**<br>
-<sub>A command chord types your prompt straight into Claude Code and presses Return. <code>/parle</code> and <code>/say</code> read its reply back to you.</sub>
+**🤖 Talk to Claude Code, from anywhere**<br>
+<sub>Arm a session in its band, then dictate from your browser, your IDE, anywhere: the prompt lands in <i>that</i> session and is sent. It reads the reply back to you too. <a href="#-talk-to-claude-code">See it</a>.</sub>
 
 </td>
 <td valign="top">
@@ -110,7 +110,7 @@ because Right Alt is AltGr on many keyboard layouts. Every shortcut can be re-re
 |---|---|---|
 | **Raw** | <kbd>Right Ctrl</kbd> | Types the transcript as it was heard |
 | **Cleanup** | *not bound* | Fixes punctuation, capitals and filler words through your model, then types it |
-| **Command** | *not bound* | Types the transcript into the Claude Code window and presses <kbd>Enter</kbd> — even if it isn't focused |
+| **Command** | *not bound* | Sends the transcript to the [armed Claude Code session](#-talk-to-claude-code) — or types it into the Claude window and presses <kbd>Enter</kbd> — even if it isn't focused |
 | **Undo** | *not bound* | Erases the last dictation from wherever it was typed |
 | **Cancel** | <kbd>Esc</kbd> | While recording: stop, type nothing |
 
@@ -206,20 +206,84 @@ pill. Switching is instant — no restart. *These previews follow your GitHub li
 
 <sub>…and <b>Paper</b>, the warm editorial default shown above. Every text colour in every theme, mode and accent is checked for WCAG AA contrast by the test suite.</sub>
 
-## 🤖 Claude Code reads its replies aloud
+## 🤖 Talk to Claude Code
 
-Type **`/parle`** (French) or **`/say`** (English) in Claude Code and VoxScribe speaks the
-previous reply — rewritten for the ear first: no paths, no tables, a few plain sentences.
-Push-to-talk or <kbd>Esc</kbd> stops it. Install the plugin once, from Claude Code:
+<picture>
+  <img src="docs/assets/claude-band.svg" alt="The Vox-Scribe band above Claude Code's prompt: the session is armed, a dictation made from another window is recorded, transcribed and sent into it" width="100%">
+</picture>
 
-```text
-/plugin marketplace add Arylmera/vox-scribe
-/plugin install voxscribe@vox-scribe
-```
+VoxScribe draws a **band above Claude Code's prompt**. Arm a session once, then keep working
+wherever you like — reading docs in the browser, testing the app, in another editor. Hold the
+**command** shortcut, say what you want, let go: the prompt lands in *that* session and is
+sent, without stealing focus from the window you are in. When Claude answers, one click reads
+the reply back to you. Hands off the keyboard, eyes off the terminal.
 
-Read-aloud uses your cleanup endpoint for the rewrite and a text-to-speech model on it for the
-voice — see [what the endpoint must serve](docs/GUIDE.md#reading-claude-code-replies-aloud).
-Pair it with the **command** shortcut and you can talk to Claude Code without touching the keyboard.
+<table>
+<tr>
+<td width="50%" valign="top">
+
+**🎯 Aim once, dictate from anywhere**<br>
+<sub>The armed session is the target of the command shortcut, from any window. One session is armed at a time; the last one armed wins. No session armed? The shortcut types into the window titled “Claude”, as before.</sub>
+
+</td>
+<td width="50%" valign="top">
+
+**🎙 Or just click and talk**<br>
+<sub><b>parler</b> starts a dictation from the band itself; <b>■ envoyer</b> sends it, <b>✕ annuler</b> drops it. A live waveform and timer show it is listening.</sub>
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+**🔊 Hear the answer**<br>
+<sub><b>🔊 fr</b> and <b>🔊 en</b> — or <code>/parle</code> and <code>/say</code> — read the last reply aloud, rewritten for the ear first: no paths, no tables, under 30 seconds. Push-to-talk or <kbd>Esc</kbd> stops it.</sub>
+
+</td>
+<td valign="top">
+
+**🛡 Never in the way**<br>
+<sub>Close VoxScribe and the band disappears from every session; start it and it comes back. If anything fails, only VoxScribe fails — your prompt and Claude Code are never touched, and a prompt is never sent twice or to the wrong place.</sub>
+
+</td>
+</tr>
+</table>
+
+### Set it up
+
+1. **Install the plugin** — **Settings → Claude → INSTALL** in VoxScribe. Or, from Claude Code:
+   ```text
+   /plugin marketplace add Arylmera/vox-scribe
+   /plugin install voxscribe@vox-scribe
+   ```
+   Then restart your Claude Code sessions (or run `/reload-plugins`).
+2. **Bind the command shortcut** — **Settings → Shortcuts → COMMAND**, and record any chord.
+3. **In a terminal only**, the band needs one line in `~/.claude/settings.json`, then a restart —
+   **Settings → Claude → COPY THE LINE** puts it on your clipboard:
+   ```json
+   "env": { "CLAUDE_CODE_ENABLE_FUNCTION_HOOKS": "1" }
+   ```
+   The Claude desktop app draws the band without it. VoxScribe never edits that file for you.
+4. **For read-aloud**, your cleanup endpoint also serves the voice — see
+   [what the endpoint must serve](docs/GUIDE.md#reading-claude-code-replies-aloud).
+
+### Use it
+
+| In the band | What it does |
+|---|---|
+| `◎ Vox · prêt` | VoxScribe is running; this session is not the target |
+| **🎯 cibler** / **🎯 désarmer** | Arm this session as the command shortcut's target / let it go |
+| `◉ Vox · cible` | This session is armed: the command shortcut, from any window, lands here |
+| **🎙 parler** | Arm this session and start dictating — **■ envoyer** sends, **✕ annuler** drops |
+| `● 0:04 ▃▅▆▄` | Listening, with a live waveform — red means recording, nothing else |
+| `⠂ Vox · transcription…` | Transcribing; the prompt is sent the moment it is ready |
+| **🔊 fr** / **🔊 en** | Read Claude's last reply aloud, in French / English |
+| *no band* | VoxScribe is not running |
+
+> [!NOTE]
+> The band uses Claude Code's plugin-module API, which is still experimental. If a Claude Code
+> update breaks it, the band goes away and everything else — `/parle`, `/say`, the command
+> shortcut by window title — keeps working.
 
 ## 🔐 Privacy
 
