@@ -172,4 +172,50 @@ public sealed class ClaudeBridgeTests : IDisposable
 
         throw new ShouldAssertException($"status.json never reached \"{state}\"");
     }
+
+    [Theory]
+    [InlineData("start", MicAction.Start)]
+    [InlineData("stop", MicAction.Stop)]
+    [InlineData("cancel", MicAction.Cancel)]
+    public void A_mic_request_is_read(string action, MicAction expected)
+    {
+        var now = _clock.Now.ToUnixTimeMilliseconds();
+        var json = JsonSerializer.Serialize(new { session_id = Session, action, ts = now - 500 });
+
+        ClaudeBridge.ParseMic(json, now).ShouldBe((Session, expected, now - 500));
+    }
+
+    /// <summary>A request left on disk by an earlier run must not start a recording.</summary>
+    [Fact]
+    public void An_old_mic_request_is_ignored()
+    {
+        var now = _clock.Now.ToUnixTimeMilliseconds();
+        var json = JsonSerializer.Serialize(new { session_id = Session, action = "start", ts = now - 10_001 });
+
+        ClaudeBridge.ParseMic(json, now).ShouldBeNull();
+    }
+
+    [Theory]
+    [InlineData("{ broken")]
+    [InlineData("{\"session_id\":\"a/b\",\"action\":\"start\",\"ts\":0}")]
+    [InlineData("{\"session_id\":\"abc\",\"action\":\"explode\",\"ts\":0}")]
+    public void A_malformed_mic_request_is_ignored(string json) =>
+        ClaudeBridge.ParseMic(json, 0).ShouldBeNull();
+
+    [Fact]
+    public async Task A_mic_request_written_after_start_is_raised_once()
+    {
+        using var bridge = new ClaudeBridge(_dir);
+        var seen = new List<MicAction>();
+        bridge.Mic += (_, a) => { lock (seen) seen.Add(a); };
+        bridge.Start();
+
+        var json = JsonSerializer.Serialize(new { session_id = Session, action = "start", ts = DateTimeOffset.Now.ToUnixTimeMilliseconds() });
+        File.WriteAllText(Path.Combine(_dir, "mic.json"), json);
+        File.WriteAllText(Path.Combine(_dir, "mic.json"), json); // a second write of the same request
+
+        for (var i = 0; i < 300 && seen.Count == 0; i++) await Task.Delay(10);
+        await Task.Delay(300);
+        lock (seen) seen.ShouldBe([MicAction.Start]);
+    }
 }

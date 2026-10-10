@@ -62,10 +62,14 @@ public sealed partial class ClaudeBridge : IDisposable
     private readonly TimeSpan _ackTimeout;
     private readonly Lock _gate = new();
     private readonly Lock _writing = new();
+    private static readonly TimeSpan MicMaxAge = TimeSpan.FromSeconds(10);
     private string _state = "idle";
     private bool _command;
     private long _since;
     private Timer? _beat;
+    private FileSystemWatcher? _watcher;
+    private CancellationTokenSource? _pickUp;
+    private long _lastMic;
 
     /// <param name="directory">Where the files live; <see cref="DefaultDirectory"/> in the app.</param>
     /// <param name="clock">Judges beats; the system clock by default.</param>
@@ -101,7 +105,79 @@ public sealed partial class ClaudeBridge : IDisposable
             return;
         }
 
+        _watcher = new FileSystemWatcher(_directory, "mic.json")
+        {
+            NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
+        };
+        _watcher.Created += OnMicFile;
+        _watcher.Changed += OnMicFile;
+        _watcher.Renamed += OnMicFile;
+        _watcher.EnableRaisingEvents = true;
+
         _beat = new Timer(_ => WriteStatus(), null, TimeSpan.Zero, Beat);
+    }
+
+    /// <summary>The band's microphone button. Raised on a pool thread.</summary>
+    public event EventHandler<MicAction>? Mic;
+
+    /// <summary>A mic request, or null when malformed, for an unusable session, or older than 10 s.</summary>
+    public static (string Session, MicAction Action, long Ts)? ParseMic(string json, long nowMs)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            if (!root.TryGetProperty("session_id", out var s) || s.GetString() is not { } session) return null;
+            if (!SessionId().IsMatch(session)) return null;
+            if (!root.TryGetProperty("ts", out var t) || !t.TryGetInt64(out var ts)) return null;
+            if (nowMs - ts > (long)MicMaxAge.TotalMilliseconds) return null;
+
+            MicAction? action = root.TryGetProperty("action", out var a) ? a.GetString() switch
+            {
+                "start" => MicAction.Start,
+                "stop" => MicAction.Stop,
+                "cancel" => MicAction.Cancel,
+                _ => null,
+            } : null;
+
+            return action is { } act ? (session, act, ts) : null;
+        }
+        catch (Exception e) when (e is JsonException or InvalidOperationException)
+        {
+            return null;
+        }
+    }
+
+    private void OnMicFile(object? sender, FileSystemEventArgs e)
+    {
+        // One write raises several events: each restarts a short wait, only the last reads.
+        var pickUp = new CancellationTokenSource();
+        Interlocked.Exchange(ref _pickUp, pickUp)?.Cancel();
+        _ = PickUpMicAsync(e.FullPath, pickUp.Token);
+    }
+
+    private async Task PickUpMicAsync(string path, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(100, cancellationToken).ConfigureAwait(false);
+            if (ParseMic(await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false), Now) is not var (session, action, ts))
+                return;
+
+            lock (_gate)
+            {
+                // A late Changed (antivirus, indexer) re-raises the same request.
+                if (ts == _lastMic) return;
+                _lastMic = ts;
+                if (action == MicAction.Start) MicSession = session;
+            }
+
+            Mic?.Invoke(this, action);
+        }
+        catch (Exception e) when (e is OperationCanceledException or IOException or UnauthorizedAccessException)
+        {
+            // Replaced by a newer event, or the module still holds the file: its next write retries.
+        }
     }
 
     /// <summary>The armed session when its beat is fresh, else null.</summary>
@@ -310,5 +386,10 @@ public sealed partial class ClaudeBridge : IDisposable
     }
 
     /// <inheritdoc />
-    public void Dispose() => _beat?.Dispose();
+    public void Dispose()
+    {
+        _watcher?.Dispose();
+        _beat?.Dispose();
+        _pickUp?.Cancel();
+    }
 }
