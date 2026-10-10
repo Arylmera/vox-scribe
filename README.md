@@ -10,10 +10,10 @@
 <br>
 
 [![Latest release](https://img.shields.io/github/v/release/Arylmera/vox-scribe?style=flat-square&color=6A3D9A&label=release)](https://github.com/Arylmera/vox-scribe/releases/latest)
-![Windows 10 · 11](https://img.shields.io/badge/Windows-10%20%C2%B7%2011-1E1A15?style=flat-square&logo=windows11&logoColor=white)
+![Windows x64](https://img.shields.io/badge/Windows-x64-1E1A15?style=flat-square&logo=windows11&logoColor=white)
 ![.NET 10](https://img.shields.io/badge/.NET-10-6A3D9A?style=flat-square&logo=dotnet&logoColor=white)
 ![Avalonia](https://img.shields.io/badge/UI-Avalonia-1E1A15?style=flat-square)
-![Speech on-device](https://img.shields.io/badge/speech-on--device-4D6A35?style=flat-square)
+![Speech: local or remote](https://img.shields.io/badge/speech-local%20or%20remote-4D6A35?style=flat-square)
 
 **Push-to-talk dictation for Windows.** Hold a key, talk, let go —<br>
 and the sentence is typed into whatever had focus. Any app, any text field.
@@ -45,8 +45,8 @@ and the sentence is typed into whatever had focus. Any app, any text field.
 </td>
 <td width="33%" valign="top">
 
-**🔒 On-device by default**<br>
-<sub>Parakeet runs on your own processor through sherpa-onnx. Nothing leaves the machine, and nothing is downloaded until you ask.</sub>
+**🔒 On-device, if you want it**<br>
+<sub>Parakeet can run on your own processor through sherpa-onnx — then nothing leaves the machine. Or use your own server. Nothing is downloaded until you ask.</sub>
 
 </td>
 <td width="33%" valign="top">
@@ -249,6 +249,7 @@ own history:
 ```powershell
 cd windows/tools/Screenshots
 dotnet run -c Release          # → docs/assets/screenshots/*.png
+pip install fonttools uharfbuzz
 python ../../../docs/assets/build-svgs.py   # → banner and demo SVGs
 ```
 

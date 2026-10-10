@@ -1,22 +1,26 @@
 """Builds the README's animated SVGs, a light and a dark copy of each.
 
+    pip install fonttools uharfbuzz
     python docs/assets/build-svgs.py
 
-Colours are Paper's palette from windows/src/VoxScribe.App/Design/ThemeCatalog.cs, and the
-fonts are the app's own bundled faces, subset to the glyphs used and embedded as base64 WOFF:
-an SVG shown through <img> cannot fetch web fonts. #E5484D is the recording dot and nothing
-else, as in the app. Needs fontTools (pip install fonttools).
+Colours are Paper's palette from windows/src/VoxScribe.App/Design/ThemeCatalog.cs and the
+type is the app's own bundled fonts. Every <text> is shaped with HarfBuzz and converted to
+outlines at build time: GitHub serves repo SVGs with `default-src 'none'`, which blocks
+embedded fonts, and an <img> SVG cannot fetch web fonts at all. #E5484D is the recording dot
+and nothing else, as in the app.
 """
 
-import base64
-import io
 import pathlib
+import xml.etree.ElementTree as ET
 
-from fontTools import subset
+import uharfbuzz as hb
+from fontTools.pens.svgPathPen import SVGPathPen
 from fontTools.ttLib import TTFont
 
 HERE = pathlib.Path(__file__).parent
 FONTS = HERE.parents[1] / "windows/src/VoxScribe.App/Assets/Fonts"
+SVG_NS = "http://www.w3.org/2000/svg"
+ET.register_namespace("", SVG_NS)
 
 PALETTES = {
     "light": dict(ground="#F4EFE6", surface="#FBF8F2", card="#FFFFFF", edge="#E3DBCD",
@@ -28,43 +32,98 @@ PALETTES = {
 }
 RED = "#E5484D"
 
-# Every string drawn below, so each subset carries exactly the glyphs it needs.
-SERIF = "Voxscribe listening typing"
-SANS = ("Hold a key, speak, release. Clean text lands wherever you type. "
-        "Notes — Team update Hi all, Let's ship the release notes on Thursday, after the design review. "
-        "Right Ctrl 1 2 3 Hold Speak Release — it's typed Push-to-talk dictation for Windows "
-        "On-device by default 0123456789 ’")
-MONO = "PUSH-TO-TALK DICTATION · FOR WINDOWS REC CLEAN RAW 0:07 ON-DEVICE SPEECH · FIVE THEMES"
+# (class, style, weight) -> font file. "mono" is tracked +0.08em, like the app's labels.
+FACES = {
+    ("serif", "normal", "400"): "InstrumentSerif/InstrumentSerif-Regular.ttf",
+    ("serif", "italic", "400"): "InstrumentSerif/InstrumentSerif-Italic.ttf",
+    ("sans", "normal", "400"): "Geist/Geist-Regular.ttf",
+    ("sans", "normal", "500"): "Geist/Geist-Medium.ttf",
+    ("mono", "normal", "400"): "GeistMono/GeistMono-Regular.ttf",
+}
+_loaded = {}
 
 
-def face(path, text, family, style="normal", weight=400):
-    font = TTFont(FONTS / path)
-    options = subset.Options()
-    options.flavor = "woff"
-    options.layout_features = ["kern", "liga"]
-    sub = subset.Subsetter(options)
-    sub.populate(text=text + " ")
-    sub.subset(font)
-    buf = io.BytesIO()
-    font.flavor = "woff"
-    font.save(buf)
-    data = base64.b64encode(buf.getvalue()).decode()
-    return (f"@font-face{{font-family:'{family}';font-style:{style};font-weight:{weight};"
-            f"src:url(data:font/woff;base64,{data}) format('woff')}}")
+def _font(key):
+    if key not in _loaded:
+        path = FONTS / FACES[key]
+        tt = TTFont(path)
+        blob = hb.Blob.from_file_path(str(path))
+        _loaded[key] = (tt, tt.getGlyphSet(), hb.Font(hb.Face(blob)), tt["head"].unitsPerEm)
+    return _loaded[key]
 
 
-FONT_CSS = "".join([
-    face("InstrumentSerif/InstrumentSerif-Regular.ttf", SERIF, "VS Serif"),
-    face("InstrumentSerif/InstrumentSerif-Italic.ttf", SERIF, "VS Serif", "italic"),
-    face("Geist/Geist-Regular.ttf", SANS, "VS Sans"),
-    face("Geist/Geist-Medium.ttf", SANS, "VS Sans", weight=500),
-    face("GeistMono/GeistMono-Regular.ttf", MONO, "VS Mono"),
-])
+def _run(string, key, size, x, y, fill):
+    """One shaped run as a <path>; returns it and the pen position after it."""
+    tt, glyphs, font, upem = _font(key)
+    buf = hb.Buffer()
+    buf.add_str(string)
+    buf.guess_segment_properties()
+    hb.shape(font, buf, {"kern": True, "liga": True})
+    order = tt.getGlyphOrder()
+    scale = size / upem
+    tracking = 0.08 * size if key[0] == "mono" else 0
+    parts = []
+    for info, pos in zip(buf.glyph_infos, buf.glyph_positions):
+        pen = SVGPathPen(glyphs)
+        glyphs[order[info.codepoint]].draw(pen)
+        d = pen.getCommands()
+        if d:
+            gx = x + pos.x_offset * scale
+            gy = y - pos.y_offset * scale
+            parts.append(f'<path transform="translate({gx:.2f} {gy:.2f}) scale({scale:.5f} {-scale:.5f})" d="{d}"/>')
+        x += pos.x_advance * scale + tracking
+    return f'<g fill="{fill}">{"".join(parts)}</g>', x
+
+
+def _outline_text(el, inherited):
+    attrs = {**inherited, **el.attrib}
+    cls = next(c for c in attrs.get("class", "").split() if c in ("serif", "sans", "mono"))
+    size = float(attrs["font-size"])
+    runs = [(el.text or "", attrs)]
+    for span in el:
+        runs.append((span.text or "", {**attrs, **span.attrib}))
+        runs.append((span.tail or "", attrs))
+    runs = [(t, a) for t, a in runs if t]
+
+    def key(a):
+        return cls, a.get("font-style", "normal"), a.get("font-weight", "400")
+
+    # Measure first, so text-anchor can shift the whole line.
+    width = 0.0
+    for text, a in runs:
+        width = _run(text, key(a), size, width, 0, "none")[1]
+    width -= 0.08 * size if cls == "mono" else 0
+    x = float(attrs["x"]) - {"middle": width / 2, "end": width}.get(attrs.get("text-anchor"), 0)
+    y = float(attrs["y"])
+    out = []
+    for text, a in runs:
+        path, x = _run(text, key(a), size, x, y, a.get("fill", "#000"))
+        out.append(path)
+    return ET.fromstring(f'<g xmlns="{SVG_NS}">{"".join(out)}</g>')
+
+
+TEXT_ATTRS = ("class", "font-size", "font-weight", "font-style", "fill", "text-anchor")
+
+
+def outline(svg):
+    root = ET.fromstring(svg)
+
+    def walk(node, inherited):
+        for i, child in enumerate(list(node)):
+            if child.tag == f"{{{SVG_NS}}}text":
+                node.remove(child)
+                node.insert(i, _outline_text(child, inherited))
+            else:
+                here = {**inherited, **{k: v for k, v in child.attrib.items() if k in TEXT_ATTRS and k != "class"}}
+                if any(c in child.attrib.get("class", "").split() for c in ("serif", "sans", "mono")):
+                    here["class"] = child.attrib["class"]
+                walk(child, here)
+
+    walk(root, {})
+    return ET.tostring(root, encoding="unicode")
+
 
 BASE_CSS = """
-.serif{font-family:'VS Serif',Georgia,serif}
-.sans{font-family:'VS Sans','Segoe UI',Helvetica,Arial,sans-serif}
-.mono{font-family:'VS Mono',Consolas,monospace;letter-spacing:.08em}
 .bar{transform-box:fill-box;transform-origin:center;animation:wave 1.1s ease-in-out infinite alternate}
 .dot{transform-box:fill-box;transform-origin:center;animation:pulse 1.4s ease-in-out infinite}
 @keyframes wave{from{transform:scaleY(.25)}to{transform:scaleY(1)}}
@@ -93,7 +152,7 @@ def keycap(x, y, label, c, cls="key"):
 
 def banner(c):
     return f"""<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="420" viewBox="0 0 1280 420" role="img" aria-label="VoxScribe — push-to-talk dictation for Windows">
-<style>{FONT_CSS}{BASE_CSS}
+<style>{BASE_CSS}
 .glow{{transform-box:fill-box;transform-origin:center;animation:drift 14s ease-in-out infinite alternate}}
 @keyframes drift{{from{{transform:translate(-30px,10px) scale(1)}}to{{transform:translate(40px,-20px) scale(1.15)}}}}
 .keytop{{animation:press 2.8s ease-in-out infinite}}
@@ -135,7 +194,7 @@ def demo(c):
     # One 10 s loop: idle, hold the key (pill listens), release, the line is typed, reset.
     line = "Let's ship the release notes on Thursday, after the design review."
     return f"""<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="600" viewBox="0 0 1280 600" role="img" aria-label="Hold Right Ctrl, speak, release: the sentence is typed into the focused window">
-<style>{FONT_CSS}{BASE_CSS}
+<style>{BASE_CSS}
 .loop{{animation-duration:10s;animation-iteration-count:infinite;animation-timing-function:ease-in-out}}
 .keytop{{animation-name:hold}}
 @keyframes hold{{0%,8%,50%,100%{{transform:translateY(0)}}10%,48%{{transform:translateY(5px)}}}}
@@ -210,5 +269,5 @@ def demo(c):
 for mode, palette in PALETTES.items():
     for name, build in (("banner", banner), ("demo", demo)):
         path = HERE / f"{name}-{mode}.svg"
-        path.write_text(build(palette), encoding="utf-8")
+        path.write_text(outline(build(palette)), encoding="utf-8")
         print(path.name, f"{path.stat().st_size // 1024} KB")
