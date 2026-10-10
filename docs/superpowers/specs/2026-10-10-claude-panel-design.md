@@ -41,13 +41,23 @@ module code for *every* plugin. Vox-Scribe never sets it (§5).
 Before any real code, a throwaway module (one button, one timer) tried by hand. It must
 answer, on this machine:
 
-| # | Question | If no |
+| # | Question | Finding (2026-10-10, Claude Code 2.1.283, Windows Terminal + desktop app) |
 |---|---|---|
-| 1 | Can `"modules"` sit next to the existing `"hooks"` key in `hooks/hooks.json` without dropping the `/parle` `/say` hook? (effortless's file holds only `modules`.) | Find the supported layout (second file, plugin.json key) before going on. |
-| 2 | Does `$.prompt.submit` called from a `$.clock.every` callback land in an **unfocused** session — terminal with the flag, inside Orca, and the desktop app? | Arming and click-to-talk collapse; only the /parle /say buttons remain. Redesign. |
-| 3 | What does `$.prompt.submit` do while a turn is running (`e.props.isWorking`): queue, fail, interrupt? | Record it; if it fails, the module holds the text until idle. |
-| 4 | Does `$.command.run({ command: 'voxscribe:parle' })` fire the existing `UserPromptExpansion` hook? | Buttons write `speak/request.json` themselves, if the session exposes its transcript path. |
-| 5 | Does `$.fs` offer delete/rename, or only read/write? | Use the ack-only variant of §3 step 3. |
+| 1 | `"modules"` beside `"hooks"` in `hooks/hooks.json`? | **Yes.** Band drawn and the `/parle` hook still fires. |
+| 2 | `$.prompt.submit` from a `$.clock.every` callback, session unfocused? | **Yes**, in ~0.35 s. Claude Code wraps it: "Prompt from the voxscribe plugin … it starts this turn in the user's place". Before the REPL mounts it rejects with `HooksError: … no session is bound in this process`. |
+| 3 | `submit` while a turn runs? | **Queued**, sent as its own turn when idle. |
+| 3b | When does `submit` resolve while busy? | **Only when the queued message is sent** (51 s in the test). The ack must not wait for it. |
+| 4 | `$.command.run({ command: 'voxscribe:parle' })` fires the hook? | **Yes** — returns the hook's block text. (The app then stayed silent: a separate, pre-existing read-aloud issue, gateway timeout logged.) |
+| 5 | `$.fs` delete/rename? | Not needed: the module never deletes; the app removes outbox files. |
+| 6 | Band coexists with `next(e)`? | **Yes.** |
+| 7 | One module instance per session? | **Yes** — distinct instance ids and timers per desktop conversation and per terminal. Module-level state is per session. |
+
+Constraints learned on the way:
+- The module loader checks `$` statically: always `$.noun.verb(...)` at the call site; `$.fs` etc. can never be used as a value.
+- In template literals write paths with `/` or `\`: a single `` is a vertical tab, and the read/write silently misses.
+- The band does not redraw by itself: call `$.ui.invalidate('ui.render')` when its data changes.
+- Claude Code generates the full API types into `claude-plugin/.claude-plugin/types/claude-code/index.d.ts` (git-ignored) and a `claude-plugin/tsconfig.json`.
+- The owner wants a real visual design for the band (desktop and terminal) before it ships.
 
 The spike's findings are written into this spec before the plan continues.
 
