@@ -76,6 +76,13 @@ holds `/parle`, `/say` and a PowerShell hook that only drops the transcript path
 command name into `%LOCALAPPDATA%\VoxScribe\speak\request.json`. Finding the reply
 (`ReadAloud.LastReply`), rewriting and speaking it all live in the app, where they are tested.
 The hook must stay Windows PowerShell 5.1 compatible and saved with a BOM.
+`claude-plugin/hooks/register.tsx` draws a band above the prompt (experimental: Claude Code's
+undocumented plugin-module API, tested with `claude plugin test`). It only writes `target.json`
+and `mic.json` and submits `outbox/<session>.json`, all in `%LOCALAPPDATA%\VoxScribe\claude`;
+every rule (which session is live, acknowledgement, staleness) is in `ClaudeBridge`. An armed
+session overrides only the command chord; with none armed, command mode is unchanged.
+`NotAcknowledged` never falls back to typing. The pill takes the theme accent from
+`status.json` (`accent_dark`); red is only ever the recording dot.
 
 **One `WH_KEYBOARD_LL` hook per process, in `KeyboardHook`.** Every shortcut is a listener on
 it, not a hook of its own. `PushToTalkHook` once kept a callback and a "current instance" in

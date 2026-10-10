@@ -94,11 +94,16 @@ The spike's findings are written into this spec before the plan continues.
 ### Band (terminal and desktop, words and buttons, one line, always visible)
 
 ```
-idle, not armed:  ◎ Vox-Scribe   [🎯 Cibler]   [🎙 Parler] [🔊 Parle] [🔊 Say]
-armed:            ● Cible active [🎯 Désarmer] [🎙 Parler] [🔊 Parle] [🔊 Say]
-dictating:        ● Écoute…  0:12              [■ Envoyer] [✕ Annuler]
-app not running:  ○ Vox-Scribe n'est pas lancé
+idle, not armed:  (◎ Vox · prêt)   🎯 cibler   🎙 parler 🔊 fr 🔊 en
+armed:            (◉ Vox · cible)  🎯 désarmer 🎙 parler 🔊 fr 🔊 en
+dictating:        (● 0:12 ▃▅▆▄▂)   [■ envoyer] ✕ annuler
+transcribing:     (⠂ Vox · transcription…)
+app not running:  (○ Vox · hors ligne) lance Vox-Scribe pour dicter ici
 ```
+
+(After the design pass.) `( )` is a tinted pill: the theme accent darkened (from
+`status.json`'s `accent_dark`), grey when idle or offline, dark red while dictating with a
+red dot — red is never used for anything else. The waveform is characters on both surfaces.
 
 Desktop split view: plugin bands draw only in the left pane (known limitation).
 
@@ -154,15 +159,16 @@ clears `target.json`.
 
 - `TryDeliverAsync(text)` → `Delivered | NoTarget | NotAcknowledged`;
 - writes `status.json` on every state change plus a 2 s beat;
-- watches `mic.json` and is a **virtual hotkey source** for the command chord (start =
-  pressed, stop = released, cancel = the Cancel chord), like `FakeHotkeySource`. The engine
-  never knows a button exists.
+- watches `mic.json` and raises `Mic`; `Composition` calls the engine's `BeginCommand()`
+  (start), `EndUtterance()` (stop) and `CancelAsync()` (cancel). *Deviation:* the plan said a
+  virtual hotkey source (start = pressed, stop = released). Toggle mode ignores releases, so
+  a fake release could not stop a dictation; two explicit engine methods stop it in either mode.
 
 **One change in `DictationEngine.SendCommandAsync`** (`VoxScribe.Core/DictationEngine.cs`),
 at its top:
 
 ```
-Delivered       → Journal.Record, return
+Delivered       → return (not journalled: undo would backspace into the focused window)
 NotAcknowledged → notice, return (no fallback)
 NoTarget        → existing code, line for line
 ```
