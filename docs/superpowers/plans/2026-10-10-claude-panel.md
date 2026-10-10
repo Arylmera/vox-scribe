@@ -131,7 +131,7 @@ Edit `claude-plugin/hooks/hooks.json` — add `"modules"` beside the existing `"
 
 - [ ] **Step 2: Load it**
 
-Point Claude Code at the working tree (`claude --plugin-dir <repo>/claude-plugin`, or reinstall from the local marketplace), with `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1` set **for that shell only** (`$env:CLAUDE_CODE_ENABLE_FUNCTION_HOOKS = '1'` before `claude`). Do not edit `~/.claude/settings.json`.
+First `claude plugin disable voxscribe@vox-scribe` — the installed 1.0.0 would otherwise fire the `/parle` hook a second time and muddy Q1/Q4 (re-enable it at Step 4). Then point Claude Code at the working tree (`claude --plugin-dir <repo>/claude-plugin`), with `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1` set **for that shell only** (`$env:CLAUDE_CODE_ENABLE_FUNCTION_HOOKS = '1'` before `claude`). Do not edit `~/.claude/settings.json`.
 
 - [ ] **Step 3: Answer the questions, writing each result down**
 
@@ -142,7 +142,9 @@ Point Claude Code at the working tree (`claude --plugin-dir <repo>/claude-plugin
 | Q3 | Same as Q2 while Claude is mid-answer | queued / failed / interrupted |
 | Q4 | Press the band's Parle button with Vox-Scribe running | hook fires? reply read aloud? |
 | Q5 | `fs=` keys in `%TEMP%\voxscribe-spike.log` | delete/rename present? |
+| Q3b | In the log, the gap between the `submitting` and `submit ->` lines while Claude is mid-answer | does `submit` resolve at once, or only when the queued message is sent? |
 | Q6 | Install another module plugin, or check the band coexists with `next(e)` content | our band + others both drawn? |
+| Q7 | Add `void note($, 'render ' + await $.session.id())` to the render handler. Open two chats in the desktop app and two terminal sessions | one module instance per session (ids differ per instance's log lines), or one shared instance? |
 
 - [ ] **Step 4: Record findings in the spec and remove the spike**
 
@@ -155,7 +157,9 @@ git add docs/superpowers/specs/2026-10-10-claude-panel-design.md
 git commit -m "docs: record the plugin-module spike findings"
 ```
 
-**Gate:** Q2 fails on every surface → stop, report. Q1 fails → Task 7 uses the layout the spike found. Q4 fails → Task 7's Parle/Say buttons write `speak/request.json` only if the spike found the transcript path, else drop them and tell the owner. Q3 "fails" → Task 7 holds the outbox text until `e.props.isWorking` is false (note it in the module).
+Re-enable the installed plugin: `claude plugin enable voxscribe@vox-scribe`.
+
+**Gate:** Q2 fails on every surface → stop, report. Q7 shows one module instance shared by several sessions → stop, report: Task 8's module-level `sid`/`armed`/`lastHandled` must become maps keyed by session id, a design change for the owner. Q3b shows `submit` resolving only when the queued message sends → Task 8 writes the ack right after starting `submit` (not after awaiting it); `lastHandled` still guarantees at-most-once. Q1 fails → Task 7 uses the layout the spike found. Q4 fails → Task 7's Parle/Say buttons write `speak/request.json` only if the spike found the transcript path, else drop them and tell the owner. Q3 "fails" → Task 7 holds the outbox text until `e.props.isWorking` is false (note it in the module).
 
 ---
 
@@ -312,31 +316,49 @@ public sealed class ClaudeBridgeTests : IDisposable
     }
 
     [Fact]
-    public void Status_names_the_target_only_for_a_command_in_progress()
+    public async Task Status_names_the_target_only_for_a_command_in_progress()
     {
         using var bridge = Build();
         Arm(Session, TimeSpan.Zero);
 
         bridge.PublishStatus(DictationState.Recording, command: true);
-        ReadStatus().ShouldBe(("listening", Session));
+        (await StatusAsync("listening")).ShouldBe(Session);
 
         bridge.PublishStatus(DictationState.Transcribing, command: true);
-        ReadStatus().ShouldBe(("transcribing", Session));
+        (await StatusAsync("transcribing")).ShouldBe(Session);
 
         bridge.PublishStatus(DictationState.Recording, command: false);
-        ReadStatus().ShouldBe(("listening", (string?)null));
+        (await StatusAsync("listening")).ShouldBeNull();
 
         bridge.PublishStatus(DictationState.Idle, command: false);
-        ReadStatus().ShouldBe(("idle", (string?)null));
+        (await StatusAsync("idle")).ShouldBeNull();
     }
 
-    private (string State, string? Session) ReadStatus()
+    /// <summary>Waits for status.json to reach <paramref name="state"/>; returns its session.</summary>
+    private async Task<string?> StatusAsync(string state)
     {
-        using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(_dir, "status.json")));
-        var root = json.RootElement;
-        root.GetProperty("beat").GetInt64().ShouldBe(_clock.Now.ToUnixTimeMilliseconds());
-        var session = root.GetProperty("session_id");
-        return (root.GetProperty("state").GetString()!, session.ValueKind == JsonValueKind.Null ? null : session.GetString());
+        for (var i = 0; i < 200; i++)
+        {
+            try
+            {
+                using var json = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(_dir, "status.json")));
+                var root = json.RootElement;
+                if (root.GetProperty("state").GetString() == state)
+                {
+                    root.GetProperty("beat").GetInt64().ShouldBe(_clock.Now.ToUnixTimeMilliseconds());
+                    var session = root.GetProperty("session_id");
+                    return session.ValueKind == JsonValueKind.Null ? null : session.GetString();
+                }
+            }
+            catch (Exception e) when (e is IOException or JsonException)
+            {
+                // Mid-replace; try again.
+            }
+
+            await Task.Delay(10);
+        }
+
+        throw new ShouldAssertException($"status.json never reached \"{state}\"");
     }
 }
 ```
@@ -351,7 +373,9 @@ Expected: build error, `ClaudeBridge` / `ClaudeDelivery` not found.
 `windows/src/VoxScribe.Core/ClaudeBridge.cs`:
 
 ```csharp
+using System.Buffers;
 using System.Diagnostics;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using VoxScribe.Abstractions;
@@ -412,8 +436,9 @@ public sealed partial class ClaudeBridge : IDisposable
     private readonly IClock _clock;
     private readonly TimeSpan _ackTimeout;
     private readonly Lock _gate = new();
+    private readonly Lock _writing = new();
     private string _state = "idle";
-    private string? _session;
+    private bool _command;
     private long _since;
     private Timer? _beat;
 
@@ -489,7 +514,12 @@ public sealed partial class ClaudeBridge : IDisposable
         try
         {
             Directory.CreateDirectory(Outbox);
-            WriteAtomic(outbox, JsonSerializer.Serialize(new { id, text, ts = Now }));
+            WriteAtomic(outbox, Json(w =>
+            {
+                w.WriteString("id", id);
+                w.WriteString("text", text);
+                w.WriteNumber("ts", Now);
+            }));
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
@@ -522,7 +552,14 @@ public sealed partial class ClaudeBridge : IDisposable
         return ClaudeDelivery.NotAcknowledged;
     }
 
-    /// <summary>Records the engine's state for the band. A command in progress names its session.</summary>
+    /// <summary>
+    /// Records the engine's state for the band. A command in progress names its session.
+    /// </summary>
+    /// <remarks>
+    /// Called from the engine's Changed event, which fires while the microphone is starting:
+    /// only fields change here, and the file is written on the pool, so a slow disk or an
+    /// antivirus scan can never delay the first syllable of a dictation.
+    /// </remarks>
     public void PublishStatus(DictationState state, bool command)
     {
         lock (_gate)
@@ -535,29 +572,64 @@ public sealed partial class ClaudeBridge : IDisposable
             };
             if (name != _state) _since = Now;
             _state = name;
-            _session = state != DictationState.Idle && command ? MicSession ?? LiveTarget() : null;
+            _command = command;
             if (state == DictationState.Idle) MicSession = null;
         }
 
-        WriteStatus();
+        ThreadPool.QueueUserWorkItem(_ => WriteStatus());
     }
 
     /// <summary>The session whose band started the dictation in progress, if one did.</summary>
     private string? MicSession { get; set; }
 
+    /// <summary>Writes the latest state, whoever asked: queued writes therefore settle on the newest.</summary>
     private void WriteStatus()
     {
-        string body;
-        lock (_gate) body = JsonSerializer.Serialize(new { state = _state, session_id = _session, since = _since, beat = Now });
+        // One writer at a time: two replacing status.json at once would fight over the temp file.
+        lock (_writing)
+        {
+            string state;
+            bool command;
+            long since;
+            string? mic;
+            lock (_gate) (state, command, since, mic) = (_state, _command, _since, MicSession);
 
-        try
-        {
-            WriteAtomic(Path.Combine(_directory, "status.json"), body);
+            var session = state != "idle" && command ? mic ?? LiveTarget() : null;
+            var body = Json(w =>
+            {
+                w.WriteString("state", state);
+                if (session is null) w.WriteNull("session_id");
+                else w.WriteString("session_id", session);
+                w.WriteNumber("since", since);
+                w.WriteNumber("beat", Now);
+            });
+
+            try
+            {
+                WriteAtomic(Path.Combine(_directory, "status.json"), body);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                // The band then shows "not running" after the stale delay — the truth, near enough.
+            }
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+    }
+
+    /// <summary>
+    /// One JSON object, written by hand: the trim analyzer is on for src/, and reflection-based
+    /// serialization of anonymous types would fail the warnings-as-errors build.
+    /// </summary>
+    private static string Json(Action<Utf8JsonWriter> write)
+    {
+        var buffer = new ArrayBufferWriter<byte>();
+        using (var writer = new Utf8JsonWriter(buffer))
         {
-            // The band then shows "not running" after the stale delay — the truth, near enough.
+            writer.WriteStartObject();
+            write(writer);
+            writer.WriteEndObject();
         }
+
+        return Encoding.UTF8.GetString(buffer.WrittenSpan);
     }
 
     /// <summary>Deletes the outbox only if it is still ours: a newer dictation may have replaced it.</summary>
@@ -911,7 +983,7 @@ public sealed class ClaudeDeliveryTests
 
         injector.Injected.ShouldBeEmpty();
         anchor.LastFind.ShouldBeNull();
-        engine.Notice.ShouldContain("History");
+        engine.Notice.ShouldContain("not sent");
     }
 
     [Fact]
@@ -937,7 +1009,7 @@ public sealed class ClaudeDeliveryTests
         await DictateAsync(command, engine);
 
         injector.Injected.ShouldBeEmpty();
-        engine.Notice.ShouldContain("History");
+        engine.Notice.ShouldContain("not sent");
     }
 
     /// <summary>Stop must stop even in toggle mode, where a key release is ignored.</summary>
@@ -1036,7 +1108,7 @@ At the top of `SendCommandAsync(string text)`, before `var target = …`:
             if (outcome == ClaudeDelivery.Delivered) return;
             if (outcome == ClaudeDelivery.NotAcknowledged)
             {
-                ReportNotice("Claude Code did not take the command — it is in History");
+                ReportNotice("Claude Code did not take the command — command not sent");
                 return;
             }
         }
@@ -1405,33 +1477,79 @@ git commit -m "feat: install and uninstall the voxscribe plugin through the clau
 - Modify: `windows/src/VoxScribe.App/Views/SettingsPage.cs` (enum + section map)
 - Modify: `windows/src/VoxScribe.App/Views/Settings/ShortcutsSection.cs` (remove the title field and its note; update the COMMAND note)
 - Modify: `windows/tests/VoxScribe.App.Tests/UiTests.cs` (the "six tabs" summary at ~362 → seven)
+- Test: `windows/tests/VoxScribe.App.Tests/ClaudeSectionTests.cs`
 
 **Interfaces:**
 - Consumes: `ClaudePlugin` (Task 6)
 
-- [ ] **Step 1: Write the failing UI test** (append to the settings-page test class in `UiTests.cs`, following its existing `[AvaloniaFact]` pattern and `_path` fixture)
+- [ ] **Step 1: Write the failing UI tests**
+
+`windows/tests/VoxScribe.App.Tests/ClaudeSectionTests.cs` — built directly, like `AppearanceSectionTests`, with a fake CLI so no test ever starts `claude`:
 
 ```csharp
-    [AvaloniaFact]
-    public void The_claude_tab_holds_the_command_window_title()
-    {
-        var settings = new AppSettings(_path);
-        var page = new SettingsPage(settings, null, SettingsTab.Claude);
-        var window = new Window { Content = page };
-        window.Show();
+using System.IO;
+using Avalonia.Controls;
+using Avalonia.Headless.XUnit;
+using Avalonia.Interactivity;
+using Avalonia.LogicalTree;
+using Shouldly;
+using VoxScribe.App.Controls;
+using VoxScribe.App.Views.Settings;
+using VoxScribe.Core;
 
-        var texts = page.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text).ToList();
-        texts.ShouldContain("COMMAND WINDOW TITLE CONTAINS");
-        texts.ShouldContain(t => t != null && t.Contains("CLAUDE_CODE_ENABLE_FUNCTION_HOOKS"));
+namespace VoxScribe.AppTests;
+
+public sealed class ClaudeSectionTests
+{
+    private static AppSettings Settings() =>
+        new(Path.Combine(Path.GetTempPath(), $"vox-{Guid.NewGuid():N}.json"));
+
+    private static ClaudePlugin.Runner Cli(List<string> calls, bool installed) => (args, _) =>
+    {
+        var line = string.Join(' ', args);
+        calls.Add(line);
+        return Task.FromResult(line == "plugin list --json"
+            ? (0, installed ? """[{"id":"voxscribe@vox-scribe"}]""" : "[]")
+            : (0, ""));
+    };
+
+    private static List<string?> Texts(Control section) =>
+        [.. section.GetLogicalDescendants().OfType<TextBlock>().Select(t => t.Text)];
+
+    [AvaloniaFact]
+    public void The_section_holds_the_command_window_title_and_the_terminal_line()
+    {
+        var section = ClaudeSection.Build(Settings(), _ => { }, Cli([], installed: false));
+
+        Texts(section).ShouldContain("COMMAND WINDOW TITLE CONTAINS");
+        Texts(section).ShouldContain(ClaudePlugin.TerminalFlagLine);
     }
+
+    [AvaloniaFact]
+    public async Task An_installed_plugin_offers_uninstall_and_runs_it()
+    {
+        var calls = new List<string>();
+        var section = ClaudeSection.Build(Settings(), _ => { }, Cli(calls, installed: true));
+        new Window { Content = section }.Show(); // attaching is what reads the plugin's state
+        var button = section.GetLogicalDescendants().OfType<TransportKey>()
+            .Single(b => b.Content as string is "INSTALL" or "UNINSTALL" || b.Content is null);
+        for (var i = 0; i < 100 && button.Content is null; i++) await Task.Delay(10);
+
+        button.Content.ShouldBe("UNINSTALL");
+        button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        for (var i = 0; i < 100 && !calls.Contains("plugin uninstall voxscribe@vox-scribe"); i++) await Task.Delay(10);
+
+        calls.ShouldContain("plugin uninstall voxscribe@vox-scribe");
+    }
+}
 ```
 
-(If the existing tests in that class use a different show/inspect helper, use theirs — the assertions are what matter.)
+(`Panels.Labelled` renders its label as a `TextBlock`; if it renders it differently, match what `AppearanceSectionTests` asserts on.)
 
 - [ ] **Step 2: Run to verify it fails**
 
-Run: `cd windows && dotnet test VoxScribe.CrossPlatform.slnf --filter FullyQualifiedName~The_claude_tab`
-Expected: build error, `SettingsTab.Claude` not found.
+Run: `cd windows && dotnet test VoxScribe.CrossPlatform.slnf --filter FullyQualifiedName~ClaudeSectionTests`
+Expected: build error, `ClaudeSection` not found.
 
 - [ ] **Step 3: Implement**
 
@@ -1445,7 +1563,7 @@ Expected: build error, `SettingsTab.Claude` not found.
 and in the constructor's section map, after the Shortcuts line:
 
 ```csharp
-        _sections[SettingsTab.Claude] = ClaudeSection.Build(_settings, Save);
+        _sections[SettingsTab.Claude] = ClaudeSection.Build(_settings, Save, ClaudePlugin.RunAsync);
 ```
 
 Update the class summary "six tabs" → "seven tabs" in `SettingsPage.cs` and `UiTests.cs`.
@@ -1473,7 +1591,10 @@ namespace VoxScribe.App.Views.Settings;
 internal static class ClaudeSection
 {
     /// <summary>Builds the section.</summary>
-    public static Control Build(AppSettings settings, Action<SettingsData> save)
+    /// <param name="settings">User preferences.</param>
+    /// <param name="save">Persists a change.</param>
+    /// <param name="run">The claude CLI; <see cref="ClaudePlugin.RunAsync"/> in the app, a fake in tests.</param>
+    public static Control Build(AppSettings settings, Action<SettingsData> save, ClaudePlugin.Runner run)
     {
         var commandTitle = Panels.Field("Claude",
             settings.Data.CommandWindowTitle,
@@ -1484,7 +1605,7 @@ internal static class ClaudeSection
             Spacing = Tokens.Space.Snug,
             Children =
             {
-                PluginBlock(),
+                PluginBlock(run),
                 Panels.Note("The plugin adds /parle and /say, and a band above Claude Code's prompt: "
                     + "arm a session as the command shortcut's target, talk to it with a click, "
                     + "or have its last reply read aloud. It applies to new sessions, or after /reload-plugins."),
@@ -1499,7 +1620,7 @@ internal static class ClaudeSection
     }
 
     /// <summary>The plugin's state and the one button that flips it.</summary>
-    private static Control PluginBlock()
+    private static Control PluginBlock(ClaudePlugin.Runner run)
     {
         var status = Panels.Note("Checking…");
         status.VerticalAlignment = VerticalAlignment.Center;
@@ -1508,7 +1629,7 @@ internal static class ClaudeSection
 
         async Task RefreshAsync()
         {
-            installed = await ClaudePlugin.CheckAsync(ClaudePlugin.RunAsync, CancellationToken.None);
+            installed = await ClaudePlugin.CheckAsync(run, CancellationToken.None);
             status.Text = installed switch
             {
                 true => "Installed for Claude Code.",
@@ -1524,8 +1645,8 @@ internal static class ClaudeSection
             button.IsEnabled = false;
             status.Text = installed == true ? "Uninstalling…" : "Installing…";
             var error = installed == true
-                ? await ClaudePlugin.UninstallAsync(ClaudePlugin.RunAsync, CancellationToken.None)
-                : await ClaudePlugin.InstallAsync(ClaudePlugin.RunAsync, CancellationToken.None);
+                ? await ClaudePlugin.UninstallAsync(run, CancellationToken.None)
+                : await ClaudePlugin.InstallAsync(run, CancellationToken.None);
             await RefreshAsync();
             if (error is not null) status.Text = $"{status.Text} {error}";
         };
@@ -1536,6 +1657,8 @@ internal static class ClaudeSection
             Spacing = Tokens.Space.Snug,
             Children = { button, status },
         };
+        // Read whenever the tab is shown — the plugin may be changed from a terminal — and never
+        // at build: SettingsPage builds every tab, and the UI tests build SettingsPage.
         row.AttachedToVisualTree += (_, _) => _ = RefreshAsync();
         return Panels.Labelled("PLUGIN", row);
     }
@@ -1584,7 +1707,7 @@ Run the app, open Settings → CLAUDE in each of the five themes, light and dark
 - [ ] **Step 6: Commit**
 
 ```bash
-git add windows/src/VoxScribe.App/Views windows/tests/VoxScribe.App.Tests/UiTests.cs
+git add windows/src/VoxScribe.App/Views windows/tests/VoxScribe.App.Tests/UiTests.cs windows/tests/VoxScribe.App.Tests/ClaudeSectionTests.cs
 git commit -m "feat: Claude tab in Settings installs the plugin and holds the command window"
 ```
 
@@ -1760,6 +1883,7 @@ export const register: Register = (on) => {
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     try {
       startTimer($) // a plugin reload may draw before any session start
+      const { Box } = $.ui.resolve(e) as Record<string, any>
       const ours = band($, e)
       const rest = await next(e)
       return (
@@ -1775,7 +1899,7 @@ export const register: Register = (on) => {
 }
 ```
 
-Note: the outer `<Box>` uses the `Box` from `$.ui.resolve(e)` — hoist `const { Box } = $.ui.resolve(e) as Record<string, any>` at the top of the `ui.render` handler's `try`. If spike Q3 showed `$.prompt.submit` fails while busy, guard `drainOutbox` with the last-seen `e.props.isWorking` (store it in a module variable from `ui.render`) and return early while busy — the app's 3 s ack timeout then reports "not taken"; record that limit in the README.
+If spike Q3 showed `$.prompt.submit` fails while busy, guard `drainOutbox` with the last-seen `e.props.isWorking` (store it in a module variable from `ui.render`) and return early while busy — the app's 3 s ack timeout then reports "not taken"; record that limit in the README. If spike Q3b showed `submit` resolving only when the queued message sends, change `drainOutbox`'s last two lines to start the submit, write the ack, then await: `const sent = $.prompt.submit({ text: o.text }); await $.fs.write(`${d}\outbox\${o.id}.ack`, ''); await sent` — `lastHandled` keeps it at most once.
 
 - [ ] **Step 2: Declare it**
 
