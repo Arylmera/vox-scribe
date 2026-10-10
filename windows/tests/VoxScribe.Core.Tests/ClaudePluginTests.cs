@@ -74,7 +74,7 @@ public sealed class ClaudePluginTests
     public async Task A_missing_cli_is_unknown_state()
     {
         var cli = new FakeCli();
-        cli.Answers["plugin list --json"] = (ClaudePlugin.NotFound, "claude not found");
+        cli.Answers["plugin list --json"] = (ClaudePlugin.NotFound, "[]");
 
         (await ClaudePlugin.CheckAsync(cli.RunAsync, CancellationToken.None)).ShouldBeNull();
     }
