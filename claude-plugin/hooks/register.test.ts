@@ -36,11 +36,11 @@ function world(on: On, files: Map<string, string>) {
 }
 
 for (const surface of SURFACES) {
-  test(`${surface}: no status.json draws the offline pill`, async ($, on) => {
+  test(`${surface}: no status.json draws no band`, async ($, on) => {
     const clock = world(on, new Map())
     const ui = await $.ui.mount({ plugin: 'voxscribe', surface, component: 'AbovePrompt', props: PROPS })
     await clock.advance(600)
-    expect((await ui.find({ key: 'vox-pill' }))?.text).toContain('Vox · hors ligne')
+    expect(await ui.find({ key: 'vox-band' })).toBeFalsy()
     expect(await ui.findAll({ type: 'Button' })).toHaveLength(0)
   })
 
@@ -54,7 +54,11 @@ for (const surface of SURFACES) {
     expect(keys).toEqual(['vox-arm', 'vox-talk', 'vox-fr', 'vox-en'])
 
     await clock.advance(6000) // the app stopped beating
-    expect((await ui.find({ key: 'vox-pill' }))?.text).toContain('Vox · hors ligne')
+    expect(await ui.find({ key: 'vox-band' })).toBeFalsy()
+
+    files.set(`${DIR}/status.json`, JSON.stringify({ state: 'idle', session_id: null, since: clock.now(), beat: clock.now() }))
+    await clock.advance(600) // the app is back
+    expect((await ui.find({ key: 'vox-pill' }))?.text).toContain('Vox · prêt')
   })
 }
 

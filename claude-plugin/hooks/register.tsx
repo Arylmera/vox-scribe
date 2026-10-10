@@ -211,11 +211,12 @@ export const register: Register = on => {
         </Box>
       )
 
-      if (b.kind === 'offline' || b.kind === 'broken') {
+      if (b.kind === 'offline') {
+        ours = null // Vox-Scribe closed: no band; it comes back with the app's first beat.
+      } else if (b.kind === 'broken') {
         ours = (
           <Box key="vox-band" flexDirection="row" gap={1} alignItems="center">
-            {pill('○', 'gray', b.kind === 'broken' ? 'Vox · désactivé (erreur)' : 'Vox · hors ligne', MUTED_BG)}
-            {b.kind === 'offline' ? <Text dimColor>lance Vox-Scribe pour dicter ici</Text> : null}
+            {pill('○', 'gray', 'Vox · désactivé (erreur)', MUTED_BG)}
           </Box>
         )
       } else if (b.kind === 'listening') {

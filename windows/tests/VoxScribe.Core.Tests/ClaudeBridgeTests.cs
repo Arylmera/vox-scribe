@@ -197,6 +197,22 @@ public sealed class ClaudeBridgeTests : IDisposable
         json.RootElement.GetProperty("accent_light").GetString().ShouldBe("#0F7B45");
     }
 
+    [Fact]
+    public async Task Closing_removes_the_status_so_every_band_hides_at_once()
+    {
+        var bridge = Build();
+        bridge.PublishStatus(DictationState.Idle, command: false);
+        await StatusAsync("idle");
+
+        bridge.Dispose();
+        var status = Path.Combine(_dir, "status.json");
+        File.Exists(status).ShouldBeFalse();
+
+        bridge.PublishStatus(DictationState.Recording, command: false); // a late state change
+        await Task.Delay(300);
+        File.Exists(status).ShouldBeFalse();
+    }
+
     /// <summary>Waits for status.json to reach <paramref name="state"/>; returns its session.</summary>
     private async Task<string?> StatusAsync(string state)
     {

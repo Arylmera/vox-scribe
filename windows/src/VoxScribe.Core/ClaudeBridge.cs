@@ -62,6 +62,7 @@ public sealed partial class ClaudeBridge : IDisposable
     private readonly TimeSpan _ackTimeout;
     private readonly Lock _gate = new();
     private readonly Lock _writing = new();
+    private bool _closed;
     private static readonly TimeSpan MicMaxAge = TimeSpan.FromSeconds(10);
     private string _state = "idle";
     private bool _command;
@@ -315,6 +316,8 @@ public sealed partial class ClaudeBridge : IDisposable
         // One writer at a time: two replacing status.json at once would fight over the temp file.
         lock (_writing)
         {
+            if (_closed) return; // a write queued before Dispose must not bring the band back
+
             string state;
             bool command;
             long since;
@@ -423,5 +426,19 @@ public sealed partial class ClaudeBridge : IDisposable
         _watcher?.Dispose();
         _beat?.Dispose();
         _pickUp?.Cancel();
+
+        // No status, no band: every session hides it at once instead of after the stale delay.
+        lock (_writing)
+        {
+            _closed = true;
+            try
+            {
+                File.Delete(Path.Combine(_directory, "status.json"));
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                // The band then hides after the stale delay.
+            }
+        }
     }
 }

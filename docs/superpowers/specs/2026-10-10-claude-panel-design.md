@@ -98,7 +98,7 @@ idle, not armed:  (◎ Vox · prêt)   🎯 cibler   🎙 parler 🔊 fr 🔊 en
 armed:            (◉ Vox · cible)  🎯 désarmer 🎙 parler 🔊 fr 🔊 en
 dictating:        (● 0:12 ▃▅▆▄▂)   [■ envoyer] ✕ annuler
 transcribing:     (⠂ Vox · transcription…)
-app not running:  (○ Vox · hors ligne) lance Vox-Scribe pour dicter ici
+app not running:  no band (status.json removed on exit, or 6 s stale); back on the app's first beat
 ```
 
 (After the design pass.) `( )` is a tinted pill: the theme accent darkened (from
@@ -204,7 +204,7 @@ interface; the view only displays. CLI errors are shown verbatim and the state r
 
 | Situation | Behaviour |
 |---|---|
-| App not running | Band shows "○ Vox-Scribe n'est pas lancé", buttons inert, prompt intact. |
+| App not running | No band; prompt intact. The app deletes `status.json` when it closes. |
 | Module absent, broken or tripped | No `target.json` beat → classic command mode. |
 | Armed session died | Beat older than 6 s → classic behaviour. |
 | Target alive, no ack | Notice "non livrée", no fallback; text in History. |
