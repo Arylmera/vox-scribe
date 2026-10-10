@@ -146,6 +146,23 @@ public sealed class ClaudeBridgeTests : IDisposable
         (await StatusAsync("idle")).ShouldBeNull();
     }
 
+    [Fact]
+    public async Task Status_carries_the_theme_accent_when_one_is_given()
+    {
+        using var bridge = Build();
+        bridge.PublishStatus(DictationState.Idle, command: false);
+        await StatusAsync("idle");
+        File.ReadAllText(Path.Combine(_dir, "status.json")).ShouldNotContain("accent");
+
+        bridge.Accent = () => ("#3DDC84", "#0F7B45");
+        bridge.PublishStatus(DictationState.Recording, command: false);
+        await StatusAsync("listening");
+
+        using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(_dir, "status.json")));
+        json.RootElement.GetProperty("accent_dark").GetString().ShouldBe("#3DDC84");
+        json.RootElement.GetProperty("accent_light").GetString().ShouldBe("#0F7B45");
+    }
+
     /// <summary>Waits for status.json to reach <paramref name="state"/>; returns its session.</summary>
     private async Task<string?> StatusAsync(string state)
     {

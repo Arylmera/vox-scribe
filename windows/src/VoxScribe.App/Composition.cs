@@ -244,6 +244,7 @@ public sealed class Composition : IAsyncDisposable
             claude = new ClaudeBridge(ClaudeBridge.DefaultDirectory);
             var bridge = claude;
             engine.DeliverToClaude = bridge.TryDeliverAsync;
+            bridge.Accent = () => ($"#{Design.Themes.ActiveVariant.Dark:X6}", $"#{Design.Themes.ActiveVariant.Light:X6}");
             var shown = engine.State;
             engine.Changed += (_, _) =>
             {

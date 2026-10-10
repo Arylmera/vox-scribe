@@ -280,6 +280,12 @@ public sealed partial class ClaudeBridge : IDisposable
         ThreadPool.QueueUserWorkItem(_ => WriteStatus());
     }
 
+    /// <summary>
+    /// The app theme's accent as "#RRGGBB", dark and light variants: the band tints its pill
+    /// with it. Read on every status write; null leaves the fields out.
+    /// </summary>
+    public Func<(string Dark, string Light)>? Accent { get; set; }
+
     /// <summary>The session whose band started the dictation in progress, if one did.</summary>
     private string? MicSession { get; set; }
 
@@ -296,6 +302,7 @@ public sealed partial class ClaudeBridge : IDisposable
             lock (_gate) (state, command, since, mic) = (_state, _command, _since, MicSession);
 
             var session = state != "idle" && command ? mic ?? LiveTarget() : null;
+            var accent = Accent?.Invoke();
             var body = Json(w =>
             {
                 w.WriteString("state", state);
@@ -303,6 +310,11 @@ public sealed partial class ClaudeBridge : IDisposable
                 else w.WriteString("session_id", session);
                 w.WriteNumber("since", since);
                 w.WriteNumber("beat", Now);
+                if (accent is { } a)
+                {
+                    w.WriteString("accent_dark", a.Dark);
+                    w.WriteString("accent_light", a.Light);
+                }
             });
 
             try
