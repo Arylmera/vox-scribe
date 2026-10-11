@@ -92,7 +92,9 @@ public sealed class HudWindow : Window
     private void OnThemeChanged(object? sender, EventArgs e) => _faceStale = true;
 
     private string Mode() =>
-        _engine.CommandThisUtterance ? "CMD" : _engine.CleaningThisUtterance ? "CLEAN" : "RAW";
+        _engine.CommandThisUtterance ? "CMD"
+        : _engine.EditThisUtterance ? "EDIT"
+        : _engine.CleaningThisUtterance ? "CLEAN" : "RAW";
 
     private void Sync()
     {

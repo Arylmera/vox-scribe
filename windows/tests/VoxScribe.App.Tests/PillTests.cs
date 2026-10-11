@@ -211,6 +211,27 @@ public sealed class PillTests
     });
 
     [AvaloniaFact]
+    public void Edit_names_itself_while_working() => EachTheme((theme, face) =>
+    {
+        face.Update(new PillState(PillPhase.Working, 0.4, TimeSpan.FromSeconds(3), "EDIT", "traduis"));
+        var text = string.Join(' ', face.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text)).ToLowerInvariant();
+
+        text.ShouldContain("edit", customMessage: theme.Id);
+        text.ShouldNotContain("clean", customMessage: theme.Id);
+    });
+
+    [AvaloniaFact]
+    public void An_edit_latency_says_edit_not_clean() => EachTheme((theme, face) =>
+    {
+        face.Update(new PillState(PillPhase.Latency, 0, TimeSpan.FromSeconds(1.2), "EDIT", string.Empty,
+            Cleanup: TimeSpan.FromSeconds(0.7)));
+        var text = string.Join(' ', face.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text)).ToLowerInvariant();
+
+        text.ShouldContain("0.7s", customMessage: theme.Id);
+        text.ShouldNotContain("clean", customMessage: theme.Id);
+    });
+
+    [AvaloniaFact]
     public void Every_theme_wears_its_own_silhouette()
     {
         PillFace.Create(PillKind.Paper).ShouldBeOfType<PaperPill>();

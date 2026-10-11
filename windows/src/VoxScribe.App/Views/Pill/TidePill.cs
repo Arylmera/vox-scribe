@@ -92,12 +92,12 @@ internal sealed class TidePill : PillFace
         var working = state.Phase == PillPhase.Working;
         _dot.IsVisible = recording;
         _working.IsVisible = working;
-        _working.Text = state.Mode == "CLEAN" ? "Smoothing it out" : "Transcribing…";
+        _working.Text = state.Mode switch { "CLEAN" => "Smoothing it out", "EDIT" => "Rewriting", _ => "Transcribing…" };
         _wave.Push(recording ? state.Level : 0, working);
         // Tide's timer slot sits beside a fixed-width badge chip; the real "clean 10.4s" split
         // doesn't fit there, so this face uses the short form.
         _timer.Text = Timer(state) + ShortCleanupTail(state);
-        _badge.Text = state.Mode switch { "CLEAN" => "Clean", "CMD" => "Command", _ => "Raw" };
+        _badge.Text = state.Mode switch { "CLEAN" => "Clean", "CMD" => "Command", "EDIT" => "Edit", _ => "Raw" };
 
         var showPreview = HasPreview(state);
         if (showPreview) ShowPreview(_previewHost, _preview, state, PreviewChars);

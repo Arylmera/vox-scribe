@@ -83,11 +83,11 @@ internal sealed class FluentPill : PillFace
         _title.Text = state.Phase switch
         {
             PillPhase.Recording => "Listening…",
-            PillPhase.Working => state.Mode == "CLEAN" ? "Cleaning up…" : "Transcribing…",
+            PillPhase.Working => state.Mode switch { "CLEAN" => "Cleaning up…", "EDIT" => "Editing…", _ => "Transcribing…" },
             PillPhase.Notice => "Notice",
             _ => "Done",
         };
-        _meta.Text = TimerLine(state, state.Mode switch { "CLEAN" => "Cleaned", "CMD" => "Command", _ => "Raw" });
+        _meta.Text = TimerLine(state, state.Mode switch { "CLEAN" => "Cleaned", "CMD" => "Command", "EDIT" => "Edit", _ => "Raw" });
 
         var showPreview = HasPreview(state);
         if (showPreview)
@@ -101,7 +101,7 @@ internal sealed class FluentPill : PillFace
             _line.HorizontalAlignment = HorizontalAlignment.Stretch;
             _line.TextTrimming = TextTrimming.None;
             _line.Text = working
-                ? state.Mode == "CLEAN" ? "Polishing the transcript" : "Transcribing…"
+                ? state.Mode switch { "CLEAN" => "Polishing the transcript", "EDIT" => "Rewriting the selection", _ => "Transcribing…" }
                 : "Speak now — release to type";
             _line.Foreground = _muted;
         }

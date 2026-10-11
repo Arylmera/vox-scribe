@@ -29,7 +29,7 @@ internal enum PillPhase
 /// <param name="Phase">What is happening.</param>
 /// <param name="Level">Input level, 0–1, already perceptual (gain + sqrt).</param>
 /// <param name="Elapsed">Utterance time; the latency in <see cref="PillPhase.Latency"/>.</param>
-/// <param name="Mode">"RAW", "CLEAN" or "CMD".</param>
+/// <param name="Mode">"RAW", "CLEAN", "CMD" or "EDIT".</param>
 /// <param name="Text">Preview or notice text, untruncated; faces show its tail on one line.</param>
 /// <param name="Cleanup">Cleanup time, in <see cref="PillPhase.Latency"/> after a cleaned dictation; null otherwise.</param>
 /// <param name="CleanupFailed">True when that cleanup fell back to the raw text.</param>
@@ -155,10 +155,10 @@ internal abstract class PillFace : Border
     /// <summary>The timer slot: the latency once done, the clock otherwise.</summary>
     protected static string Timer(PillState s) => s.Phase == PillPhase.Latency ? Seconds(s.Elapsed) : Clock(s.Elapsed);
 
-    /// <summary>" · clean 0.7s" or " · clean failed", in the latency phase of a cleaned dictation; empty otherwise.</summary>
+    /// <summary>" · clean 0.7s" / " · edit 0.7s" or " · clean failed", in the latency phase of a cleaned dictation; empty otherwise.</summary>
     protected static string CleanupTail(PillState s) =>
         s.Phase != PillPhase.Latency || s.Cleanup is not { } c ? string.Empty
-        : " · clean" + (s.CleanupFailed ? " failed" : " " + Seconds(c));
+        : " · " + (s.Mode == "EDIT" ? "edit" : "clean") + (s.CleanupFailed ? " failed" : " " + Seconds(c));
 
     /// <summary>
     /// "1.2s · raw/clean/cmd" normally; in the latency phase of a cleaned dictation, the mode

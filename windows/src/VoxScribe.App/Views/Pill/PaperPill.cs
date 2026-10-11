@@ -100,12 +100,12 @@ internal sealed class PaperPill : PillFace
         _head.Text = state.Phase switch
         {
             PillPhase.Recording => "listening",
-            PillPhase.Working => state.Mode == "CLEAN" ? "tidying…" : "transcribing…",
+            PillPhase.Working => state.Mode switch { "CLEAN" => "tidying…", "EDIT" => "editing…", _ => "transcribing…" },
             PillPhase.Notice => "note",
             _ => "done",
         };
         _head.Foreground = state.Phase == PillPhase.Working ? _accent : _ink;
-        _meta.Text = TimerLine(state, state.Mode switch { "CLEAN" => "clean", "CMD" => "cmd", _ => "raw" });
+        _meta.Text = TimerLine(state, state.Mode switch { "CLEAN" => "clean", "CMD" => "cmd", "EDIT" => "edit", _ => "raw" });
         _stroke.Push(recording ? state.Level : 0, flat: !recording);
         _working.IsVisible = state.Phase == PillPhase.Working;
 
