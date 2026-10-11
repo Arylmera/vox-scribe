@@ -96,9 +96,11 @@ internal sealed class OrbPill : PillFace
         Canvas.SetLeft(_dot, c + (r * RimCos45) - (DotSize / 2));
         Canvas.SetTop(_dot, c - (r * RimCos45) - (DotSize / 2));
 
+        // Orb's compact strip is too tight for the full "clean 0.7s"/"clean failed" split;
+        // the short form drops the word.
         var meta = working
             ? state.Mode == "CLEAN" ? "POLISHING · CLEAN" : $"WORKING · {state.Mode}"
-            : TimerLine(state, state.Mode);
+            : ShortTimerLine(state, state.Mode);
         var open = HasPreview(state);
         _label.Text = meta;
         _label.IsVisible = !open;

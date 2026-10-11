@@ -145,6 +145,11 @@ public sealed class PillTests
     [AvaloniaFact]
     public void The_latency_shows_the_cleanup_split() => EachTheme((theme, face) =>
     {
+        // Orb and Tide are too tight for the full "clean 0.7s"/"clean failed" split (see
+        // The_cleanup_split_fits_the_pill) and fall back to the spec's short form instead:
+        // "1.2s · 0.7s" / "1.2s · raw".
+        var shortForm = theme.Pill is PillKind.Orb or PillKind.Tide;
+
         face.Update(new PillState(PillPhase.Latency, 0, TimeSpan.FromSeconds(1.2), "CLEAN", string.Empty,
             Cleanup: TimeSpan.FromSeconds(0.7)));
         var text = string.Join(' ', face.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text));
@@ -154,7 +159,7 @@ public sealed class PillTests
         face.Update(new PillState(PillPhase.Latency, 0, TimeSpan.FromSeconds(1.2), "CLEAN", string.Empty,
             Cleanup: TimeSpan.FromSeconds(5), CleanupFailed: true));
         var failed = string.Join(' ', face.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text));
-        failed.ShouldContain("failed", customMessage: theme.Id);
+        failed.ShouldContain(shortForm ? "raw" : "failed", customMessage: theme.Id);
 
         // Command-mode dictations are cleaned too (the transcript is tidied before it is
         // submitted); the cleanup split must read as the cleanup's own outcome, never as if
@@ -162,14 +167,14 @@ public sealed class PillTests
         face.Update(new PillState(PillPhase.Latency, 0, TimeSpan.FromSeconds(1.2), "CMD", string.Empty,
             Cleanup: TimeSpan.FromSeconds(0.7)));
         var cmdOk = string.Join(' ', face.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text));
-        cmdOk.ShouldContain("clean 0.7s", customMessage: theme.Id);
+        cmdOk.ShouldContain(shortForm ? "1.2s · 0.7s" : "clean 0.7s", customMessage: theme.Id);
         cmdOk.ToLowerInvariant().ShouldNotContain("cmd failed", customMessage: theme.Id);
         cmdOk.ToLowerInvariant().ShouldNotContain("command failed", customMessage: theme.Id);
 
         face.Update(new PillState(PillPhase.Latency, 0, TimeSpan.FromSeconds(1.2), "CMD", string.Empty,
             Cleanup: TimeSpan.FromSeconds(5), CleanupFailed: true));
         var cmdFailed = string.Join(' ', face.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text));
-        cmdFailed.ShouldContain("clean failed", customMessage: theme.Id);
+        cmdFailed.ShouldContain(shortForm ? "1.2s · raw" : "clean failed", customMessage: theme.Id);
         cmdFailed.ToLowerInvariant().ShouldNotContain("cmd failed", customMessage: theme.Id);
         cmdFailed.ToLowerInvariant().ShouldNotContain("command failed", customMessage: theme.Id);
     });
@@ -178,19 +183,31 @@ public sealed class PillTests
     public void The_cleanup_split_fits_the_pill() => EachTheme((theme, face) =>
     {
         // Every face sets an explicit Width, so Measure(Size.Infinity) on the face itself just
-        // returns that Width back — it can never catch a label overflowing its own slot, which
-        // clips silently (TextTrimming.None, ClipToBounds). Measure each label on its own, at
-        // its natural width, against the space layout actually gave it.
+        // returns that Width back — it can never catch an overflow, which clips silently
+        // (TextTrimming.None, ClipToBounds). Checking one label's Bounds doesn't work either:
+        // in Orb (a StackPanel) and Tide/Mono (Auto grid columns) the container always gives
+        // the label exactly its own natural width, so DesiredSize <= Bounds is tautological —
+        // only Paper/Fluent's DockPanel can actually constrain a label below what it wants.
+        // Measuring the face's whole content against the face's own fixed Width (its real
+        // budget) holds for all five: if the content naturally needs more than that budget,
+        // something is overflowing the pill, in an Auto column, a StackPanel or a dock alike.
         face.Update(new PillState(PillPhase.Latency, 0, TimeSpan.FromSeconds(12.3), "CLEAN", string.Empty,
             Cleanup: TimeSpan.FromSeconds(10.4)));
         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
 
-        // Isolate the one label carrying the cleanup split ("12.3s · clean 10.4s" or similar):
-        // that is what this test is about, not every other label in the face.
-        var line = face.GetVisualDescendants().OfType<TextBlock>()
-            .First(t => t.Text?.Contains("12.3s") == true && t.Bounds.Width > 0);
-        line.Measure(Avalonia.Size.Infinity);
-        line.DesiredSize.Width.ShouldBeLessThanOrEqualTo(line.Bounds.Width + 0.5, theme.Id);
+        // Every face hosts its preview/notice line inside a TailClip, which by design can
+        // extend past its own slot (cropped on the left, newest word kept on screen) — that is
+        // not what this test is about. With an empty Text there is nothing to preview, so each
+        // TailClip here holds only a lingering static line (e.g. Fluent's idle "Speak now —
+        // release to type" hint), unrelated to the cleanup split. Hide them before measuring so
+        // only the dot/title/timer/badge content — where the split actually lives — counts.
+        foreach (var host in face.GetVisualDescendants().OfType<TailClip>()) host.IsVisible = false;
+
+        face.Child!.Measure(Avalonia.Size.Infinity);
+        var available = face.Width
+            - face.Padding.Left - face.Padding.Right
+            - face.BorderThickness.Left - face.BorderThickness.Right;
+        face.Child.DesiredSize.Width.ShouldBeLessThanOrEqualTo(available + 0.5, theme.Id);
     });
 
     [AvaloniaFact]

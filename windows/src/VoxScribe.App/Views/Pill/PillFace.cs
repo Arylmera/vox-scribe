@@ -167,6 +167,18 @@ internal abstract class PillFace : Border
     protected static string TimerLine(PillState s, string modeWord) =>
         CleanupTail(s) is { Length: > 0 } tail ? Timer(s) + tail : $"{Timer(s)} · {modeWord}";
 
+    /// <summary>
+    /// The short form for a face too tight for "clean"/"failed": " · 0.7s" or, on failure,
+    /// " · raw" (the raw text is what actually got used); empty outside a cleaned latency.
+    /// </summary>
+    protected static string ShortCleanupTail(PillState s) =>
+        s.Phase != PillPhase.Latency || s.Cleanup is not { } c ? string.Empty
+        : " · " + (s.CleanupFailed ? "raw" : Seconds(c));
+
+    /// <summary>The short form's equivalent of <see cref="TimerLine"/>: "1.2s · 0.7s"/"1.2s · raw".</summary>
+    protected static string ShortTimerLine(PillState s, string modeWord) =>
+        ShortCleanupTail(s) is { Length: > 0 } tail ? Timer(s) + tail : $"{Timer(s)} · {modeWord}";
+
     /// <summary>A round recording dot in the record red.</summary>
     protected static Ellipse Dot(double size) => new()
     {
