@@ -43,15 +43,21 @@ public sealed class TextEditor(string baseUrl, string model, string? apiKey)
     }
 
     /// <summary>
-    /// The mechanical guard: null for an empty answer or a leaked reasoning block; strips one
-    /// surrounding code fence and echoed markers.
+    /// The mechanical guard: null for an empty answer or one that opens with a leaked
+    /// reasoning block; strips one surrounding code fence and echoed markers.
     /// </summary>
+    /// <remarks>
+    /// Only a <i>leading</i> "&lt;think" is rejected, not any occurrence — the edit may be
+    /// asked to produce or fix HTML or code that legitimately contains the literal text
+    /// "&lt;think" (a tag, a variable), and that must still come back.
+    /// </remarks>
     public static string? Vet(string? candidate)
     {
         if (string.IsNullOrWhiteSpace(candidate)) return null;
-        if (candidate.Contains("<think", StringComparison.OrdinalIgnoreCase)) return null;
 
         var text = candidate.Trim();
+        if (text.StartsWith("<think", StringComparison.OrdinalIgnoreCase)) return null;
+
         if (text.StartsWith("```", StringComparison.Ordinal) && text.EndsWith("```", StringComparison.Ordinal) && text.Length > 6)
         {
             var firstBreak = text.IndexOf('\n', StringComparison.Ordinal);

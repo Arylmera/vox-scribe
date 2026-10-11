@@ -70,8 +70,10 @@ clipboard-open retry, no decisions.
   apply the instruction to the text and return only the edited text; the user message carries
   the instruction and the text, clearly delimited. Timeout: `TextCleaner.TimeoutFor(selection)`.
   `max_tokens` sized for the selection (translation can grow it — allow ~2× + margin).
-  Guard (`TextEditor.Vet`): reject empty/whitespace and any answer containing `<think`; strip
-  one surrounding ``` fence pair; **no** word-overlap check (a translation shares no words).
+  Guard (`TextEditor.Vet`): reject empty/whitespace and an answer that **starts with** `<think`
+  (a leaked reasoning block) — not merely contains it, so editing HTML or code that legitimately
+  has the literal text `<think` in it still comes back; strip one surrounding ``` fence pair;
+  **no** word-overlap check (a translation shares no words).
 - **`DictationEngine`**:
   - an `editHotkey` constructor parameter (like the other optional hotkeys) and an
     `OnEditPressed` → `Pressed(...)` path setting an `_editThisUtterance` flag;
@@ -105,7 +107,8 @@ clipboard-open retry, no decisions.
 
 ## Testing
 
-- `TextEditor`: Vet rejects empty and `<think`, strips a fence, keeps a translation that shares
+- `TextEditor`: Vet rejects empty and a leading `<think`, keeps an answer that merely contains
+  the literal text `<think` elsewhere, strips a fence, keeps a translation that shares
   no words with the input; an unreachable gateway yields a failure with a reason.
 - `TextCleaner`: existing suite unchanged after the `ChatCompletion` extraction.
 - `DictationEngine` (fakes): selection replaced by the result; no selection → nothing injected

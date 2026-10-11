@@ -11,7 +11,16 @@ public sealed class TextEditorTests
     [InlineData(null)]
     [InlineData("   ")]
     [InlineData("<think>hmm</think>Hello")]
+    [InlineData("  <think>hmm</think>Hello")]
     public void An_unusable_answer_vets_as_null(string? answer) => TextEditor.Vet(answer).ShouldBeNull();
+
+    /// <summary>
+    /// Only a leaked reasoning block at the very start is a refusal — editing HTML or code
+    /// that legitimately contains the literal text "&lt;think" must not always fail.
+    /// </summary>
+    [Fact]
+    public void An_answer_that_merely_contains_think_is_kept() =>
+        TextEditor.Vet("<div><think-piece>hello</think-piece></div>").ShouldBe("<div><think-piece>hello</think-piece></div>");
 
     [Fact]
     public void A_fence_around_the_answer_is_stripped() =>
