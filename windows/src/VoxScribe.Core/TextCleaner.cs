@@ -53,10 +53,21 @@ public sealed class TextCleaner
     /// per instance would be a disposable to thread through the composition for no gain.
     /// </summary>
     /// <remarks>
-    /// The timeout is short on purpose: it sits between the key release and the text
-    /// appearing, and a slow answer is worse than no answer.
+    /// No client-wide timeout: each request gets its own, from <see cref="TimeoutFor"/>.
     /// </remarks>
-    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(5) };
+    private static readonly HttpClient Http = new() { Timeout = Timeout.InfiniteTimeSpan };
+
+    /// <summary>
+    /// How long a repair of <paramref name="text"/> may take: 5 s, plus 1 s per 100 characters,
+    /// at most 30 s.
+    /// </summary>
+    /// <remarks>
+    /// It sits between the key release and the text appearing, so it stays short — but a flat
+    /// 5 s meant an 85 s dictation (1 371 characters) always came back raw, because the model
+    /// could not write that much back in time. Asking for cleanup is asking to wait for it.
+    /// </remarks>
+    public static TimeSpan TimeoutFor(string text) =>
+        TimeSpan.FromSeconds(Math.Min(30, 5 + (text.Length / 100.0)));
 
     private readonly Uri _endpoint;
     private readonly string _model;
@@ -99,6 +110,9 @@ public sealed class TextCleaner
                 new JsonObject { ["role"] = "user", ["content"] = text }),
         };
 
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeoutFor(text));
+
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, _endpoint)
@@ -109,7 +123,7 @@ public sealed class TextCleaner
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
 
             using var response = await Http
-                .SendAsync(request, cancellationToken)
+                .SendAsync(request, timeout.Token)
                 .ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
@@ -118,7 +132,7 @@ public sealed class TextCleaner
             }
 
             var answer = await response.Content
-                .ReadAsStringAsync(cancellationToken)
+                .ReadAsStringAsync(timeout.Token)
                 .ConfigureAwait(false);
             return Accept(text, Content(answer));
         }

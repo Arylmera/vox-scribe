@@ -133,4 +133,11 @@ public class TextCleanerTests
     [InlineData("""{"choices":[]}""")]
     public void A_body_of_the_wrong_shape_reads_as_nothing(string body) =>
         TextCleaner.Content(body).ShouldBeNull();
+
+    [Theory]
+    [InlineData(0, 5)]
+    [InlineData(1371, 18.71)]
+    [InlineData(10_000, 30)]
+    public void A_longer_dictation_is_given_longer_to_clean(int length, double seconds) =>
+        TextCleaner.TimeoutFor(new string('a', length)).TotalSeconds.ShouldBe(seconds, 0.001);
 }

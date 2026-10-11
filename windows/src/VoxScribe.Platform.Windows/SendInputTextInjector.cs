@@ -154,9 +154,43 @@ public sealed class SendInputTextInjector : ITextInjector
     [DllImport("user32.dll", EntryPoint = "MapVirtualKeyW")]
     private static extern uint MapVirtualKey(uint code, uint mapType);
 
+    private const uint CF_UNICODETEXT = 13;
+    private const uint GMEM_MOVEABLE = 0x0002;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool OpenClipboard(IntPtr owner);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool CloseClipboard();
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool EmptyClipboard();
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern IntPtr GetClipboardData(uint format);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern IntPtr SetClipboardData(uint format, IntPtr memory);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern IntPtr GlobalAlloc(uint flags, nuint bytes);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern IntPtr GlobalLock(IntPtr memory);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GlobalUnlock(IntPtr memory);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern IntPtr GlobalFree(IntPtr memory);
+
     private static readonly int InputSize = Marshal.SizeOf<INPUT>();
 
-    /// <summary>Called to place text on the clipboard and paste it.</summary>
+    /// <summary>Replaces the built-in Win32 clipboard paste; null uses it.</summary>
     /// <remarks>
     /// Injected rather than called directly because clipboard access is UI-framework specific
     /// and must happen on an STA thread — the app supplies an implementation that marshals to
@@ -185,7 +219,103 @@ public sealed class SendInputTextInjector : ITextInjector
             return await ClipboardPaste(text, cancellationToken).ConfigureAwait(false);
         }
 
-        return TypeWithNewlines(text);
+        return await PasteAsync(text, cancellationToken).ConfigureAwait(false) || TypeWithNewlines(text);
+    }
+
+    /// <summary>
+    /// Puts <paramref name="text"/> on the clipboard, presses Ctrl+V, then puts back the text
+    /// that was there. False when the clipboard could not be taken, so the caller types instead.
+    /// </summary>
+    /// <remarks>
+    /// Nothing supplied <see cref="ClipboardPaste"/> until October 2026, so every long dictation
+    /// was typed, and an 1 371-character one lost its last 550 in the Orca terminal.
+    /// ponytail: only text is saved and restored — an image on the clipboard is replaced by the
+    /// dictation. Save every format if that ever matters.
+    /// </remarks>
+    private static async Task<bool> PasteAsync(string text, CancellationToken cancellationToken)
+    {
+        var previous = ReadClipboardText();
+        if (!WriteClipboardText(text)) return false;
+
+        await Task.Delay(ClipboardSettle, cancellationToken).ConfigureAwait(false);
+        var pasted = PressCtrlV();
+        await Task.Delay(PasteSettle, cancellationToken).ConfigureAwait(false);
+
+        if (previous is not null) WriteClipboardText(previous);
+        return pasted;
+    }
+
+    private static string? ReadClipboardText()
+    {
+        if (!OpenClipboardWithRetry()) return null;
+        try
+        {
+            var handle = GetClipboardData(CF_UNICODETEXT);
+            if (handle == IntPtr.Zero) return null;
+
+            var pointer = GlobalLock(handle);
+            if (pointer == IntPtr.Zero) return null;
+            try
+            {
+                return Marshal.PtrToStringUni(pointer);
+            }
+            finally
+            {
+                GlobalUnlock(handle);
+            }
+        }
+        finally
+        {
+            CloseClipboard();
+        }
+    }
+
+    private static bool WriteClipboardText(string text)
+    {
+        if (!OpenClipboardWithRetry()) return false;
+        try
+        {
+            if (!EmptyClipboard()) return false;
+
+            var bytes = (text.Length + 1) * sizeof(char);
+            var handle = GlobalAlloc(GMEM_MOVEABLE, (nuint)bytes);
+            if (handle == IntPtr.Zero) return false;
+
+            var pointer = GlobalLock(handle);
+            if (pointer == IntPtr.Zero)
+            {
+                GlobalFree(handle);
+                return false;
+            }
+
+            Marshal.Copy(text.ToCharArray(), 0, pointer, text.Length);
+            Marshal.WriteInt16(pointer, text.Length * sizeof(char), 0);
+            GlobalUnlock(handle);
+
+            // On success the clipboard owns the memory; on failure it is still ours.
+            if (SetClipboardData(CF_UNICODETEXT, handle) != IntPtr.Zero) return true;
+            GlobalFree(handle);
+            return false;
+        }
+        finally
+        {
+            CloseClipboard();
+        }
+    }
+
+    /// <summary>
+    /// Another process — a clipboard manager, the target itself — can hold the clipboard for a
+    /// few milliseconds, so one refusal is not an answer.
+    /// </summary>
+    private static bool OpenClipboardWithRetry()
+    {
+        for (var attempt = 0; attempt < 10; attempt++)
+        {
+            if (OpenClipboard(IntPtr.Zero)) return true;
+            Thread.Sleep(10);
+        }
+
+        return false;
     }
 
     /// <inheritdoc />
