@@ -35,8 +35,8 @@ loop. The follow-up feature (rewrite a selection by voice) gets its own spec.
     `State != Recording` guard stops consumption afterwards.
 - `AppSettings`: `AutoStopSilenceSeconds` (int, default 3; 0 = off). Wired in
   `Composition.cs` next to `ToggleMode`, both at construction and on settings change.
-- Settings UI (`ShortcutsSection`, next to the toggle switch): an on/off switch plus a
-  1–10 s slider. Both disabled while toggle mode is off. Values come from `DesignTokens`.
+- Settings UI (`ShortcutsSection`, next to the toggle switch): one picker — "Off", "1 s" … "10 s" —
+  disabled while toggle mode is off (the app has no themed slider; one picker covers both). Values come from `DesignTokens`.
 
 ## 2. Cleanup timing
 
