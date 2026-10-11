@@ -426,6 +426,29 @@ public sealed class SettingsPageTests : IDisposable
     }
 
     [AvaloniaFact]
+    public void Auto_stop_picker_re_enables_when_toggle_mode_is_switched_on()
+    {
+        var page = new SettingsPage(new AppSettings(_path), null, SettingsTab.Shortcuts);
+        var window = new Window { Content = page };
+        window.Show();
+
+        var toggle = page.GetVisualDescendants().OfType<CheckBox>()
+            .First(c => c.Content is TextBlock { Text: var t } && t?.StartsWith("Toggle mode", StringComparison.Ordinal) == true);
+        var picker = page.GetVisualDescendants().OfType<ComboBox>().Single();
+
+        toggle.IsChecked.ShouldBe(false);
+        picker.IsEnabled.ShouldBeFalse();
+
+        toggle.IsChecked = true;
+
+        picker.IsEnabled.ShouldBeTrue();
+
+        toggle.IsChecked = false;
+
+        picker.IsEnabled.ShouldBeFalse();
+    }
+
+    [AvaloniaFact]
     public void Tab_from_the_last_control_in_a_section_leaves_the_section()
     {
         var page = new SettingsPage(new AppSettings(_path), null, SettingsTab.General);

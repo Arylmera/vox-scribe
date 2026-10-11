@@ -30,6 +30,11 @@ internal static class ShortcutsSection
         AppSettings settings, Action<SettingsData> save,
         IReadOnlyDictionary<ShortcutSlot, TransportKey> keys, TextBlock warning)
     {
+        var toggle = Panels.Toggle("Toggle mode — press once to start, press again to stop",
+            settings.Data.PushToTalkToggle,
+            v => save(settings.Data with { PushToTalkToggle = v }));
+        var autoStop = AutoStop(settings, save, toggle);
+
         return Panels.Section("SHORTCUTS", new StackPanel
         {
             Spacing = Tokens.Space.Snug,
@@ -54,16 +59,14 @@ internal static class ShortcutsSection
                 Panels.Note("Dictate at Claude Code instead of at a text field: the transcript "
                     + "(tidied when a cleanup model is set) goes to the Claude Code session armed in "
                     + "its band, or else to the window set under CLAUDE, and is submitted. Escape unbinds."),
-                Panels.Toggle("Toggle mode — press once to start, press again to stop",
-                    settings.Data.PushToTalkToggle,
-                    v => save(settings.Data with { PushToTalkToggle = v })),
-                AutoStop(settings, save),
+                toggle,
+                autoStop,
             },
         });
     }
 
     /// <summary>Off, or 1–10 s of silence that end a toggle dictation. Disabled outside toggle mode.</summary>
-    private static StackPanel AutoStop(AppSettings settings, Action<SettingsData> save)
+    private static StackPanel AutoStop(AppSettings settings, Action<SettingsData> save, CheckBox toggle)
     {
         var choices = Enumerable.Range(0, 11)
             .Select(s => new ComboBoxItem { Content = s == 0 ? "Off" : $"{s} s", Tag = s })
@@ -82,6 +85,7 @@ internal static class ShortcutsSection
             if (picker.SelectedItem is ComboBoxItem { Tag: int s } && s != settings.Data.AutoStopSilenceSeconds)
                 save(settings.Data with { AutoStopSilenceSeconds = s });
         };
+        toggle.IsCheckedChanged += (_, _) => picker.IsEnabled = toggle.IsChecked ?? false;
 
         return new StackPanel
         {
