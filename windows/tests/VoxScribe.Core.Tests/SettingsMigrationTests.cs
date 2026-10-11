@@ -31,4 +31,8 @@ public sealed class SettingsMigrationTests
         new SettingsData().ShouldSatisfyAllConditions(
             d => d.Theme.ShouldBe("paper"),
             d => d.AccentVariant.ShouldBeNull());
+
+    [Fact]
+    public void Auto_stop_defaults_to_three_seconds() =>
+        new SettingsData().AutoStopSilenceSeconds.ShouldBe(3);
 }

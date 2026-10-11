@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Layout;
 using VoxScribe.App.Controls;
 using VoxScribe.App.Design;
 using VoxScribe.Core;
@@ -56,7 +57,41 @@ internal static class ShortcutsSection
                 Panels.Toggle("Toggle mode — press once to start, press again to stop",
                     settings.Data.PushToTalkToggle,
                     v => save(settings.Data with { PushToTalkToggle = v })),
+                AutoStop(settings, save),
             },
         });
+    }
+
+    /// <summary>Off, or 1–10 s of silence that end a toggle dictation. Disabled outside toggle mode.</summary>
+    private static StackPanel AutoStop(AppSettings settings, Action<SettingsData> save)
+    {
+        var choices = Enumerable.Range(0, 11)
+            .Select(s => new ComboBoxItem { Content = s == 0 ? "Off" : $"{s} s", Tag = s })
+            .ToList();
+        var picker = new ComboBox
+        {
+            ItemsSource = choices,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            FontFamily = Tokens.Fonts.Grotesque,
+            FontSize = Tokens.Fonts.Body,
+            IsEnabled = settings.Data.PushToTalkToggle,
+            SelectedItem = choices.FirstOrDefault(c => (int)c.Tag! == settings.Data.AutoStopSilenceSeconds) ?? choices[3],
+        };
+        picker.SelectionChanged += (_, _) =>
+        {
+            if (picker.SelectedItem is ComboBoxItem { Tag: int s } && s != settings.Data.AutoStopSilenceSeconds)
+                save(settings.Data with { AutoStopSilenceSeconds = s });
+        };
+
+        return new StackPanel
+        {
+            Spacing = Tokens.Space.Snug,
+            Children =
+            {
+                Panels.Labelled("STOP AFTER SILENCE", picker),
+                Panels.Note("Toggle mode only: once you have spoken, this much silence ends the "
+                    + "dictation as a second press would."),
+            },
+        };
     }
 }

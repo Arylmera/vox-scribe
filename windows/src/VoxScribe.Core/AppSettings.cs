@@ -37,6 +37,12 @@ public sealed record SettingsData
     /// </summary>
     public bool PushToTalkToggle { get; init; }
 
+    /// <summary>
+    /// Toggle mode only: seconds of silence, once speech was heard, that end a dictation.
+    /// 0 turns it off. Default 3.
+    /// </summary>
+    public int AutoStopSilenceSeconds { get; init; } = 3;
+
     /// <summary>Where the speech model lives, or null to search the default locations.</summary>
     public string? ModelDirectory { get; init; }
 

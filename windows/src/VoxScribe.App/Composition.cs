@@ -184,6 +184,7 @@ public sealed class Composition : IAsyncDisposable
             Rearm();
 
             engine.ToggleMode = settings.Data.PushToTalkToggle;
+            engine.AutoStopSilenceSeconds = settings.Data.AutoStopSilenceSeconds;
             engine.IncrementalInjection = settings.Data.IncrementalInjection;
             engine.SpokenPunctuation = settings.Data.SpokenPunctuation;
             engine.AnchorFocus = settings.Data.AnchorFocus;
@@ -211,6 +212,7 @@ public sealed class Composition : IAsyncDisposable
             {
                 Rearm();
                 live.ToggleMode = settings.Data.PushToTalkToggle;
+                live.AutoStopSilenceSeconds = settings.Data.AutoStopSilenceSeconds;
                 live.IncrementalInjection = settings.Data.IncrementalInjection;
                 live.SpokenPunctuation = settings.Data.SpokenPunctuation;
                 live.AnchorFocus = settings.Data.AnchorFocus;
