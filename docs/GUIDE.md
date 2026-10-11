@@ -21,6 +21,14 @@ hold several keys together, the last release commits the binding).
 The cleanup shortcut only works once a cleanup endpoint is configured (Settings → CLEANUP).
 If the gateway is unreachable, the raw text is typed instead — a dictation never disappears.
 
+**Edit mode.** Select text anywhere, hold the edit shortcut (Settings → SHORTCUTS → EDIT, not
+bound by default — needs a cleanup endpoint) and say an instruction — "translate to English",
+"make it shorter", "fix the typos" — release, and the selection is replaced by the model's
+rewrite. The pill's badge reads `EDIT`. The selection is copied with Ctrl+Insert, not Ctrl+C,
+so it never interrupts a terminal that has nothing selected. History shows it with an `EDIT`
+badge rather than `CLEAN`, and the dictionary's suggestions never mine its instruction.
+The undo shortcut puts the original selection back.
+
 **Command mode.** Hold the command shortcut and speak; on release the transcript (tidied
 when a cleanup endpoint is set) is typed into the first visible window whose title contains
 the text in Settings → SHORTCUTS → COMMAND WINDOW TITLE CONTAINS (default `Claude`), then

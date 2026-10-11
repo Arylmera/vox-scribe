@@ -126,8 +126,10 @@ clipboard-open retry, no decisions.
 - Pill: `EDIT` badge and the edit split in every face; widths still fit (the existing
   per-face width test).
 - By hand (no fake can prove these): Ctrl+Insert capture and replacement in Notepad, Chrome,
-  VS Code, Word, a terminal with and without a selection (nothing interrupted); the user's
-  clipboard is intact afterwards; Undo restores the original.
+  VS Code, Word, a terminal with and without a selection (nothing interrupted); VS Code with
+  no selection; a dialog Edit control that selects-all on focus (a partial selection must
+  stay partial, not widen to the whole field); the user's clipboard is intact afterwards;
+  Undo restores the original.
 
 ## Out of scope
 

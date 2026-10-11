@@ -111,6 +111,7 @@ because Right Alt is AltGr on many keyboard layouts. Every shortcut can be re-re
 | **Raw** | <kbd>Right Ctrl</kbd> | Types the transcript as it was heard |
 | **Cleanup** | *not bound* | Fixes punctuation, capitals and filler words through your model, then types it |
 | **Command** | *not bound* | Sends the transcript to the [armed Claude Code session](#-talk-to-claude-code) — or types it into the Claude window and presses <kbd>Enter</kbd> — even if it isn't focused |
+| **Edit** | *not bound* | Select text anywhere, hold, say an instruction ("translate to English", "shorter", "fix the typos"), release — the selection is replaced by the model's rewrite (needs a cleanup endpoint) |
 | **Undo** | *not bound* | Erases the last dictation from wherever it was typed |
 | **Cancel** | <kbd>Esc</kbd> | While recording: stop, type nothing |
 
