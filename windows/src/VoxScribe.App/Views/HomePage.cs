@@ -247,8 +247,10 @@ internal sealed class HomePage : UserControl
     /// <summary>"Cleanup · median 0.7s · 1 failed this week" — only once a cleanup ran.</summary>
     private static TextBlock BuildCleanupLine(TimeSpan median, int failures) => new()
     {
-        Text = Shell.Caps(string.Create(CultureInfo.InvariantCulture,
-            $"Cleanup · median {median.TotalSeconds:0.0}s · {failures} failed this week")),
+        // Caps the words, not the whole line — Shell.Caps would turn "0.7s" into "0.7S" in
+        // uppercase themes.
+        Text = string.Create(CultureInfo.InvariantCulture,
+            $"{Shell.Caps("Cleanup")} · median {median.TotalSeconds:0.0}s · {failures} {Shell.Caps("failed this week")}"),
         FontFamily = Tokens.Fonts.Grotesque,
         FontSize = Tokens.Fonts.Caption,
         Foreground = Tokens.Brushes.InkSecondary,

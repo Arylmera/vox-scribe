@@ -81,7 +81,7 @@ public sealed class DictationEngine : IAsyncDisposable
     private volatile bool _cancelled;
 
     /// <summary>Set once auto-stop has fired this utterance, so it ends the dictation once.</summary>
-    private bool _autoStopped;
+    private volatile bool _autoStopped;
 
     private readonly SemaphoreSlim _gate = new(1, 1);
 

@@ -503,6 +503,7 @@ public sealed class HistoryCleanupTimingTests
             var store = new TranscriptStore(Path.Combine(Path.GetTempPath(), $"vox-{Guid.NewGuid():N}.jsonl"));
             store.Add(new TranscriptRecord { Text = "ok", CleanupSeconds = 0.7 });
             store.Add(new TranscriptRecord { Text = "bad", CleanupFailed = true, CleanupSeconds = 5 });
+            store.Add(new TranscriptRecord { Text = "raw, never cleaned" });
 
             var view = new TranscriptionsView(store);
             var window = new Window { Content = view };
@@ -510,13 +511,20 @@ public sealed class HistoryCleanupTimingTests
             {
                 window.Show();
 
-                var text = string.Concat(view.GetVisualDescendants().OfType<TextBlock>()
+                var runs = view.GetVisualDescendants().OfType<TextBlock>()
                     .SelectMany(block => block.Inlines ?? new InlineCollection())
                     .OfType<Run>()
-                    .Select(run => run.Text));
+                    .ToList();
+                var text = string.Concat(runs.Select(run => run.Text));
 
                 text.ShouldContain("cleanup 0.7s");
                 text.ShouldContain("cleanup failed");
+
+                var failedRun = runs.Single(run => run.Text == " · cleanup failed");
+                failedRun.Foreground.ShouldBeOfType<SolidColorBrush>().Color.ShouldBe(Tokens.Colors.Caution);
+
+                // The record with no cleanup fields must not grow a "cleanup" run at all.
+                runs.Count(run => run.Text?.Contains("cleanup", StringComparison.Ordinal) == true).ShouldBe(2);
             }
             finally
             {
