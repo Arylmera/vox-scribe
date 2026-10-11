@@ -49,7 +49,7 @@ public sealed class SendInputTextInjector : ITextInjector
     /// <summary>Time for the target to finish reading before the clipboard is restored.</summary>
     private static readonly TimeSpan PasteSettle = TimeSpan.FromMilliseconds(500);
 
-    /// <summary>How long the target gets to answer Ctrl+C before the clipboard is read.</summary>
+    /// <summary>How long the target gets to answer Ctrl+Insert before the clipboard is read.</summary>
     private static readonly TimeSpan CopySettle = TimeSpan.FromMilliseconds(150);
 
     private const uint INPUT_KEYBOARD = 1;
@@ -63,7 +63,7 @@ public sealed class SendInputTextInjector : ITextInjector
     private const int VK_LWIN = 0x5B;
     private const int VK_RWIN = 0x5C;
     private const int VK_V = 0x56;
-    private const int VK_C = 0x43;
+    private const int VK_INSERT = 0x2D;
     private const int VK_RETURN = 0x0D;
     private const int VK_BACK = 0x08;   // not in the extended-key set, plain scancode path
 
@@ -231,9 +231,13 @@ public sealed class SendInputTextInjector : ITextInjector
 
     /// <inheritdoc />
     /// <remarks>
-    /// Ctrl+C, then the clipboard sequence number says whether anything was copied — an app
-    /// with no selection copies nothing and the number does not move. The user's text is put
-    /// back afterwards, as <see cref="PasteAsync"/> does.
+    /// Ctrl+Insert, not Ctrl+C: with nothing selected, Ctrl+C is a terminal's interrupt
+    /// (Windows Terminal, a shell running inside Orca), and firing it on every Edit-chord
+    /// release would kill whatever command is running there. Ctrl+Insert is the same "copy"
+    /// in every Windows text control and carries no such meaning.
+    /// Then the clipboard sequence number says whether anything was copied — an app with no
+    /// selection copies nothing and the number does not move. The user's text is put back
+    /// afterwards, as <see cref="PasteAsync"/> does.
     /// ponytail: only text is saved and restored, as for paste.
     /// </remarks>
     public async ValueTask<string?> CopySelectionAsync(CancellationToken cancellationToken)
@@ -241,7 +245,7 @@ public sealed class SendInputTextInjector : ITextInjector
         var previous = ReadClipboardText();
         var before = GetClipboardSequenceNumber();
 
-        if (!PressCtrl(VK_C)) return null;
+        if (!PressCtrl(VK_INSERT)) return null;
         await Task.Delay(CopySettle, cancellationToken).ConfigureAwait(false);
 
         if (GetClipboardSequenceNumber() == before) return null;

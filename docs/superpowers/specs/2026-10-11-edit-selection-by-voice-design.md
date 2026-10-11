@@ -13,7 +13,10 @@ Select text anywhere, hold the **Edit** chord, say an instruction ("translate to
    as to any dictation. Incremental injection never applies to Edit (like Cleanup).
 3. Focus anchoring restores the window that had focus at press, as for every dictation.
 4. The selection is copied **at release** — not at press: while the chord is held its
-   modifiers are down, and a synthesized Ctrl+C would arrive as Ctrl+Shift+C or Ctrl+Alt+C.
+   modifiers are down, and a synthesized Ctrl+Insert would arrive as Ctrl+Shift+Insert or
+   Ctrl+Alt+Insert. The copy itself is Ctrl+Insert, not Ctrl+C: with nothing selected, Ctrl+C
+   is a terminal's interrupt (Windows Terminal, a shell running Claude Code) — firing it on
+   every Edit release would kill whatever command is running there.
 5. Outcomes:
    - **Nothing selected** → nothing is typed; the pill shows the notice `Nothing selected`.
    - **Selection longer than 8 000 characters** → nothing is typed; notice `Selection too long`.
@@ -41,7 +44,8 @@ Select text anywhere, hold the **Edit** chord, say an instruction ("translate to
 `ITextInjector` gains:
 
 ```csharp
-/// Copies the focused control's selection: saves the clipboard, sends Ctrl+C, waits briefly,
+/// Copies the focused control's selection: saves the clipboard, sends Ctrl+Insert (not
+/// Ctrl+C — a terminal reads that as its interrupt even with no selection), waits briefly,
 /// reads the text if the clipboard sequence number moved, restores the clipboard.
 /// Returns null when nothing was copied (no selection, or no text in it).
 ValueTask<string?> CopySelectionAsync(CancellationToken cancellationToken);
@@ -114,8 +118,9 @@ clipboard-open retry, no decisions.
   already covered by `ChordOverlapTests`).
 - Pill: `EDIT` badge and the edit split in every face; widths still fit (the existing
   per-face width test).
-- By hand (no fake can prove these): Ctrl+C capture and replacement in Notepad, Chrome, VS Code,
-  Word, a terminal; the user's clipboard is intact afterwards; Undo restores the original.
+- By hand (no fake can prove these): Ctrl+Insert capture and replacement in Notepad, Chrome,
+  VS Code, Word, a terminal with and without a selection (nothing interrupted); the user's
+  clipboard is intact afterwards; Undo restores the original.
 
 ## Out of scope
 

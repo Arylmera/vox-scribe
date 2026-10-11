@@ -773,5 +773,8 @@ A failed edit never reaches the latency phase (it raises a notice and no `Comple
 ## By hand (owner, after the last task)
 
 - Bind the Edit chord. In Notepad, Chrome (a textarea), VS Code, Word and a terminal: select a sentence, hold the chord, say "traduis en anglais", release → replaced. Undo → original back.
+- A terminal (Windows Terminal, a shell running Claude Code) with a selection and with none: an edit never interrupts whatever is running there (Ctrl+Insert, not Ctrl+C).
+- VS Code with no selection → `Nothing selected`, nothing typed.
+- A dialog Edit control that selects-all on focus (e.g. a Find box): select only part of the text, run an edit — the partial selection must stay partial, not widen to the whole field.
 - Nothing selected → `Nothing selected`, nothing typed. Copy something first, run an edit: the clipboard still holds it afterwards.
 - Stop the gateway → `Edit failed — …`, selection untouched.
