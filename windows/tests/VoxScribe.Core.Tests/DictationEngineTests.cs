@@ -369,6 +369,21 @@ public sealed class DictationEngineTests
     }
 
     [Fact]
+    public async Task Undo_after_an_edit_puts_the_original_back()
+    {
+        var injector = new RecordingTextInjector();
+        await using var engine = Build(FakeAudioCapture.Tone(0.1), new FakeHotkeySource(), new FakeTranscriber(), injector);
+        engine.Journal.BeginDictation();
+        engine.Journal.Record("Hello", replaced: "Bonjour");
+
+        (await engine.UndoLastDictationAsync(CancellationToken.None)).ShouldBeTrue();
+
+        injector.Backspaces.ShouldBe(5);
+        injector.Injected.ShouldBe(["Bonjour"]);
+        (await engine.UndoLastDictationAsync(CancellationToken.None)).ShouldBeFalse("one undo deep");
+    }
+
+    [Fact]
     public async Task ReportNotice_publishes_and_raises_Changed()
     {
         var hotkey = new FakeHotkeySource();

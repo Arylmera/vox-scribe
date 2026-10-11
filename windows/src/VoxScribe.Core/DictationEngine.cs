@@ -335,7 +335,8 @@ public sealed class DictationEngine : IAsyncDisposable
 
     /// <summary>
     /// Deletes the last dictation's injected text by sending one backspace per
-    /// text element (grapheme — surrogate pairs are one backspace, not two).
+    /// text element (grapheme — surrogate pairs are one backspace, not two). If that
+    /// dictation was an edit applied to a selection, its original text is re-typed.
     /// Only runs while idle; false when there is nothing to undo or a keystroke failed.
     /// </summary>
     public async Task<bool> UndoLastDictationAsync(CancellationToken cancellationToken)
@@ -344,8 +345,17 @@ public sealed class DictationEngine : IAsyncDisposable
 
         var text = Journal.InjectedText;
         if (text.Length == 0) return false;
+        var replaced = Journal.Replaced;
 
-        return await BackspaceAsync(text, cancellationToken).ConfigureAwait(false);
+        if (!await BackspaceAsync(text, cancellationToken).ConfigureAwait(false)) return false;
+        if (replaced is null) return true;
+
+        // An edit replaced a selection: put it back, then forget, so a second undo does nothing.
+        // ponytail: one backspace per grapheme — undoing an 8 000-character edit takes about a
+        // second; selecting the result would need a platform selection API.
+        var restored = await _injector.InjectAsync(replaced, cancellationToken).ConfigureAwait(false);
+        Journal.BeginDictation();
+        return restored;
     }
 
     /// <summary>Takes <paramref name="text"/> back out of the target, one backspace per grapheme.</summary>

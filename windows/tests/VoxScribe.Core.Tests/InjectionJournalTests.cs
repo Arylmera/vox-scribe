@@ -47,4 +47,17 @@ public sealed class InjectionJournalTests
     {
         new InjectionJournal().InjectedText.ShouldBe(string.Empty);
     }
+
+    [Fact]
+    public void An_edit_remembers_what_it_replaced_until_the_next_dictation()
+    {
+        var journal = new InjectionJournal();
+        journal.BeginDictation();
+        journal.Record("Hello", replaced: "Bonjour");
+
+        journal.Replaced.ShouldBe("Bonjour");
+
+        journal.BeginDictation();
+        journal.Replaced.ShouldBeNull();
+    }
 }
