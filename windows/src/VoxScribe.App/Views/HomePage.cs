@@ -250,7 +250,7 @@ internal sealed class HomePage : UserControl
         // Caps the words, not the whole line — Shell.Caps would turn "0.7s" into "0.7S" in
         // uppercase themes.
         Text = string.Create(CultureInfo.InvariantCulture,
-            $"{Shell.Caps("Cleanup")} · median {median.TotalSeconds:0.0}s · {failures} {Shell.Caps("failed this week")}"),
+            $"{Shell.Caps("Cleanup")} · {Shell.Caps("median")} {median.TotalSeconds:0.0}s · {failures} {Shell.Caps("failed this week")}"),
         FontFamily = Tokens.Fonts.Grotesque,
         FontSize = Tokens.Fonts.Caption,
         Foreground = Tokens.Brushes.InkSecondary,

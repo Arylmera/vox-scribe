@@ -91,6 +91,30 @@ public sealed class HomePageTests
     }
 
     [AvaloniaFact]
+    public void The_cleanup_line_caps_its_words_but_keeps_the_seconds_lowercase()
+    {
+        var store = new TranscriptStore(Path.Combine(Directory.CreateTempSubdirectory().FullName, "t.jsonl"));
+        store.Add(new TranscriptRecord { At = DateTimeOffset.Now, Text = "one two three", AudioSeconds = 2, CleanupSeconds = 0.7 });
+        try
+        {
+            Themes.Apply("mono", null, false); // Mono is an uppercase theme.
+            var window = Host(new HomePage(store, null, _ => { }, _ => Task.CompletedTask));
+
+            var text = window.GetVisualDescendants().OfType<TextBlock>()
+                .Select(t => t.Text)
+                .First(t => t?.Contains("FAILED THIS WEEK", StringComparison.Ordinal) == true)!;
+
+            text.ShouldContain("MEDIAN", Case.Sensitive);
+            text.ShouldContain("0.7s", Case.Sensitive);
+            text.ShouldNotContain("0.7S", Case.Sensitive);
+        }
+        finally
+        {
+            Themes.Apply(Themes.DefaultId, null, false);
+        }
+    }
+
+    [AvaloniaFact]
     public void Builds_in_every_theme_light_and_dark()
     {
         try
