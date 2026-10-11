@@ -131,12 +131,18 @@ public sealed class EditModeTests
         var (engine, edit, injector) = Build("le build passe", edit: null);
         await using var _ = engine;
 
+        // A full press/release, like any other chord — the missing endpoint is reported at
+        // release, with the pill visible, not swallowed at press while idle (and hidden).
         edit.Press();
-        for (var i = 0; i < 200; i++) await Task.Yield();
-
-        engine.State.ShouldBe(DictationState.Idle);
-        engine.Notice.ShouldBe("Set a cleanup endpoint to edit by voice");
+        for (var i = 0; i < 2000 && engine.State != DictationState.Recording; i++) await Task.Yield();
+        engine.State.ShouldBe(DictationState.Recording, "the chord must record like any other, press-time guard or not");
+        engine.Notice.ShouldBe(string.Empty, "nothing is reported until release");
+        for (var i = 0; i < 20000 && engine.Level == 0; i++) await Task.Yield();
         edit.Release();
+        for (var i = 0; i < 20000 && engine.State != DictationState.Idle; i++) await Task.Yield();
+
+        engine.Notice.ShouldBe("Set a cleanup endpoint to edit by voice");
+        injector.Injected.ShouldBeEmpty();
         injector.Copies.ShouldBe(0);
     }
 
@@ -155,5 +161,32 @@ public sealed class EditModeTests
         result.RawText.ShouldBe("traduis en anglais");
         result.CleanupFailed.ShouldBe(false);
         result.CleanupTime.ShouldNotBeNull();
+        result.Edited.ShouldBeTrue();
+        result.Corrections.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task The_anchor_is_restored_again_right_before_the_edit_is_pasted()
+    {
+        var editHotkey = new FakeHotkeySource();
+        var injector = new RecordingTextInjector { Selection = "le build passe" };
+        var anchor = new FakeFocusAnchor(injector);
+        var engine = new DictationEngine(
+            FakeAudioCapture.Tone(1.0), new FakeHotkeySource(), new FakeTranscriber("traduis en anglais"),
+            injector, () => [], new FakeClock(), editHotkey: editHotkey, focusAnchor: anchor)
+        {
+            Edit = (_, _, _) => Task.FromResult(new EditOutcome("the build passes", null)),
+            AnchorFocus = true,
+        };
+        await using var _ = engine;
+
+        await DictateAsync(editHotkey, engine);
+
+        var target = anchor.Targets.ShouldHaveSingleItem();
+        target.Restores.ShouldBe(2);
+        // Nothing had been typed yet at either restore: the first comes before the copy, the
+        // second again before the paste — and the paste only happens after it.
+        target.InjectedAtEachRestore.ShouldBe([0, 0]);
+        injector.Injected.ShouldBe(["the build passes"]);
     }
 }

@@ -17,8 +17,9 @@ Select text anywhere, hold the **Edit** chord, say an instruction ("translate to
 5. Outcomes:
    - **Nothing selected** → nothing is typed; the pill shows the notice `Nothing selected`.
    - **Selection longer than 8 000 characters** → nothing is typed; notice `Selection too long`.
-   - **No cleanup endpoint configured** → nothing is recorded or typed; notice
-     `Set a cleanup endpoint to edit by voice` (raised at press, before recording).
+   - **No cleanup endpoint configured** → the chord still records like any other (so the pill
+     is visible); nothing is copied or typed; notice `Set a cleanup endpoint to edit by voice`
+     is raised **at release**, before the selection is copied.
    - **Model call fails** (timeout, HTTP/network error, unusable answer) → nothing is typed,
      the selection is left as it was; notice says why (same wording style as cleanup's).
    - **Success** → the result is injected while the selection is still active, so it replaces it.
@@ -72,7 +73,8 @@ clipboard-open retry, no decisions.
     `OnEditPressed` → `Pressed(...)` path setting an `_editThisUtterance` flag;
     `EditThisUtterance` is exposed for the pill like `CommandThisUtterance`.
   - `Func<string, string, CancellationToken, Task<EditOutcome>>? Edit` property (null when no
-    endpoint) — when null at press, raise the endpoint notice and do not record.
+    endpoint) — the chord still records when it is null; the edit branch's own top guard
+    raises the endpoint notice at release, before anything is copied.
   - In `ProcessAsync`, the edit branch: restore the anchored focus → `CopySelectionAsync` →
     notices for null / too long → `Edit(selection, instruction)` timed with `IClock` →
     failure notice, or inject the result and record it in the journal together with the
@@ -104,7 +106,7 @@ clipboard-open retry, no decisions.
 - `TextCleaner`: existing suite unchanged after the `ChatCompletion` extraction.
 - `DictationEngine` (fakes): selection replaced by the result; no selection → nothing injected
   + notice; > 8 000 chars → nothing injected + notice; edit failure → nothing injected +
-  notice; no endpoint → notice at press, no recording; Undo after an edit backspaces the
+  notice; no endpoint → the chord still records, notice at release, nothing copied; Undo after an edit backspaces the
   result and re-injects the original; Undo after a plain dictation unchanged; the Edit chord
   never injects incrementally.
 - `InjectionJournal`: `Replaced` set by an edit, cleared by the next dictation.

@@ -32,6 +32,10 @@ public enum DictationState
 /// <param name="CleanupFailed">
 /// True when cleanup fell back to the raw text; null when none ran.
 /// </param>
+/// <param name="Edited">
+/// True when this is an Edit-chord rewrite rather than a dictation. <paramref name="RawText"/>
+/// is then the spoken instruction, not a cleanup candidate — the dictionary miner must skip it.
+/// </param>
 public sealed record DictationResult(
     DateTimeOffset At,
     TimeSpan AudioDuration,
@@ -40,7 +44,8 @@ public sealed record DictationResult(
     IReadOnlyList<AppliedCorrection> Corrections,
     string? RawText = null,
     TimeSpan? CleanupTime = null,
-    bool? CleanupFailed = null);
+    bool? CleanupFailed = null,
+    bool Edited = false);
 
 /// <summary>
 /// The whole dictation flow: hotkey down, capture, transcribe as you speak, correct, inject.
@@ -572,17 +577,11 @@ public sealed class DictationEngine : IAsyncDisposable
     private void OnUndoPressed(object? sender, EventArgs e) => _ = UndoLastDictationAsync(CancellationToken.None);
 
     // An edit is never cleaned (the instruction is not the text) and anchors like a dictation:
-    // the selection lives in the window that had focus at press.
-    private void OnEditPressed(object? sender, EventArgs e)
-    {
-        if (State == DictationState.Idle && Edit is null)
-        {
-            ReportNotice("Set a cleanup endpoint to edit by voice");
-            return;
-        }
-
+    // the selection lives in the window that had focus at press. Whether an endpoint is
+    // configured is checked at release, in EditSelectionAsync — not here, so the chord
+    // records like any other and the pill is visible when the explanation lands.
+    private void OnEditPressed(object? sender, EventArgs e) =>
         Pressed(cleanup: false, command: false, edit: true, sender, e);
-    }
 
     /// <summary>
     /// Chooses the mode, then runs the shared press path.
@@ -767,7 +766,7 @@ public sealed class DictationEngine : IAsyncDisposable
 
         if (EditThisUtterance)
         {
-            await EditSelectionAsync(text, releasedAt, spoken).ConfigureAwait(false);
+            await EditSelectionAsync(text, releasedAt).ConfigureAwait(false);
             return;
         }
 
@@ -822,7 +821,7 @@ public sealed class DictationEngine : IAsyncDisposable
     /// over it. Every refusal is a notice and types nothing: there is no "raw" fallback for an
     /// edit, and the selection must be left as it was.
     /// </summary>
-    private async Task EditSelectionAsync(string instruction, DateTimeOffset releasedAt, Segment[] spoken)
+    private async Task EditSelectionAsync(string instruction, DateTimeOffset releasedAt)
     {
         if (Edit is not { } edit)
         {
@@ -871,10 +870,17 @@ public sealed class DictationEngine : IAsyncDisposable
             AudioDuration: TimeSpan.FromSeconds((double)_capturedSamples / AudioChunk.SampleRate),
             ProcessingTime: _clock.Now - releasedAt,
             Text: edited,
-            Corrections: [.. spoken.SelectMany(s => s.Corrections)],
+            // Empty, not the instruction's own corrections: the dictionary runs on what was
+            // spoken, and the edit's text is the model's rewrite, not a transcription of it.
+            Corrections: [],
             RawText: instruction,
             CleanupTime: took,
-            CleanupFailed: false));
+            CleanupFailed: false,
+            Edited: true));
+
+        // The model call can take up to 30 seconds; the user may have switched windows while
+        // it ran, so the field anchored at press is restored again, right before the paste.
+        await RestoreAnchorAsync().ConfigureAwait(false);
 
         if (await _injector.InjectAsync(edited, CancellationToken.None).ConfigureAwait(false))
             Journal.Record(edited, replaced: selection);
