@@ -295,6 +295,13 @@ public sealed class FakeFocusTarget : IFocusTarget
     /// </summary>
     public int InjectedWhenRestored { get; private set; } = -1;
 
+    /// <summary>
+    /// Number of strings the injector had received at each <see cref="RestoreAsync"/> call,
+    /// in order — proves a second restore (e.g. the Edit chord's pre-paste one) happened
+    /// before the injection that followed it, not just the first.
+    /// </summary>
+    public List<int> InjectedAtEachRestore { get; } = [];
+
     /// <summary>When true, <see cref="RestoreAsync"/> reports the window would not come forward.</summary>
     public bool Fails { get; init; }
 
@@ -302,6 +309,7 @@ public sealed class FakeFocusTarget : IFocusTarget
     public ValueTask<bool> RestoreAsync(CancellationToken cancellationToken)
     {
         if (Restores++ == 0) InjectedWhenRestored = _injector.Injected.Count;
+        InjectedAtEachRestore.Add(_injector.Injected.Count);
         return ValueTask.FromResult(!Fails);
     }
 }
