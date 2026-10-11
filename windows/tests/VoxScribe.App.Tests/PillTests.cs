@@ -155,6 +155,23 @@ public sealed class PillTests
             Cleanup: TimeSpan.FromSeconds(5), CleanupFailed: true));
         var failed = string.Join(' ', face.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text));
         failed.ShouldContain("failed", customMessage: theme.Id);
+
+        // Command-mode dictations are cleaned too (the transcript is tidied before it is
+        // submitted); the cleanup split must read as the cleanup's own outcome, never as if
+        // the command itself failed.
+        face.Update(new PillState(PillPhase.Latency, 0, TimeSpan.FromSeconds(1.2), "CMD", string.Empty,
+            Cleanup: TimeSpan.FromSeconds(0.7)));
+        var cmdOk = string.Join(' ', face.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text));
+        cmdOk.ShouldContain("clean 0.7s", customMessage: theme.Id);
+        cmdOk.ToLowerInvariant().ShouldNotContain("cmd failed", customMessage: theme.Id);
+        cmdOk.ToLowerInvariant().ShouldNotContain("command failed", customMessage: theme.Id);
+
+        face.Update(new PillState(PillPhase.Latency, 0, TimeSpan.FromSeconds(1.2), "CMD", string.Empty,
+            Cleanup: TimeSpan.FromSeconds(5), CleanupFailed: true));
+        var cmdFailed = string.Join(' ', face.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text));
+        cmdFailed.ShouldContain("clean failed", customMessage: theme.Id);
+        cmdFailed.ToLowerInvariant().ShouldNotContain("cmd failed", customMessage: theme.Id);
+        cmdFailed.ToLowerInvariant().ShouldNotContain("command failed", customMessage: theme.Id);
     });
 
     [AvaloniaFact]

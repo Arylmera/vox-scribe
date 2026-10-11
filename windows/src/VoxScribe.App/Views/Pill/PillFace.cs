@@ -155,14 +155,17 @@ internal abstract class PillFace : Border
     /// <summary>The timer slot: the latency once done, the clock otherwise.</summary>
     protected static string Timer(PillState s) => s.Phase == PillPhase.Latency ? Seconds(s.Elapsed) : Clock(s.Elapsed);
 
-    /// <summary>" 0.7s" or " failed" after the mode word, in the latency phase of a cleaned dictation; empty otherwise.</summary>
-    protected static string CleanupNote(PillState s) =>
-        s.Phase != PillPhase.Latency || s.Cleanup is not { } c ? string.Empty
-        : s.CleanupFailed ? " failed" : " " + Seconds(c);
-
-    /// <summary>" · clean 0.7s" for faces whose timer has no mode word beside it.</summary>
+    /// <summary>" · clean 0.7s" or " · clean failed", in the latency phase of a cleaned dictation; empty otherwise.</summary>
     protected static string CleanupTail(PillState s) =>
-        CleanupNote(s) is { Length: > 0 } note ? " · clean" + note : string.Empty;
+        s.Phase != PillPhase.Latency || s.Cleanup is not { } c ? string.Empty
+        : " · clean" + (s.CleanupFailed ? " failed" : " " + Seconds(c));
+
+    /// <summary>
+    /// "1.2s · raw/clean/cmd" normally; in the latency phase of a cleaned dictation, the mode
+    /// word is replaced by the cleanup split (so it never reads "1.2s · clean · clean 0.7s").
+    /// </summary>
+    protected static string TimerLine(PillState s, string modeWord) =>
+        CleanupTail(s) is { Length: > 0 } tail ? Timer(s) + tail : $"{Timer(s)} · {modeWord}";
 
     /// <summary>A round recording dot in the record red.</summary>
     protected static Ellipse Dot(double size) => new()

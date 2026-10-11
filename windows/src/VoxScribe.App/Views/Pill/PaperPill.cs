@@ -105,7 +105,7 @@ internal sealed class PaperPill : PillFace
             _ => "done",
         };
         _head.Foreground = state.Phase == PillPhase.Working ? _accent : _ink;
-        _meta.Text = $"{Timer(state)} · {(state.Mode switch { "CLEAN" => "clean", "CMD" => "cmd", _ => "raw" })}{CleanupNote(state)}";
+        _meta.Text = TimerLine(state, state.Mode switch { "CLEAN" => "clean", "CMD" => "cmd", _ => "raw" });
         _stroke.Push(recording ? state.Level : 0, flat: !recording);
         _working.IsVisible = state.Phase == PillPhase.Working;
 
