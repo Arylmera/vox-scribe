@@ -48,7 +48,7 @@ public sealed class CommandModeTests
         var (engine, _, command, _, injector, anchor) = Build();
         await using var _ = engine;
         anchor.WindowTitles.Add("✳ Claude Code — vox-scribe");
-        engine.Cleanup = (text, _) => Task.FromResult($"[{text}]");
+        engine.Cleanup = (text, _) => Task.FromResult(new CleanupOutcome($"[{text}]", Succeeded: true));
 
         await DictateAsync(command, engine);
 

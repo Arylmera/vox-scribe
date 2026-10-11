@@ -16,7 +16,7 @@ public sealed class CleanupShortcutTests
         FakeHotkeySource plain,
         FakeHotkeySource cleanup,
         RecordingTextInjector injector,
-        Func<string, CancellationToken, Task<string>> clean)
+        Func<string, CancellationToken, Task<CleanupOutcome>> clean)
     {
         var engine = new DictationEngine(
             FakeAudioCapture.Tone(0.4),
@@ -49,7 +49,7 @@ public sealed class CleanupShortcutTests
         var injector = new RecordingTextInjector();
 
         await using var engine = Build(plain, cleanup, injector,
-            (text, _) => Task.FromResult($"[{text}]"));
+            (text, _) => Task.FromResult(new CleanupOutcome($"[{text}]", Succeeded: true)));
 
         await DictateAsync(cleanup, engine);
 
@@ -65,7 +65,7 @@ public sealed class CleanupShortcutTests
         var called = false;
 
         await using var engine = Build(plain, cleanup, injector,
-            (text, _) => { called = true; return Task.FromResult($"[{text}]"); });
+            (text, _) => { called = true; return Task.FromResult(new CleanupOutcome($"[{text}]", Succeeded: true)); });
 
         await DictateAsync(plain, engine);
 
@@ -92,7 +92,7 @@ public sealed class CleanupShortcutTests
             () => Array.Empty<DictionaryEntry>(),
             new FakeClock(),
             cleanup);
-        engine.Cleanup = (text, _) => Task.FromResult($"[{text}]");
+        engine.Cleanup = (text, _) => Task.FromResult(new CleanupOutcome($"[{text}]", Succeeded: true));
 
         await using (engine)
         {
@@ -117,7 +117,7 @@ public sealed class CleanupShortcutTests
         var injector = new RecordingTextInjector();
 
         await using var engine = Build(plain, cleanup, injector,
-            (text, _) => Task.FromResult($"[{text}]"));
+            (text, _) => Task.FromResult(new CleanupOutcome($"[{text}]", Succeeded: true)));
         engine.IncrementalInjection = true;
 
         await DictateAsync(cleanup, engine);
@@ -134,7 +134,7 @@ public sealed class CleanupShortcutTests
         var injector = new RecordingTextInjector();
 
         await using var engine = Build(plain, cleanup, injector,
-            (text, _) => Task.FromResult($"[{text}]"));
+            (text, _) => Task.FromResult(new CleanupOutcome($"[{text}]", Succeeded: true)));
         engine.IncrementalInjection = true;
 
         await DictateAsync(plain, engine);
@@ -150,7 +150,7 @@ public sealed class CleanupShortcutTests
         var cleanup = new FakeHotkeySource();
 
         await using var engine = Build(plain, cleanup, new RecordingTextInjector(),
-            (text, _) => Task.FromResult(text));
+            (text, _) => Task.FromResult(new CleanupOutcome(text, Succeeded: true)));
 
         engine.Start().ShouldBeTrue();
 

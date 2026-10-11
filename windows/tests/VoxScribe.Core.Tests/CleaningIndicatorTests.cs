@@ -35,7 +35,7 @@ public sealed class CleaningIndicatorTests
     {
         var cleanup = new FakeHotkeySource();
         await using var engine = Build(new FakeHotkeySource(), cleanup);
-        engine.Cleanup = (text, _) => Task.FromResult(text);
+        engine.Cleanup = (text, _) => Task.FromResult(new CleanupOutcome(text, Succeeded: true));
 
         cleanup.Press();
 
@@ -61,7 +61,7 @@ public sealed class CleaningIndicatorTests
     {
         var cleanup = new FakeHotkeySource();
         await using var engine = Build(new FakeHotkeySource(), cleanup);
-        engine.Cleanup = (text, _) => Task.FromResult(text);
+        engine.Cleanup = (text, _) => Task.FromResult(new CleanupOutcome(text, Succeeded: true));
         engine.IncrementalInjection = true;
 
         cleanup.Press();

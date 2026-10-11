@@ -31,6 +31,12 @@ public sealed record TranscriptRecord
     /// rewrote anything. Old lines deserialize with null, which is the same thing.
     /// </summary>
     public string? RawText { get; init; }
+
+    /// <summary>How long cleanup took; null when no cleanup ran (and on lines written before it was recorded).</summary>
+    public double? CleanupSeconds { get; init; }
+
+    /// <summary>True when cleanup fell back to the raw text; null when no cleanup ran.</summary>
+    public bool? CleanupFailed { get; init; }
 }
 
 /// <summary>

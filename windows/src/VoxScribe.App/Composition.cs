@@ -195,11 +195,11 @@ public sealed class Composition : IAsyncDisposable
             // Rebuilt on every settings change, like the chords: the cleaner holds nothing
             // but its endpoint, so swapping it live is free — and "restart to apply" on a
             // field you just typed reads as broken.
-            Func<string, CancellationToken, Task<string>>? BuildCleanup() =>
+            Func<string, CancellationToken, Task<CleanupOutcome>>? BuildCleanup() =>
                 settings.Data.CleanupEndpoint is { Length: > 0 } cleanupEndpoint
                     ? new TextCleaner(
                         cleanupEndpoint, settings.Data.CleanupModel, settings.Data.CleanupApiKey,
-                        ReportFailure).CleanAsync
+                        ReportFailure).TryCleanAsync
                     : null;
 
             engine.Cleanup = BuildCleanup();
@@ -281,6 +281,8 @@ public sealed class Composition : IAsyncDisposable
                     Text = result.Text,
                     Corrections = result.Corrections.Count > 0 ? result.Corrections : null,
                     RawText = result.RawText,
+                    CleanupSeconds = result.CleanupTime?.TotalSeconds,
+                    CleanupFailed = result.CleanupFailed,
                 });
             };
         }

@@ -214,7 +214,7 @@ public sealed class DictationEngineTests
         await using var engine = new DictationEngine(
             FakeAudioCapture.Tone(1.0), hotkey, new FakeTranscriber(heard), new RecordingTextInjector(),
             () => [], new FakeClock(), cleanupHotkey);
-        engine.Cleanup = (_, _) => Task.FromResult(cleaned);
+        engine.Cleanup = (_, _) => Task.FromResult(new CleanupOutcome(cleaned, Succeeded: true));
         DictationResult? result = null;
         engine.Completed += (_, r) => result = r;
 
@@ -706,6 +706,63 @@ public sealed class DictationEngineTests
         result.IsSuccessful.ShouldBeTrue(
             "VoxScribe.Core must stay platform-neutral: " +
             string.Join(", ", result.FailingTypeNames ?? []));
+    }
+
+    [Fact]
+    public async Task Cleanup_time_and_success_are_reported()
+    {
+        var hotkey = new FakeHotkeySource();
+        var cleanupHotkey = new FakeHotkeySource();
+        var clock = new FakeClock();
+        await using var engine = new DictationEngine(
+            FakeAudioCapture.Tone(1.0), hotkey, new FakeTranscriber("helo"), new RecordingTextInjector(),
+            () => [], clock, cleanupHotkey);
+        engine.Cleanup = (text, _) =>
+        {
+            clock.Advance(TimeSpan.FromMilliseconds(700));
+            return Task.FromResult(new CleanupOutcome("hello", Succeeded: true));
+        };
+        DictationResult? result = null;
+        engine.Completed += (_, r) => result = r;
+
+        await DictateAsync(cleanupHotkey, engine);
+
+        result.ShouldNotBeNull();
+        result.CleanupTime.ShouldBe(TimeSpan.FromMilliseconds(700));
+        result.CleanupFailed.ShouldBe(false);
+    }
+
+    [Fact]
+    public async Task A_failed_cleanup_types_the_raw_text_and_says_so()
+    {
+        var hotkey = new FakeHotkeySource();
+        var cleanupHotkey = new FakeHotkeySource();
+        var injector = new RecordingTextInjector();
+        await using var engine = new DictationEngine(
+            FakeAudioCapture.Tone(1.0), hotkey, new FakeTranscriber("helo"), injector,
+            () => [], new FakeClock(), cleanupHotkey);
+        engine.Cleanup = (text, _) => Task.FromResult(new CleanupOutcome(text, Succeeded: false));
+        DictationResult? result = null;
+        engine.Completed += (_, r) => result = r;
+
+        await DictateAsync(cleanupHotkey, engine);
+
+        injector.Injected.ShouldBe(["helo"]);
+        result!.CleanupFailed.ShouldBe(true);
+    }
+
+    [Fact]
+    public async Task A_raw_dictation_reports_no_cleanup()
+    {
+        var hotkey = new FakeHotkeySource();
+        await using var engine = Build(FakeAudioCapture.Tone(1.0), hotkey, new FakeTranscriber("hello"), new RecordingTextInjector());
+        DictationResult? result = null;
+        engine.Completed += (_, r) => result = r;
+
+        await DictateAsync(hotkey, engine);
+
+        result!.CleanupTime.ShouldBeNull();
+        result.CleanupFailed.ShouldBeNull();
     }
 }
 

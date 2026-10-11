@@ -28,13 +28,19 @@ public enum DictationState
 /// The dictionary-corrected text before the cleanup model rewrote it, or null when no
 /// cleanup ran or it changed nothing. Feeds the dictionary suggestions.
 /// </param>
+/// <param name="CleanupTime">How long the cleanup call took; null when none ran.</param>
+/// <param name="CleanupFailed">
+/// True when cleanup fell back to the raw text; null when none ran.
+/// </param>
 public sealed record DictationResult(
     DateTimeOffset At,
     TimeSpan AudioDuration,
     TimeSpan ProcessingTime,
     string Text,
     IReadOnlyList<AppliedCorrection> Corrections,
-    string? RawText = null);
+    string? RawText = null,
+    TimeSpan? CleanupTime = null,
+    bool? CleanupFailed = null);
 
 /// <summary>
 /// The whole dictation flow: hotkey down, capture, transcribe as you speak, correct, inject.
@@ -485,7 +491,7 @@ public sealed class DictationEngine : IAsyncDisposable
     /// <see cref="Func{TResult}"/> for the same reason. It must never throw — the whole point
     /// of the pass is that a dead gateway costs nothing.
     /// </remarks>
-    public Func<string, CancellationToken, Task<string>>? Cleanup { get; set; }
+    public Func<string, CancellationToken, Task<CleanupOutcome>>? Cleanup { get; set; }
 
     /// <summary>
     /// True when the utterance being recorded was started by the cleanup shortcut, and must
@@ -703,10 +709,16 @@ public sealed class DictationEngine : IAsyncDisposable
         // incremental mode, where the phrases are already in the target window and there is
         // nothing left to improve.
         string? rawText = null;
+        TimeSpan? cleanupTime = null;
+        bool? cleanupFailed = null;
         if (_cleanThisUtterance && Cleanup is { } cleanup)
         {
             var beforeCleanup = text;
-            text = await cleanup(text, CancellationToken.None).ConfigureAwait(false);
+            var startedAt = _clock.Now;
+            var outcome = await cleanup(text, CancellationToken.None).ConfigureAwait(false);
+            cleanupTime = _clock.Now - startedAt;
+            cleanupFailed = !outcome.Succeeded;
+            text = outcome.Text;
             // Only a rewrite is worth keeping: identical raw text is noise for the miner.
             if (!string.Equals(text, beforeCleanup, StringComparison.Ordinal)) rawText = beforeCleanup;
         }
@@ -717,7 +729,9 @@ public sealed class DictationEngine : IAsyncDisposable
             ProcessingTime: _clock.Now - releasedAt,
             Text: text,
             Corrections: [.. spoken.SelectMany(s => s.Corrections)],
-            RawText: rawText);
+            RawText: rawText,
+            CleanupTime: cleanupTime,
+            CleanupFailed: cleanupFailed);
 
         Completed?.Invoke(this, result);
 
