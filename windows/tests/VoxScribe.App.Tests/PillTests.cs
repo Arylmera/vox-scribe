@@ -177,11 +177,20 @@ public sealed class PillTests
     [AvaloniaFact]
     public void The_cleanup_split_fits_the_pill() => EachTheme((theme, face) =>
     {
+        // Every face sets an explicit Width, so Measure(Size.Infinity) on the face itself just
+        // returns that Width back — it can never catch a label overflowing its own slot, which
+        // clips silently (TextTrimming.None, ClipToBounds). Measure each label on its own, at
+        // its natural width, against the space layout actually gave it.
         face.Update(new PillState(PillPhase.Latency, 0, TimeSpan.FromSeconds(12.3), "CLEAN", string.Empty,
             Cleanup: TimeSpan.FromSeconds(10.4)));
-        face.Measure(Avalonia.Size.Infinity);
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
 
-        face.DesiredSize.Width.ShouldBeLessThanOrEqualTo(Tokens.Size.PillWindowWidth, theme.Id);
+        // Isolate the one label carrying the cleanup split ("12.3s · clean 10.4s" or similar):
+        // that is what this test is about, not every other label in the face.
+        var line = face.GetVisualDescendants().OfType<TextBlock>()
+            .First(t => t.Text?.Contains("12.3s") == true && t.Bounds.Width > 0);
+        line.Measure(Avalonia.Size.Infinity);
+        line.DesiredSize.Width.ShouldBeLessThanOrEqualTo(line.Bounds.Width + 0.5, theme.Id);
     });
 
     [AvaloniaFact]
