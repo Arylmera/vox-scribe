@@ -36,6 +36,12 @@ public sealed class SettingsMigrationTests
     public void Auto_stop_defaults_to_three_seconds() =>
         new SettingsData().AutoStopSilenceSeconds.ShouldBe(3);
 
+    [Fact]
+    public void Edit_is_unbound_and_uses_the_cleanup_model_by_default() =>
+        new SettingsData().ShouldSatisfyAllConditions(
+            d => d.EditKeys.ShouldBeNull(),
+            d => d.EditModel.ShouldBeNull());
+
     /// <summary>Off is 0, not the default — it must be written out, or a restart turns it back on.</summary>
     [Fact]
     public void Auto_stop_off_survives_a_restart()

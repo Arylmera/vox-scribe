@@ -122,6 +122,9 @@ public sealed record SettingsData
     /// </summary>
     public int[]? CommandKeys { get; init; }
 
+    /// <summary>The Edit chord: rewrites the selection as the spoken instruction says. Null = unbound.</summary>
+    public int[]? EditKeys { get; init; }
+
     /// <summary>Title fragment that identifies the command-mode target window.</summary>
     public string CommandWindowTitle { get; set; } = "Claude";
 
@@ -145,6 +148,9 @@ public sealed record SettingsData
 
     /// <summary>Bearer key for the cleanup endpoint, or null when unauthenticated.</summary>
     public string? CleanupApiKey { get; init; }
+
+    /// <summary>Gateway alias for edits; null or empty uses <see cref="CleanupModel"/>.</summary>
+    public string? EditModel { get; init; }
 
     /// <summary>
     /// Whether a <c>/parle</c> or <c>/say</c> request from Claude Code is read aloud, or null for a file

@@ -20,6 +20,9 @@ internal enum ShortcutSlot
 
     /// <summary>Sends the transcript to the command window and submits it.</summary>
     Command,
+
+    /// <summary>Rewrites the selection as the instruction says.</summary>
+    Edit,
 }
 
 /// <summary>The chords, toggle mode and the command target. The recorder buttons belong to the window.</summary>
@@ -59,6 +62,10 @@ internal static class ShortcutsSection
                 Panels.Note("Dictate at Claude Code instead of at a text field: the transcript "
                     + "(tidied when a cleanup model is set) goes to the Claude Code session armed in "
                     + "its band, or else to the window set under CLAUDE, and is submitted. Escape unbinds."),
+                Panels.Labelled("EDIT", keys[ShortcutSlot.Edit]),
+                Panels.Note("Select text anywhere, hold this and say what to do with it — "
+                    + "\"translate to English\", \"shorter\", \"fix the typos\". The selection is "
+                    + "replaced; Undo puts it back. Uses the cleanup endpoint. Escape unbinds."),
                 toggle,
                 autoStop,
             },

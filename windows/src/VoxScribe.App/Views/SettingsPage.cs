@@ -171,6 +171,7 @@ internal sealed class SettingsPage : UserControl
         ShortcutSlot.Cleanup => _settings.Data.CleanupPushToTalkKeys,
         ShortcutSlot.Undo => _settings.Data.UndoKeys,
         ShortcutSlot.Command => _settings.Data.CommandKeys,
+        ShortcutSlot.Edit => _settings.Data.EditKeys,
         _ => null,
     };
 
@@ -184,6 +185,7 @@ internal sealed class SettingsPage : UserControl
             ShortcutSlot.Cleanup => data with { CleanupPushToTalkKeys = chord },
             ShortcutSlot.Undo => data with { UndoKeys = chord },
             ShortcutSlot.Command => data with { CommandKeys = chord },
+            ShortcutSlot.Edit => data with { EditKeys = chord },
             _ => data,
         });
     }

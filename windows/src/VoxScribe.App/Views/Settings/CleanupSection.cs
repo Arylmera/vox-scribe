@@ -20,6 +20,9 @@ internal static class CleanupSection
             settings.Data.CleanupApiKey,
             v => save(settings.Data with { CleanupApiKey = v }));
         apiKey.PasswordChar = '•';
+        var editModel = Panels.Field("Empty = the cleanup model",
+            settings.Data.EditModel,
+            v => save(settings.Data with { EditModel = v }));
 
         return Panels.Section("CLEANUP", new StackPanel
         {
@@ -31,6 +34,7 @@ internal static class CleanupSection
                    + "Costs one LAN round trip; an unreachable model types the raw text."),
                 Panels.Labelled("ENDPOINT", endpoint),
                 Panels.Labelled("MODEL", model),
+                Panels.Labelled("EDIT MODEL", editModel),
                 Panels.Labelled("API KEY", apiKey),
                 ConnectionTester.Build(() => (
                     settings.Data.CleanupEndpoint,

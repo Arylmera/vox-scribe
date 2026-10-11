@@ -140,6 +140,7 @@ public sealed class Composition : IAsyncDisposable
             var cleanupHotkey = PlatformFactory.CreateHotkeySource(Chord(settings.Data.CleanupPushToTalkKeys));
             var undoHotkey = PlatformFactory.CreateHotkeySource(Chord(settings.Data.UndoKeys));
             var commandHotkey = PlatformFactory.CreateHotkeySource(Chord(settings.Data.CommandKeys));
+            var editHotkey = PlatformFactory.CreateHotkeySource(Chord(settings.Data.EditKeys));
 
             // Escape throws a dictation away. The hook never swallows keys, so outside a
             // recording Escape still reaches whatever app has it — the engine ignores it.
@@ -153,7 +154,8 @@ public sealed class Composition : IAsyncDisposable
                 focusAnchor: focusAnchor,
                 cancelHotkey: cancelHotkey,
                 undoHotkey: undoHotkey,
-                commandHotkey: commandHotkey);
+                commandHotkey: commandHotkey,
+                editHotkey: editHotkey);
 
             // Right Shift and Left Shift + Right Shift both satisfy the shorter chord. Each
             // hook is told the keys that belong only to a longer chord containing its own,
@@ -164,13 +166,15 @@ public sealed class Composition : IAsyncDisposable
                 var clean = Chord(settings.Data.CleanupPushToTalkKeys);
                 var undo = Chord(settings.Data.UndoKeys);
                 var command = Chord(settings.Data.CommandKeys);
+                var edit = Chord(settings.Data.EditKeys);
 
                 (IHotkeySource? Hook, int[] Own, int[]?[] Others)[] chords =
                 [
-                    (hotkey, raw, [clean, undo, command]),
-                    (cleanupHotkey, clean, [raw, undo, command]),
-                    (undoHotkey, undo, [raw, clean, command]),
-                    (commandHotkey, command, [raw, clean, undo]),
+                    (hotkey, raw, [clean, undo, command, edit]),
+                    (cleanupHotkey, clean, [raw, undo, command, edit]),
+                    (undoHotkey, undo, [raw, clean, command, edit]),
+                    (commandHotkey, command, [raw, clean, undo, edit]),
+                    (editHotkey, edit, [raw, clean, undo, command]),
                 ];
 
                 foreach (var (hook, own, others) in chords)
@@ -204,6 +208,16 @@ public sealed class Composition : IAsyncDisposable
 
             engine.Cleanup = BuildCleanup();
 
+            Func<string, string, CancellationToken, Task<EditOutcome>>? BuildEdit() =>
+                settings.Data.CleanupEndpoint is { Length: > 0 } editEndpoint
+                    ? new TextEditor(
+                        editEndpoint,
+                        settings.Data.EditModel is { Length: > 0 } editModel ? editModel : settings.Data.CleanupModel,
+                        settings.Data.CleanupApiKey).EditAsync
+                    : null;
+
+            engine.Edit = BuildEdit();
+
             // A freshly recorded shortcut must work right away — "restart to apply" reads
             // as "recording is broken". The hook reads Keys per event, so swapping the
             // array reference live is safe; so is flipping the toggle behaviour.
@@ -218,6 +232,7 @@ public sealed class Composition : IAsyncDisposable
                 live.AnchorFocus = settings.Data.AnchorFocus;
                 live.CommandWindowTitle = settings.Data.CommandWindowTitle;
                 live.Cleanup = BuildCleanup();
+                live.Edit = BuildEdit();
             };
 
             // /parle from Claude Code: read the reply aloud. Settings are read per request,
@@ -234,7 +249,7 @@ public sealed class Composition : IAsyncDisposable
                 readAloud.Failed += (_, message) => Program.LogNotice(message);
                 readAloud.Watch(ReadAloud.DefaultDirectory);
                 var reader = readAloud;
-                foreach (var key in new[] { hotkey, cleanupHotkey, commandHotkey, cancelHotkey })
+                foreach (var key in new[] { hotkey, cleanupHotkey, commandHotkey, cancelHotkey, editHotkey })
                 {
                     if (key is not null) key.Pressed += (_, _) => reader.Stop();
                 }
