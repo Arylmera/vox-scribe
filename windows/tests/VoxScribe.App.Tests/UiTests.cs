@@ -431,21 +431,27 @@ public sealed class SettingsPageTests : IDisposable
         var page = new SettingsPage(new AppSettings(_path), null, SettingsTab.Shortcuts);
         var window = new Window { Content = page };
         window.Show();
+        try
+        {
+            var toggle = page.GetVisualDescendants().OfType<CheckBox>()
+                .First(c => c.Content is TextBlock { Text: var t } && t?.StartsWith("Toggle mode", StringComparison.Ordinal) == true);
+            var picker = page.GetVisualDescendants().OfType<ComboBox>().Single();
 
-        var toggle = page.GetVisualDescendants().OfType<CheckBox>()
-            .First(c => c.Content is TextBlock { Text: var t } && t?.StartsWith("Toggle mode", StringComparison.Ordinal) == true);
-        var picker = page.GetVisualDescendants().OfType<ComboBox>().Single();
+            toggle.IsChecked.ShouldBe(false);
+            picker.IsEnabled.ShouldBeFalse();
 
-        toggle.IsChecked.ShouldBe(false);
-        picker.IsEnabled.ShouldBeFalse();
+            toggle.IsChecked = true;
 
-        toggle.IsChecked = true;
+            picker.IsEnabled.ShouldBeTrue();
 
-        picker.IsEnabled.ShouldBeTrue();
+            toggle.IsChecked = false;
 
-        toggle.IsChecked = false;
-
-        picker.IsEnabled.ShouldBeFalse();
+            picker.IsEnabled.ShouldBeFalse();
+        }
+        finally
+        {
+            window.Close();
+        }
     }
 
     [AvaloniaFact]
