@@ -5,6 +5,11 @@ using System.Text.Json.Nodes;
 
 namespace VoxScribe.Core;
 
+/// <summary>What a cleanup pass produced, and whether the model's text was actually used.</summary>
+/// <param name="Text">The text to type: the repair, or the original on any failure.</param>
+/// <param name="Succeeded">False when it fell back to the original (timeout, error, rejected answer).</param>
+public sealed record CleanupOutcome(string Text, bool Succeeded);
+
 /// <summary>
 /// Repairs a raw transcript through an OpenAI-compatible chat endpoint — punctuation,
 /// capitalisation, filler words.
@@ -91,9 +96,13 @@ public sealed class TextCleaner
     }
 
     /// <summary>Repairs <paramref name="text"/>, or returns it unchanged on any failure.</summary>
-    public async Task<string> CleanAsync(string text, CancellationToken cancellationToken)
+    public async Task<string> CleanAsync(string text, CancellationToken cancellationToken) =>
+        (await TryCleanAsync(text, cancellationToken).ConfigureAwait(false)).Text;
+
+    /// <summary>Repairs <paramref name="text"/>, reporting whether the repair was actually used.</summary>
+    public async Task<CleanupOutcome> TryCleanAsync(string text, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(text)) return text;
+        if (string.IsNullOrWhiteSpace(text)) return new CleanupOutcome(text, Succeeded: true);
 
         // Built as a node tree rather than serialised from an anonymous type: the app is
         // published single-file and trimmed, and reflection-based serialisation does not
@@ -128,13 +137,15 @@ public sealed class TextCleaner
             if (!response.IsSuccessStatusCode)
             {
                 _onFailure?.Invoke($"Cleanup skipped — gateway answered {(int)response.StatusCode}");
-                return text;
+                return new CleanupOutcome(text, Succeeded: false);
             }
 
             var answer = await response.Content
                 .ReadAsStringAsync(timeout.Token)
                 .ConfigureAwait(false);
-            return Accept(text, Content(answer));
+            return Vet(text, Content(answer)) is { } repaired
+                ? new CleanupOutcome(repaired, Succeeded: true)
+                : new CleanupOutcome(text, Succeeded: false);
         }
         catch (Exception e)
         {
@@ -143,7 +154,7 @@ public sealed class TextCleaner
             _onFailure?.Invoke(e is TaskCanceledException
                 ? "Cleanup skipped — gateway did not answer in time"
                 : $"Cleanup skipped — {e.Message}");
-            return text;
+            return new CleanupOutcome(text, Succeeded: false);
         }
     }
 
@@ -174,14 +185,14 @@ public sealed class TextCleaner
     /// stops a chatty answer, a leaked reasoning block or a wholesale rewrite from being
     /// typed into whatever window has focus.
     /// </remarks>
-    public static string Accept(string original, string? candidate)
+    public static string? Vet(string original, string? candidate)
     {
-        if (string.IsNullOrWhiteSpace(candidate)) return original;
+        if (string.IsNullOrWhiteSpace(candidate)) return null;
 
         var trimmed = candidate.Trim();
 
-        if (trimmed.Contains("```", StringComparison.Ordinal)) return original;
-        if (trimmed.Contains("<think", StringComparison.OrdinalIgnoreCase)) return original;
+        if (trimmed.Contains("```", StringComparison.Ordinal)) return null;
+        if (trimmed.Contains("<think", StringComparison.OrdinalIgnoreCase)) return null;
 
         // Line breaks are allowed: a spoken enumeration is meant to come back as a list. What
         // is not allowed is inventing words, and that is what the overlap rules below check.
@@ -189,7 +200,7 @@ public sealed class TextCleaner
         // Bullets and numbering add a few characters per line; dropped filler removes some.
         // Beyond this the model is answering or padding, not laying out.
         if (trimmed.Length < original.Length * 0.5 || trimmed.Length > original.Length * 2.2)
-            return original;
+            return null;
 
         // The invariant, now that layout may change: the same words, arranged differently.
         // Checked both ways, because each direction catches a different lie.
@@ -201,11 +212,16 @@ public sealed class TextCleaner
         //              or prefixed with "Here is the corrected text:".
         //
         // Markers are separators, not words, so bullets and numbering cost nothing here.
-        if (Overlap(original, trimmed) < 0.6) return original;
-        if (Overlap(trimmed, original) < 0.6) return original;
+        if (Overlap(original, trimmed) < 0.6) return null;
+        if (Overlap(trimmed, original) < 0.6) return null;
 
         return trimmed;
     }
+
+    /// <summary>
+    /// <see cref="Vet"/>, falling back to <paramref name="original"/> when the candidate is refused.
+    /// </summary>
+    public static string Accept(string original, string? candidate) => Vet(original, candidate) ?? original;
 
     /// <summary>
     /// Share of <paramref name="original"/>'s content words that also appear in

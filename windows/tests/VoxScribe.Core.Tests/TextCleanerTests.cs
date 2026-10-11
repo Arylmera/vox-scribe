@@ -140,4 +140,23 @@ public class TextCleanerTests
     [InlineData(10_000, 30)]
     public void A_longer_dictation_is_given_longer_to_clean(int length, double seconds) =>
         TextCleaner.TimeoutFor(new string('a', length)).TotalSeconds.ShouldBe(seconds, 0.001);
+
+    [Fact]
+    public void A_rejected_candidate_vets_as_null() =>
+        TextCleaner.Vet("le build passe", "```le build passe```").ShouldBeNull();
+
+    [Fact]
+    public void An_identical_answer_vets_as_itself() =>
+        TextCleaner.Vet("already clean", "already clean").ShouldBe("already clean");
+
+    [Fact]
+    public async Task An_unreachable_gateway_is_a_failure_with_the_original_text()
+    {
+        // Port 9 (discard) is closed on any dev machine and CI runner: connection refused.
+        var cleaner = new TextCleaner("http://127.0.0.1:9/v1", "local-light", null);
+
+        var outcome = await cleaner.TryCleanAsync("le build passe", CancellationToken.None);
+
+        outcome.ShouldBe(new CleanupOutcome("le build passe", Succeeded: false));
+    }
 }
