@@ -31,7 +31,11 @@ internal enum PillPhase
 /// <param name="Elapsed">Utterance time; the latency in <see cref="PillPhase.Latency"/>.</param>
 /// <param name="Mode">"RAW", "CLEAN" or "CMD".</param>
 /// <param name="Text">Preview or notice text, untruncated; faces show its tail on one line.</param>
-internal readonly record struct PillState(PillPhase Phase, double Level, TimeSpan Elapsed, string Mode, string Text);
+/// <param name="Cleanup">Cleanup time, in <see cref="PillPhase.Latency"/> after a cleaned dictation; null otherwise.</param>
+/// <param name="CleanupFailed">True when that cleanup fell back to the raw text.</param>
+internal readonly record struct PillState(
+    PillPhase Phase, double Level, TimeSpan Elapsed, string Mode, string Text,
+    TimeSpan? Cleanup = null, bool CleanupFailed = false);
 
 /// <summary>
 /// A theme's pill silhouette. Built fresh for each theme (it caches the theme's brushes),
@@ -150,6 +154,15 @@ internal abstract class PillFace : Border
 
     /// <summary>The timer slot: the latency once done, the clock otherwise.</summary>
     protected static string Timer(PillState s) => s.Phase == PillPhase.Latency ? Seconds(s.Elapsed) : Clock(s.Elapsed);
+
+    /// <summary>" 0.7s" or " failed" after the mode word, in the latency phase of a cleaned dictation; empty otherwise.</summary>
+    protected static string CleanupNote(PillState s) =>
+        s.Phase != PillPhase.Latency || s.Cleanup is not { } c ? string.Empty
+        : s.CleanupFailed ? " failed" : " " + Seconds(c);
+
+    /// <summary>" · clean 0.7s" for faces whose timer has no mode word beside it.</summary>
+    protected static string CleanupTail(PillState s) =>
+        CleanupNote(s) is { Length: > 0 } note ? " · clean" + note : string.Empty;
 
     /// <summary>A round recording dot in the record red.</summary>
     protected static Ellipse Dot(double size) => new()

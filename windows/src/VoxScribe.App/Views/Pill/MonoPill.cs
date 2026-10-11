@@ -114,7 +114,7 @@ internal sealed class MonoPill : PillFace
         };
         _state.Foreground = working ? _accent : _ink;
         _timer.Text = state.Phase == PillPhase.Latency
-            ? Seconds(state.Elapsed)
+            ? Seconds(state.Elapsed) + CleanupTail(state)
             : string.Create(CultureInfo.InvariantCulture, $"{(int)state.Elapsed.TotalMinutes:00}:{state.Elapsed.Seconds:00}");
         _meter.Show(recording ? state.Level : 0, working);
         _badge.Text = $"[{state.Mode}]";

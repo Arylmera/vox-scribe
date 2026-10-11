@@ -98,7 +98,7 @@ internal sealed class OrbPill : PillFace
 
         var meta = working
             ? state.Mode == "CLEAN" ? "POLISHING · CLEAN" : $"WORKING · {state.Mode}"
-            : $"{Timer(state)} · {state.Mode}";
+            : $"{Timer(state)} · {state.Mode}{CleanupNote(state)}";
         var open = HasPreview(state);
         _label.Text = meta;
         _label.IsVisible = !open;

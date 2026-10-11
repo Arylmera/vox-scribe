@@ -38,6 +38,8 @@ public sealed class HudWindow : Window
     private PillFace _face;
     private bool _faceStale;
     private TimeSpan? _lastLatency;
+    private TimeSpan? _lastCleanup;
+    private bool _lastCleanupFailed;
     private int _frames;
 
     /// <summary>Builds the pill over <paramref name="engine"/> and starts watching it.</summary>
@@ -80,7 +82,12 @@ public sealed class HudWindow : Window
         };
     }
 
-    private void OnEngineCompleted(object? sender, DictationResult result) => _lastLatency = result.ProcessingTime;
+    private void OnEngineCompleted(object? sender, DictationResult result)
+    {
+        _lastLatency = result.ProcessingTime;
+        _lastCleanup = result.CleanupTime;
+        _lastCleanupFailed = result.CleanupFailed == true;
+    }
 
     private void OnThemeChanged(object? sender, EventArgs e) => _faceStale = true;
 
@@ -115,7 +122,8 @@ public sealed class HudWindow : Window
                 if (!_latencyClock.IsRunning) _latencyClock.Restart();
                 if (IsVisible && _latencyClock.Elapsed < Tokens.Motion.LatencyLinger)
                 {
-                    _face.Update(new PillState(PillPhase.Latency, 0, latency, Mode(), string.Empty));
+                    _face.Update(new PillState(PillPhase.Latency, 0, latency, Mode(), string.Empty,
+                        Cleanup: _lastCleanup, CleanupFailed: _lastCleanupFailed));
                     return;
                 }
 

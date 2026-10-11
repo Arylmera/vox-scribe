@@ -143,6 +143,31 @@ public sealed class PillTests
     });
 
     [AvaloniaFact]
+    public void The_latency_shows_the_cleanup_split() => EachTheme((theme, face) =>
+    {
+        face.Update(new PillState(PillPhase.Latency, 0, TimeSpan.FromSeconds(1.2), "CLEAN", string.Empty,
+            Cleanup: TimeSpan.FromSeconds(0.7)));
+        var text = string.Join(' ', face.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text));
+        text.ShouldContain("1.2s", customMessage: theme.Id);
+        text.ShouldContain("0.7s", customMessage: theme.Id);
+
+        face.Update(new PillState(PillPhase.Latency, 0, TimeSpan.FromSeconds(1.2), "CLEAN", string.Empty,
+            Cleanup: TimeSpan.FromSeconds(5), CleanupFailed: true));
+        var failed = string.Join(' ', face.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text));
+        failed.ShouldContain("failed", customMessage: theme.Id);
+    });
+
+    [AvaloniaFact]
+    public void The_cleanup_split_fits_the_pill() => EachTheme((theme, face) =>
+    {
+        face.Update(new PillState(PillPhase.Latency, 0, TimeSpan.FromSeconds(12.3), "CLEAN", string.Empty,
+            Cleanup: TimeSpan.FromSeconds(10.4)));
+        face.Measure(Avalonia.Size.Infinity);
+
+        face.DesiredSize.Width.ShouldBeLessThanOrEqualTo(Tokens.Size.PillWindowWidth, theme.Id);
+    });
+
+    [AvaloniaFact]
     public void Every_theme_wears_its_own_silhouette()
     {
         PillFace.Create(PillKind.Paper).ShouldBeOfType<PaperPill>();

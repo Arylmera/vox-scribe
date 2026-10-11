@@ -87,7 +87,7 @@ internal sealed class FluentPill : PillFace
             PillPhase.Notice => "Notice",
             _ => "Done",
         };
-        _meta.Text = $"{Timer(state)} · {(state.Mode switch { "CLEAN" => "Cleaned", "CMD" => "Command", _ => "Raw" })}";
+        _meta.Text = $"{Timer(state)} · {(state.Mode switch { "CLEAN" => "Cleaned", "CMD" => "Command", _ => "Raw" })}{CleanupNote(state)}";
 
         var showPreview = HasPreview(state);
         if (showPreview)
