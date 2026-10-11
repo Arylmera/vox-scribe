@@ -211,9 +211,10 @@ always need the user's own endpoint anyway, a GitHub release published by CI on 
 The cleanup pass runs daily against the owner's LiteLLM gateway; its alias must be a
 non-thinking model (`local-light`, about 0.65 s per call in September 2026 — `local-ops`
 thinks past the 5 s timeout and returns nothing). Its network path is one `catch` whose
-entire contract is "return the original text on any failure". The end-to-end delay it adds
-after key release has not been measured separately: transcripts record processing time but
-not whether cleanup ran.
+entire contract is "return the original text on any failure". Since October 2026 each
+transcript records the cleanup call's own time and whether it fell back to the raw text
+(`CleanupSeconds`, `CleanupFailed`; null on raw dictations and older lines), shown in the
+pill's latency, the history rows and a weekly median on Home.
 
 **Muting other apps while dictating was tried and removed** (October 2026, `git log -S
 MicrophoneMuter`). Per-app WASAPI session mute (`ISimpleAudioVolume`) on a capture endpoint

@@ -35,4 +35,22 @@ public sealed class SettingsMigrationTests
     [Fact]
     public void Auto_stop_defaults_to_three_seconds() =>
         new SettingsData().AutoStopSilenceSeconds.ShouldBe(3);
+
+    /// <summary>Off is 0, not the default — it must be written out, or a restart turns it back on.</summary>
+    [Fact]
+    public void Auto_stop_off_survives_a_restart()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"vox-{Guid.NewGuid():N}.json");
+        try
+        {
+            var settings = new AppSettings(path);
+            settings.Update(settings.Data with { AutoStopSilenceSeconds = 0 });
+
+            new AppSettings(path).Data.AutoStopSilenceSeconds.ShouldBe(0);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
 }

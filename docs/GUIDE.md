@@ -29,7 +29,8 @@ nothing is typed anywhere and the pill says so — a prompt meant for Claude mus
 in a spreadsheet. The pill's badge reads `CMD`.
 
 **Toggle mode** (Settings → SHORTCUTS): press once to start, press again to stop, instead
-of holding the key down.
+of holding the key down. Once you have spoken, **stop after silence** (3 s by default, 1–10 s or
+Off) ends the dictation on its own, as a second press would.
 
 **When the text is typed** (Settings → TYPING), one of three:
 

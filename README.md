@@ -127,7 +127,7 @@ the delay you just felt.
 <summary><b>More: toggle mode, focus anchoring, spoken punctuation, incremental typing</b></summary>
 <br>
 
-- **Toggle mode** — press once to start, again to stop, instead of holding the key.
+- **Toggle mode** — press once to start, again to stop, instead of holding the key. Once you have spoken, 3 s of silence stops it on its own (Settings → Shortcuts, 1–10 s or off).
 - **Focus anchoring** *(on)* — the text goes to the field that had focus when you *pressed* the key, even if you clicked elsewhere while talking.
 - **Spoken punctuation** — say *comma*, *period*, *question mark*, *new line* — or *virgule*, *point*, *à la ligne* in French — and the mark is written.
 - **Incremental typing** — each phrase is typed as you speak it, rather than all at the end.
