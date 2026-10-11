@@ -51,6 +51,9 @@ public sealed class StreamingSegmenter
 
     private readonly List<float> _buffer = [];
     private int _quietSamples;
+
+    /// <summary>Quiet samples at the end of the recording; unlike the pause counter, never reset by a cut.</summary>
+    private int _trailingQuietSamples;
     private float _peak;
 
     /// <summary>Builds a segmenter with tunable timings.</summary>
@@ -105,6 +108,16 @@ public sealed class StreamingSegmenter
     /// <summary>Samples held back, waiting for a pause.</summary>
     public int Pending => _buffer.Count;
 
+    /// <summary>True once any chunk reached <see cref="SilenceFloor"/> this utterance.</summary>
+    /// <remarks>
+    /// The absolute floor only: before the first word the first chunk <i>is</i> the peak, so
+    /// the peak-relative threshold cannot tell noise from speech yet.
+    /// </remarks>
+    public bool HeardSpeech { get; private set; }
+
+    /// <summary>Continuous quiet at the end of the recording, across segment cuts.</summary>
+    public double TrailingQuietSeconds => (double)_trailingQuietSamples / AudioChunk.SampleRate;
+
     /// <summary>
     /// Takes one chunk of live audio.
     /// </summary>
@@ -122,9 +135,19 @@ public sealed class StreamingSegmenter
         var level = chunk.Rms();
         if (level > _peak) _peak = level;
 
+        if (level >= SilenceFloor) HeardSpeech = true;
+
         // Trailing quiet is counted, not reset per chunk: a pause is longer than one buffer.
-        if (level < Math.Max(SilenceFloor, _peak * SilenceFraction)) _quietSamples += span.Length;
-        else _quietSamples = 0;
+        if (level < Math.Max(SilenceFloor, _peak * SilenceFraction))
+        {
+            _quietSamples += span.Length;
+            _trailingQuietSamples += span.Length;
+        }
+        else
+        {
+            _quietSamples = 0;
+            _trailingQuietSamples = 0;
+        }
 
         var pause = _quietSamples >= _pauseSamples && _buffer.Count >= _minSegmentSamples;
 

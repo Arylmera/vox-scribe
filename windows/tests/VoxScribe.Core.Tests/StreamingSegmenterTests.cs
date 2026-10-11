@@ -109,4 +109,52 @@ public sealed class StreamingSegmenterTests
         Array.Fill(quiet, 0.5f, quiet.Length / 2, AudioChunk.SampleRate / 50);
         StreamingSegmenter.HasSpeech(quiet).ShouldBeTrue();
     }
+
+    [Fact]
+    public void Room_noise_below_the_floor_is_not_speech()
+    {
+        var segmenter = new StreamingSegmenter();
+
+        Feed(segmenter, StreamingSegmenter.SilenceFloor / 2, seconds: 3);
+
+        segmenter.HeardSpeech.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Speech_is_remembered_once_heard()
+    {
+        var segmenter = new StreamingSegmenter();
+
+        Feed(segmenter, 0.5f, seconds: 1);
+        Feed(segmenter, 0f, seconds: 2);
+
+        segmenter.HeardSpeech.ShouldBeTrue();
+    }
+
+    /// <summary>
+    /// The pause that closes a segment must not restart the count: auto-stop needs the whole
+    /// quiet stretch, and a cut at 0.6 s would otherwise reset it forever.
+    /// </summary>
+    [Fact]
+    public void Trailing_quiet_keeps_counting_across_a_segment_cut()
+    {
+        var segmenter = new StreamingSegmenter();
+
+        Feed(segmenter, 0.5f, seconds: 2);
+        for (var i = 0; i < 25; i++) segmenter.Accept(Chunk(0f));   // 2.5 s, a cut happens inside
+
+        segmenter.TrailingQuietSeconds.ShouldBe(2.5, tolerance: 0.01);
+    }
+
+    [Fact]
+    public void Speech_resets_the_trailing_quiet()
+    {
+        var segmenter = new StreamingSegmenter();
+
+        Feed(segmenter, 0.5f, seconds: 1);
+        Feed(segmenter, 0f, seconds: 1);
+        segmenter.Accept(Chunk(0.5f));
+
+        segmenter.TrailingQuietSeconds.ShouldBe(0);
+    }
 }
