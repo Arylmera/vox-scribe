@@ -33,6 +33,18 @@ public sealed class AutoStopTests
         for (var i = 0; i < 50000 && engine.State != DictationState.Idle; i++) await Task.Yield();
     }
 
+    /// <summary>
+    /// Presses once and waits (bounded) for the fake capture to consume every queued chunk —
+    /// so a negative test asserts against the engine's state only once auto-stop has had every
+    /// chance to fire, not after an arbitrary yield budget that may or may not have let it.
+    /// </summary>
+    private static async Task PressOnceAndDrainCaptureAsync(FakeHotkeySource hotkey, FakeAudioCapture capture)
+    {
+        hotkey.Press();
+        for (var i = 0; i < 2000 && !capture.IsCapturing; i++) await Task.Yield();
+        for (var i = 0; i < 200000 && capture.IsCapturing; i++) await Task.Yield();
+    }
+
     [Fact]
     public async Task Silence_after_speech_ends_a_toggle_dictation()
     {
@@ -42,13 +54,8 @@ public sealed class AutoStopTests
 
         await PressOnceAndWaitAsync(hotkey, engine);
 
-        // Under a fully parallel test run, the 50000-iteration Task.Yield() budget above can
-        // run out around the time the capture loop reaches the quiet threshold (~200 chunk
-        // round-trips in), not because EndAsync is stuck — once it fires it runs straight
-        // through to Idle in about 10-20ms measured, not tens of iterations. A short, bounded
-        // real-time wait (observed ~200ms needed; this leaves headroom) covers that gap. Only
-        // this test needs it: it is the only one that expects the state to leave Recording on
-        // its own.
+        // EndAsync runs a little past the capture loop's last chunk (closing the segmenter,
+        // transcribing, injecting), so give it a short bounded real-time budget on top.
         for (var i = 0; i < 200 && engine.State != DictationState.Idle; i++) await Task.Delay(10);
 
         engine.State.ShouldBe(DictationState.Idle);
@@ -59,9 +66,10 @@ public sealed class AutoStopTests
     public async Task Silence_before_any_speech_keeps_recording()
     {
         var hotkey = new FakeHotkeySource();
-        await using var engine = Build(FakeAudioCapture.Silence(5), hotkey, new RecordingTextInjector(), toggle: true, autoStop: 3);
+        var capture = FakeAudioCapture.Silence(5);
+        await using var engine = Build(capture, hotkey, new RecordingTextInjector(), toggle: true, autoStop: 3);
 
-        await PressOnceAndWaitAsync(hotkey, engine);
+        await PressOnceAndDrainCaptureAsync(hotkey, capture);
 
         engine.State.ShouldBe(DictationState.Recording);
         await engine.CancelAsync();
@@ -71,9 +79,10 @@ public sealed class AutoStopTests
     public async Task Off_means_off()
     {
         var hotkey = new FakeHotkeySource();
-        await using var engine = Build(SpeechThenQuiet(1, 4), hotkey, new RecordingTextInjector(), toggle: true, autoStop: 0);
+        var capture = SpeechThenQuiet(1, 4);
+        await using var engine = Build(capture, hotkey, new RecordingTextInjector(), toggle: true, autoStop: 0);
 
-        await PressOnceAndWaitAsync(hotkey, engine);
+        await PressOnceAndDrainCaptureAsync(hotkey, capture);
 
         engine.State.ShouldBe(DictationState.Recording);
         await engine.CancelAsync();
@@ -83,9 +92,10 @@ public sealed class AutoStopTests
     public async Task Push_to_talk_ignores_auto_stop()
     {
         var hotkey = new FakeHotkeySource();
-        await using var engine = Build(SpeechThenQuiet(1, 4), hotkey, new RecordingTextInjector(), toggle: false, autoStop: 3);
+        var capture = SpeechThenQuiet(1, 4);
+        await using var engine = Build(capture, hotkey, new RecordingTextInjector(), toggle: false, autoStop: 3);
 
-        await PressOnceAndWaitAsync(hotkey, engine);
+        await PressOnceAndDrainCaptureAsync(hotkey, capture);
 
         engine.State.ShouldBe(DictationState.Recording);
         hotkey.Release();
