@@ -81,6 +81,12 @@ public interface ITextInjector
 
     /// <summary>Sends a single Return keystroke — submits in a terminal or chat box.</summary>
     ValueTask<bool> EnterAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Copies the focused control's selection as text, leaving the user's clipboard as it was.
+    /// </summary>
+    /// <returns>The selected text, or null when nothing was copied (no selection, or no text in it).</returns>
+    ValueTask<string?> CopySelectionAsync(CancellationToken cancellationToken);
 }
 
 /// <summary>

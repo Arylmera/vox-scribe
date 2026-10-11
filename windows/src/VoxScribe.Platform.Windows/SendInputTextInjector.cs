@@ -49,6 +49,9 @@ public sealed class SendInputTextInjector : ITextInjector
     /// <summary>Time for the target to finish reading before the clipboard is restored.</summary>
     private static readonly TimeSpan PasteSettle = TimeSpan.FromMilliseconds(500);
 
+    /// <summary>How long the target gets to answer Ctrl+C before the clipboard is read.</summary>
+    private static readonly TimeSpan CopySettle = TimeSpan.FromMilliseconds(150);
+
     private const uint INPUT_KEYBOARD = 1;
     private const uint KEYEVENTF_EXTENDEDKEY = 0x0001;
     private const uint KEYEVENTF_KEYUP = 0x0002;
@@ -60,6 +63,7 @@ public sealed class SendInputTextInjector : ITextInjector
     private const int VK_LWIN = 0x5B;
     private const int VK_RWIN = 0x5C;
     private const int VK_V = 0x56;
+    private const int VK_C = 0x43;
     private const int VK_RETURN = 0x0D;
     private const int VK_BACK = 0x08;   // not in the extended-key set, plain scancode path
 
@@ -188,6 +192,9 @@ public sealed class SendInputTextInjector : ITextInjector
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern IntPtr GlobalFree(IntPtr memory);
 
+    [DllImport("user32.dll")]
+    private static extern uint GetClipboardSequenceNumber();
+
     private static readonly int InputSize = Marshal.SizeOf<INPUT>();
 
     /// <summary>Replaces the built-in Win32 clipboard paste; null uses it.</summary>
@@ -220,6 +227,28 @@ public sealed class SendInputTextInjector : ITextInjector
         }
 
         return await PasteAsync(text, cancellationToken).ConfigureAwait(false) || TypeWithNewlines(text);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Ctrl+C, then the clipboard sequence number says whether anything was copied — an app
+    /// with no selection copies nothing and the number does not move. The user's text is put
+    /// back afterwards, as <see cref="PasteAsync"/> does.
+    /// ponytail: only text is saved and restored, as for paste.
+    /// </remarks>
+    public async ValueTask<string?> CopySelectionAsync(CancellationToken cancellationToken)
+    {
+        var previous = ReadClipboardText();
+        var before = GetClipboardSequenceNumber();
+
+        if (!PressCtrl(VK_C)) return null;
+        await Task.Delay(CopySettle, cancellationToken).ConfigureAwait(false);
+
+        if (GetClipboardSequenceNumber() == before) return null;
+
+        var copied = ReadClipboardText();
+        if (previous is not null) WriteClipboardText(previous);
+        return string.IsNullOrEmpty(copied) ? null : copied;
     }
 
     /// <summary>
@@ -436,7 +465,15 @@ public sealed class SendInputTextInjector : ITextInjector
     /// Shift would otherwise get Ctrl+Shift+V — "paste as plain text", or something else
     /// entirely depending on the app.
     /// </remarks>
-    public static bool PressCtrlV()
+    public static bool PressCtrlV() => PressCtrl(VK_V);
+
+    /// <summary>Presses Ctrl+<paramref name="virtualKey"/>, temporarily lifting any modifier the user is resting on.</summary>
+    /// <remarks>
+    /// Microsoft: "This function does not reset the keyboard's current state. Any keys that
+    /// are already pressed when the function is called might interfere." A user resting on
+    /// Shift would otherwise get Ctrl+Shift+<c>key</c> — a different command entirely in some apps.
+    /// </remarks>
+    private static bool PressCtrl(int virtualKey)
     {
         var held = new List<int>();
         foreach (var key in new[] { VK_SHIFT, VK_MENU, VK_LWIN, VK_RWIN })
@@ -448,8 +485,8 @@ public sealed class SendInputTextInjector : ITextInjector
         foreach (var key in held) sequence.Add(KeyInput(key, up: true));
 
         sequence.Add(KeyInput(VK_CONTROL, up: false));
-        sequence.Add(KeyInput(VK_V, up: false));
-        sequence.Add(KeyInput(VK_V, up: true));
+        sequence.Add(KeyInput(virtualKey, up: false));
+        sequence.Add(KeyInput(virtualKey, up: true));
         sequence.Add(KeyInput(VK_CONTROL, up: true));
 
         foreach (var key in held) sequence.Add(KeyInput(key, up: false));

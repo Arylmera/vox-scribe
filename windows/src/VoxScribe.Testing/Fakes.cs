@@ -213,6 +213,19 @@ public sealed class RecordingTextInjector : ITextInjector
         Enters++;
         return ValueTask.FromResult(true);
     }
+
+    /// <summary>What <see cref="CopySelectionAsync"/> returns: the "selected" text, or null for none.</summary>
+    public string? Selection { get; set; }
+
+    /// <summary>Number of <see cref="CopySelectionAsync"/> calls.</summary>
+    public int Copies { get; private set; }
+
+    /// <inheritdoc />
+    public ValueTask<string?> CopySelectionAsync(CancellationToken cancellationToken)
+    {
+        Copies++;
+        return ValueTask.FromResult(Selection);
+    }
 }
 
 /// <summary>A focus anchor that records when it was captured and restored.</summary>
