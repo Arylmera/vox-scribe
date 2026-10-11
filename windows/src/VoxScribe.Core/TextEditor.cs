@@ -55,7 +55,7 @@ public sealed class TextEditor(string baseUrl, string model, string? apiKey)
         if (text.StartsWith("```", StringComparison.Ordinal) && text.EndsWith("```", StringComparison.Ordinal) && text.Length > 6)
         {
             var firstBreak = text.IndexOf('\n', StringComparison.Ordinal);
-            text = firstBreak < 0 ? string.Empty : text[(firstBreak + 1)..^3].Trim();
+            text = firstBreak < 0 ? text[3..^3].Trim() : text[(firstBreak + 1)..^3].Trim();
         }
 
         if (text.StartsWith("<<<", StringComparison.Ordinal) && text.EndsWith(">>>", StringComparison.Ordinal))

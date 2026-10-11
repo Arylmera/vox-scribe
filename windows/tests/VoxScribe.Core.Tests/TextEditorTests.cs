@@ -17,6 +17,15 @@ public sealed class TextEditorTests
     public void A_fence_around_the_answer_is_stripped() =>
         TextEditor.Vet("```\nHello world\n```").ShouldBe("Hello world");
 
+    [Fact]
+    public void A_one_line_fenced_answer_keeps_its_text() =>
+        TextEditor.Vet("```hello world```").ShouldBe("hello world");
+
+    /// <summary>Only the outer fence pair is stripped; an inner ``` is part of the text.</summary>
+    [Fact]
+    public void An_inner_fence_inside_a_multiline_fence_is_kept() =>
+        TextEditor.Vet("```\nhello ```world``` foo\n```").ShouldBe("hello ```world``` foo");
+
     /// <summary>No overlap guard: a translation shares no words with what was selected.</summary>
     [Fact]
     public void A_translation_is_kept() =>
