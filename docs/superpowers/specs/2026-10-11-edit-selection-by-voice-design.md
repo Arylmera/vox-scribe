@@ -26,8 +26,9 @@ Select text anywhere, hold the **Edit** chord, say an instruction ("translate to
    After an ordinary dictation Undo is unchanged.
 7. The pill shows the badge `EDIT` (each face in its own casing: Paper `edit`, Fluent `Edit`,
    Orb/Mono `EDIT`, Tide badge `Edit`), and in the latency phase the edit call's time
-   reuses the cleanup split (`1.2s · clean 0.7s` → for Edit: `1.2s · edit 0.7s`,
-   failure `1.2s · edit failed`; Orb/Tide short form `1.2s · 0.7s` / `1.2s · failed`).
+   reuses the cleanup split (`1.2s · clean 0.7s` → for Edit: `1.2s · edit 0.7s`; Orb/Tide
+   short form `1.2s · 0.7s`). A failed edit shows its notice instead — it never reaches the
+   latency phase.
 8. History records the instruction as `RawText`, the result as `Text`, and the call's time and
    outcome in `CleanupSeconds` / `CleanupFailed` (they mean "the model call" for Edit).
    Nothing is recorded when nothing was typed.
@@ -107,7 +108,8 @@ clipboard-open retry, no decisions.
   result and re-injects the original; Undo after a plain dictation unchanged; the Edit chord
   never injects incrementally.
 - `InjectionJournal`: `Replaced` set by an edit, cleared by the next dictation.
-- Chords: Edit takes part in the blocker computation (extend `ChordOverlapTests`).
+- Chords: Edit is added to `Composition.Rearm`'s blocker lists (wiring; `Blockers` itself is
+  already covered by `ChordOverlapTests`).
 - Pill: `EDIT` badge and the edit split in every face; widths still fit (the existing
   per-face width test).
 - By hand (no fake can prove these): Ctrl+C capture and replacement in Notepad, Chrome, VS Code,
