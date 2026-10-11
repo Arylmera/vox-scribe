@@ -75,6 +75,7 @@ public sealed class DictationEngine : IAsyncDisposable
     private readonly IHotkeySource? _cancelHotkey;
     private readonly IHotkeySource? _undoHotkey;
     private readonly IHotkeySource? _commandHotkey;
+    private readonly IHotkeySource? _editHotkey;
     private readonly IFocusAnchor? _focusAnchor;
 
     /// <summary>Set by <see cref="CancelAsync"/>; segments still in flight then stay untyped.</summary>
@@ -188,6 +189,11 @@ public sealed class DictationEngine : IAsyncDisposable
     /// window named by <see cref="CommandWindowTitle"/> and is submitted with Return. Tidied
     /// first when <see cref="Cleanup"/> is set.
     /// </param>
+    /// <param name="editHotkey">
+    /// Optional fourth shortcut: records like the others, but the finished text is an
+    /// instruction applied to the current selection — see <see cref="Edit"/> — rather than
+    /// text typed anywhere.
+    /// </param>
     public DictationEngine(
         IAudioCapture capture,
         IHotkeySource hotkey,
@@ -199,7 +205,8 @@ public sealed class DictationEngine : IAsyncDisposable
         IFocusAnchor? focusAnchor = null,
         IHotkeySource? cancelHotkey = null,
         IHotkeySource? undoHotkey = null,
-        IHotkeySource? commandHotkey = null)
+        IHotkeySource? commandHotkey = null,
+        IHotkeySource? editHotkey = null)
     {
         _capture = capture;
         _hotkey = hotkey;
@@ -236,6 +243,13 @@ public sealed class DictationEngine : IAsyncDisposable
             _commandHotkey = commandHotkey;
             commandHotkey.Pressed += OnCommandPressed;
             commandHotkey.Released += OnReleased;
+        }
+
+        if (editHotkey is not null)
+        {
+            _editHotkey = editHotkey;
+            editHotkey.Pressed += OnEditPressed;
+            editHotkey.Released += OnReleased;
         }
     }
 
@@ -284,6 +298,7 @@ public sealed class DictationEngine : IAsyncDisposable
         _cancelHotkey?.Start();
         _undoHotkey?.Start();
         _commandHotkey?.Start();
+        _editHotkey?.Start();
         return _hotkey.Start();
     }
 
@@ -312,6 +327,7 @@ public sealed class DictationEngine : IAsyncDisposable
         if (State != DictationState.Idle) return;
         _cleanThisUtterance = true;
         CommandThisUtterance = true;
+        EditThisUtterance = false;
         _anchorRequested = false;
         _ = BeginAsync();
     }
@@ -327,6 +343,18 @@ public sealed class DictationEngine : IAsyncDisposable
     /// tried. Null — no plugin bridge — leaves command mode exactly as it was.
     /// </summary>
     public Func<string, CancellationToken, Task<ClaudeDelivery>>? DeliverToClaude { get; set; }
+
+    /// <summary>
+    /// Rewrites a selection: (selection, instruction) → the edit. Null when no endpoint is
+    /// configured, which makes the Edit chord explain itself instead of recording.
+    /// </summary>
+    public Func<string, string, CancellationToken, Task<EditOutcome>>? Edit { get; set; }
+
+    /// <summary>True while the current or last utterance came from the Edit chord.</summary>
+    public bool EditThisUtterance { get; private set; }
+
+    /// <summary>Longest selection an edit will send; past it the edit is refused.</summary>
+    public const int MaxEditSelection = 8000;
 
     // Backspace pacing mirrors the Windows injector's typing cadence (bursts with a
     // small settle gap) so slow target apps don't drop keystrokes.
@@ -489,7 +517,7 @@ public sealed class DictationEngine : IAsyncDisposable
     /// effect on every raw dictation.
     /// </remarks>
     private bool InjectIncrementally =>
-        IncrementalInjection && !_cleanThisUtterance && !_anchoredThisUtterance;
+        IncrementalInjection && !_cleanThisUtterance && !EditThisUtterance && !_anchoredThisUtterance;
 
     /// <summary>
     /// Optional repair pass applied to the finished utterance before it is reported and
@@ -525,15 +553,28 @@ public sealed class DictationEngine : IAsyncDisposable
     public bool CleaningThisUtterance =>
         _cleanThisUtterance && Cleanup is not null;
 
-    private void OnPlainPressed(object? sender, EventArgs e) => Pressed(cleanup: false, command: false, sender, e);
+    private void OnPlainPressed(object? sender, EventArgs e) => Pressed(cleanup: false, command: false, edit: false, sender, e);
 
-    private void OnCleanupPressed(object? sender, EventArgs e) => Pressed(cleanup: true, command: false, sender, e);
+    private void OnCleanupPressed(object? sender, EventArgs e) => Pressed(cleanup: true, command: false, edit: false, sender, e);
 
     // A command is tidied when a cleaner exists — what reaches Claude should read well — and
     // it never anchors: the target is found by title at release, not remembered from press.
-    private void OnCommandPressed(object? sender, EventArgs e) => Pressed(cleanup: true, command: true, sender, e);
+    private void OnCommandPressed(object? sender, EventArgs e) => Pressed(cleanup: true, command: true, edit: false, sender, e);
 
     private void OnUndoPressed(object? sender, EventArgs e) => _ = UndoLastDictationAsync(CancellationToken.None);
+
+    // An edit is never cleaned (the instruction is not the text) and anchors like a dictation:
+    // the selection lives in the window that had focus at press.
+    private void OnEditPressed(object? sender, EventArgs e)
+    {
+        if (State == DictationState.Idle && Edit is null)
+        {
+            ReportNotice("Set a cleanup endpoint to edit by voice");
+            return;
+        }
+
+        Pressed(cleanup: false, command: false, edit: true, sender, e);
+    }
 
     /// <summary>
     /// Chooses the mode, then runs the shared press path.
@@ -544,12 +585,13 @@ public sealed class DictationEngine : IAsyncDisposable
     /// letting either flip the mode mid-utterance would mean phrases already typed
     /// incrementally and then typed again, whole, at the end.
     /// </remarks>
-    private void Pressed(bool cleanup, bool command, object? sender, EventArgs e)
+    private void Pressed(bool cleanup, bool command, bool edit, object? sender, EventArgs e)
     {
         if (State == DictationState.Idle)
         {
             _cleanThisUtterance = cleanup;
             CommandThisUtterance = command;
+            EditThisUtterance = edit;
             _anchorRequested = !command;
         }
 
@@ -715,6 +757,12 @@ public sealed class DictationEngine : IAsyncDisposable
         foreach (var segment in spoken) joined.Append(Separator(joined.ToString())).Append(segment.Text);
         var text = joined.ToString();
 
+        if (EditThisUtterance)
+        {
+            await EditSelectionAsync(text, releasedAt, spoken).ConfigureAwait(false);
+            return;
+        }
+
         // Before Completed, so the history keeps what was actually typed. Skipped in
         // incremental mode, where the phrases are already in the target window and there is
         // nothing left to improve.
@@ -755,13 +803,73 @@ public sealed class DictationEngine : IAsyncDisposable
             return;
         }
 
-        // Bring the anchored field back first. A failed restore is deliberate silence: the
-        // fallback is to type where focus is now, which is what the app always did.
-        if (_anchorCapture is { } capture && await capture.ConfigureAwait(false) is { } target)
-            await target.RestoreAsync(CancellationToken.None).ConfigureAwait(false);
+        await RestoreAnchorAsync().ConfigureAwait(false);
 
         if (await _injector.InjectAsync(text, CancellationToken.None).ConfigureAwait(false))
             Journal.Record(text);
+    }
+
+    /// <summary>
+    /// Copies the selection, applies <paramref name="instruction"/> to it and types the result
+    /// over it. Every refusal is a notice and types nothing: there is no "raw" fallback for an
+    /// edit, and the selection must be left as it was.
+    /// </summary>
+    private async Task EditSelectionAsync(string instruction, DateTimeOffset releasedAt, Segment[] spoken)
+    {
+        await RestoreAnchorAsync().ConfigureAwait(false);
+
+        var selection = await _injector.CopySelectionAsync(CancellationToken.None).ConfigureAwait(false);
+        if (string.IsNullOrEmpty(selection))
+        {
+            ReportNotice("Nothing selected");
+            return;
+        }
+
+        if (selection.Length > MaxEditSelection)
+        {
+            ReportNotice("Selection too long");
+            return;
+        }
+
+        if (Edit is not { } edit)
+        {
+            ReportNotice("Set a cleanup endpoint to edit by voice");
+            return;
+        }
+
+        var startedAt = _clock.Now;
+        var outcome = await edit(selection, instruction, CancellationToken.None).ConfigureAwait(false);
+        var took = _clock.Now - startedAt;
+
+        if (outcome.Text is not { } edited)
+        {
+            ReportNotice($"Edit failed — {outcome.Failure ?? "no answer"}");
+            return;
+        }
+
+        Completed?.Invoke(this, new DictationResult(
+            At: releasedAt,
+            AudioDuration: TimeSpan.FromSeconds((double)_capturedSamples / AudioChunk.SampleRate),
+            ProcessingTime: _clock.Now - releasedAt,
+            Text: edited,
+            Corrections: [.. spoken.SelectMany(s => s.Corrections)],
+            RawText: instruction,
+            CleanupTime: took,
+            CleanupFailed: false));
+
+        if (await _injector.InjectAsync(edited, CancellationToken.None).ConfigureAwait(false))
+            Journal.Record(edited, replaced: selection);
+    }
+
+    /// <summary>
+    /// Brings the field anchored at press back to the foreground. A failed restore is
+    /// deliberate silence: the fallback is to type where focus is now, which is what the app
+    /// always did.
+    /// </summary>
+    private async Task RestoreAnchorAsync()
+    {
+        if (_anchorCapture is { } capture && await capture.ConfigureAwait(false) is { } target)
+            await target.RestoreAsync(CancellationToken.None).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -956,6 +1064,13 @@ public sealed class DictationEngine : IAsyncDisposable
             _commandHotkey.Pressed -= OnCommandPressed;
             _commandHotkey.Released -= OnReleased;
             _commandHotkey.Dispose();
+        }
+
+        if (_editHotkey is not null)
+        {
+            _editHotkey.Pressed -= OnEditPressed;
+            _editHotkey.Released -= OnReleased;
+            _editHotkey.Dispose();
         }
 
         if (_recording is not null)
