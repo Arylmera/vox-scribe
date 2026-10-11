@@ -74,6 +74,9 @@ public sealed class DictationEngine : IAsyncDisposable
     /// <summary>Set by <see cref="CancelAsync"/>; segments still in flight then stay untyped.</summary>
     private volatile bool _cancelled;
 
+    /// <summary>Set once auto-stop has fired this utterance, so it ends the dictation once.</summary>
+    private bool _autoStopped;
+
     private readonly SemaphoreSlim _gate = new(1, 1);
 
     /// <summary>
@@ -422,6 +425,12 @@ public sealed class DictationEngine : IAsyncDisposable
     public bool ToggleMode { get; set; }
 
     /// <summary>
+    /// Toggle mode only: seconds of quiet, after speech was heard, that end the dictation as a
+    /// second press would. 0 turns it off. Safe to change live.
+    /// </summary>
+    public double AutoStopSilenceSeconds { get; set; }
+
+    /// <summary>
     /// When true each segment is typed the moment it is transcribed, so text appears while
     /// the user is still speaking. When false (the default) the whole utterance is typed once
     /// at the end.
@@ -573,6 +582,7 @@ public sealed class DictationEngine : IAsyncDisposable
             _capturedSamples = 0;
             _zeroSamples = 0;
             _cancelled = false;
+            _autoStopped = false;
             PartialText = string.Empty;
             Notice = string.Empty;
             Journal.BeginDictation();
@@ -599,9 +609,22 @@ public sealed class DictationEngine : IAsyncDisposable
 
                 // Copied by the segmenter, not referenced: capture implementations are
                 // entitled to reuse their buffer the moment this returns.
+                bool quietLongEnough;
                 lock (_segments)
                 {
                     if (_segmenter?.Accept(chunk) is { Length: > 0 } closed) Queue(closed);
+
+                    quietLongEnough = ToggleMode
+                        && AutoStopSilenceSeconds > 0
+                        && _segmenter is { HeardSpeech: true } s
+                        && s.TrailingQuietSeconds >= AutoStopSilenceSeconds;
+                }
+
+                // As if the toggle key were pressed again; the State guard above then ends the loop.
+                if (quietLongEnough && !_autoStopped)
+                {
+                    _autoStopped = true;
+                    _ = EndAsync();
                 }
 
                 Level = chunk.Rms();
