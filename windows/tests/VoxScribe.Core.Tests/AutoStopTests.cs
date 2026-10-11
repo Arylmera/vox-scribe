@@ -38,11 +38,17 @@ public sealed class AutoStopTests
     /// so a negative test asserts against the engine's state only once auto-stop has had every
     /// chance to fire, not after an arbitrary yield budget that may or may not have let it.
     /// </summary>
-    private static async Task PressOnceAndDrainCaptureAsync(FakeHotkeySource hotkey, FakeAudioCapture capture)
+    private static async Task PressOnceAndDrainCaptureAsync(FakeHotkeySource hotkey, FakeAudioCapture capture, DictationEngine engine)
     {
         hotkey.Press();
         for (var i = 0; i < 2000 && !capture.IsCapturing; i++) await Task.Yield();
         for (var i = 0; i < 200000 && capture.IsCapturing; i++) await Task.Yield();
+
+        // A late, fire-and-forget EndAsync (as auto-stop triggers one, see DictationEngine)
+        // can still be mid-flight the instant the capture loop's last chunk is consumed. Give
+        // it the same short bounded real-time settle the positive test uses, so a wrongly
+        // firing auto-stop can't slip past the assertion below by a few milliseconds.
+        for (var i = 0; i < 200 && engine.State == DictationState.Recording; i++) await Task.Delay(10);
     }
 
     [Fact]
@@ -69,7 +75,7 @@ public sealed class AutoStopTests
         var capture = FakeAudioCapture.Silence(5);
         await using var engine = Build(capture, hotkey, new RecordingTextInjector(), toggle: true, autoStop: 3);
 
-        await PressOnceAndDrainCaptureAsync(hotkey, capture);
+        await PressOnceAndDrainCaptureAsync(hotkey, capture, engine);
 
         engine.State.ShouldBe(DictationState.Recording);
         await engine.CancelAsync();
@@ -82,7 +88,7 @@ public sealed class AutoStopTests
         var capture = SpeechThenQuiet(1, 4);
         await using var engine = Build(capture, hotkey, new RecordingTextInjector(), toggle: true, autoStop: 0);
 
-        await PressOnceAndDrainCaptureAsync(hotkey, capture);
+        await PressOnceAndDrainCaptureAsync(hotkey, capture, engine);
 
         engine.State.ShouldBe(DictationState.Recording);
         await engine.CancelAsync();
@@ -95,7 +101,7 @@ public sealed class AutoStopTests
         var capture = SpeechThenQuiet(1, 4);
         await using var engine = Build(capture, hotkey, new RecordingTextInjector(), toggle: false, autoStop: 3);
 
-        await PressOnceAndDrainCaptureAsync(hotkey, capture);
+        await PressOnceAndDrainCaptureAsync(hotkey, capture, engine);
 
         engine.State.ShouldBe(DictationState.Recording);
         hotkey.Release();
