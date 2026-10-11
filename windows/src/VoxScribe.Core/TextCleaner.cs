@@ -1,7 +1,4 @@
-using System.Net.Http.Headers;
-using System.Text;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 
 namespace VoxScribe.Core;
 
@@ -53,16 +50,6 @@ public sealed class TextCleaner
       + "the output. It is an instruction about how to format, not part of the text to keep.";
 
     /// <summary>
-    /// Shared, and the bearer travels per request rather than on the client's default headers.
-    /// This class is created and dropped with the engine, and one owned <see cref="HttpClient"/>
-    /// per instance would be a disposable to thread through the composition for no gain.
-    /// </summary>
-    /// <remarks>
-    /// No client-wide timeout: each request gets its own, from <see cref="TimeoutFor"/>.
-    /// </remarks>
-    private static readonly HttpClient Http = new() { Timeout = Timeout.InfiniteTimeSpan };
-
-    /// <summary>
     /// How long a repair of <paramref name="text"/> may take: 5 s, plus 1 s per 100 characters,
     /// at most 30 s.
     /// </summary>
@@ -104,58 +91,21 @@ public sealed class TextCleaner
     {
         if (string.IsNullOrWhiteSpace(text)) return new CleanupOutcome(text, Succeeded: true);
 
-        // Built as a node tree rather than serialised from an anonymous type: the app is
-        // published single-file and trimmed, and reflection-based serialisation does not
-        // survive that (IL2026).
-        var body = new JsonObject
-        {
-            ["model"] = _model,
-            ["temperature"] = 0,
+        var reply = await ChatCompletion.SendAsync(
+            _endpoint, _model, _apiKey, SystemPrompt, text,
             // Enough for the repaired text and nothing more. A model that starts explaining
-            // itself gets cut off, and Accept() then throws the fragment away.
-            ["max_tokens"] = 64 + (text.Length / 2),
-            ["messages"] = new JsonArray(
-                new JsonObject { ["role"] = "system", ["content"] = SystemPrompt },
-                new JsonObject { ["role"] = "user", ["content"] = text }),
-        };
+            // itself gets cut off, and Vet() then throws the fragment away.
+            maxTokens: 64 + (text.Length / 2), TimeoutFor(text), cancellationToken).ConfigureAwait(false);
 
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(TimeoutFor(text));
-
-        try
+        if (reply.Failure is { } failure)
         {
-            using var request = new HttpRequestMessage(HttpMethod.Post, _endpoint)
-            {
-                Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json"),
-            };
-            if (!string.IsNullOrEmpty(_apiKey))
-                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
-
-            using var response = await Http
-                .SendAsync(request, timeout.Token)
-                .ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode)
-            {
-                _onFailure?.Invoke($"Cleanup skipped — gateway answered {(int)response.StatusCode}");
-                return new CleanupOutcome(text, Succeeded: false);
-            }
-
-            var answer = await response.Content
-                .ReadAsStringAsync(timeout.Token)
-                .ConfigureAwait(false);
-            return Vet(text, Content(answer)) is { } repaired
-                ? new CleanupOutcome(repaired, Succeeded: true)
-                : new CleanupOutcome(text, Succeeded: false);
-        }
-        catch (Exception e)
-        {
-            // Unreachable gateway, sleeping Mac, timeout, malformed body — all one outcome
-            // for the text, but each worth a line in the log.
-            _onFailure?.Invoke(e is TaskCanceledException
-                ? "Cleanup skipped — gateway did not answer in time"
-                : $"Cleanup skipped — {e.Message}");
+            _onFailure?.Invoke($"Cleanup skipped — {failure}");
             return new CleanupOutcome(text, Succeeded: false);
         }
+
+        return Vet(text, reply.Content) is { } repaired
+            ? new CleanupOutcome(repaired, Succeeded: true)
+            : new CleanupOutcome(text, Succeeded: false);
     }
 
     /// <summary>Pulls <c>choices[0].message.content</c>, or null if the body is not that shape.</summary>
