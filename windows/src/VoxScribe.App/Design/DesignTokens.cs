@@ -170,6 +170,9 @@ public static class Tokens
         /// <inheritdoc cref="Colors.Record"/>
         public static IBrush Record => new SolidColorBrush(Colors.Record);
 
+        /// <inheritdoc cref="Colors.Caution"/>
+        public static IBrush Caution => new SolidColorBrush(Colors.Caution);
+
         /// <summary>Ink at a chosen level of de-emphasis. See <see cref="Emphasis"/>.</summary>
         public static IBrush InkOnDeckAt(double emphasis) => new SolidColorBrush(Colors.InkOnDeck, emphasis);
     }

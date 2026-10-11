@@ -1,4 +1,6 @@
-﻿using System.IO;
+﻿using System.Globalization;
+using System.IO;
+using Avalonia.Controls.Documents;
 using Avalonia.VisualTree;
 using VoxScribe.Core;
 using Avalonia;
@@ -460,5 +462,47 @@ public sealed class KeyHitAreaTests
         Button[] keys = [new TransportKey()];
 
         foreach (var key in keys) key.Background.ShouldBe(Brushes.Transparent);
+    }
+}
+
+/// <summary>
+/// History rows show how long cleanup took, or that it failed, beside the row's own latency.
+/// </summary>
+public sealed class HistoryCleanupTimingTests
+{
+    [AvaloniaFact]
+    public void A_row_shows_cleanup_time_or_cleanup_failed()
+    {
+        var culture = CultureInfo.CurrentCulture;
+        CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
+        try
+        {
+            var store = new TranscriptStore(Path.Combine(Path.GetTempPath(), $"vox-{Guid.NewGuid():N}.jsonl"));
+            store.Add(new TranscriptRecord { Text = "ok", CleanupSeconds = 0.7 });
+            store.Add(new TranscriptRecord { Text = "bad", CleanupFailed = true, CleanupSeconds = 5 });
+
+            var view = new TranscriptionsView(store);
+            var window = new Window { Content = view };
+            try
+            {
+                window.Show();
+
+                var text = string.Concat(view.GetVisualDescendants().OfType<TextBlock>()
+                    .SelectMany(block => block.Inlines ?? new InlineCollection())
+                    .OfType<Run>()
+                    .Select(run => run.Text));
+
+                text.ShouldContain("cleanup 0.7s");
+                text.ShouldContain("cleanup failed");
+            }
+            finally
+            {
+                window.Close();
+            }
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = culture;
+        }
     }
 }

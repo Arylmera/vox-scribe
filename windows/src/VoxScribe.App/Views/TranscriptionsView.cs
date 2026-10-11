@@ -1,6 +1,7 @@
 using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Documents;
 using Avalonia.Layout;
 using Avalonia.Media;
 using VoxScribe.App.Controls;
@@ -155,16 +156,29 @@ public sealed class TranscriptionsView : UserControl
         return HairlineRow(grid);
     }
 
-    /// <summary>Time and felt latency, on one mono line.</summary>
-    private static TextBlock MetaBlock(TranscriptRecord record, double emphasis) => new()
+    /// <summary>Time, felt latency and — when cleanup ran — its time or its failure, on one mono line.</summary>
+    private static TextBlock MetaBlock(TranscriptRecord record, double emphasis)
     {
-        Text = record.At.ToLocalTime().ToString("HH:mm:ss", CultureInfo.CurrentCulture)
-             + " · " + record.ProcessingSeconds.ToString("0.0", CultureInfo.CurrentCulture) + "s",
-        FontFamily = Tokens.Fonts.Mono,
-        FontSize = Tokens.Fonts.Caption,
-        Foreground = Tokens.Brushes.InkOnDeckAt(emphasis),
-        VerticalAlignment = VerticalAlignment.Center,
-    };
+        var block = new TextBlock
+        {
+            FontFamily = Tokens.Fonts.Mono,
+            FontSize = Tokens.Fonts.Caption,
+            Foreground = Tokens.Brushes.InkOnDeckAt(emphasis),
+            VerticalAlignment = VerticalAlignment.Center,
+            Inlines = new InlineCollection
+            {
+                new Run(record.At.ToLocalTime().ToString("HH:mm:ss", CultureInfo.CurrentCulture)
+                    + " · " + record.ProcessingSeconds.ToString("0.0", CultureInfo.CurrentCulture) + "s"),
+            },
+        };
+
+        if (record.CleanupFailed == true)
+            block.Inlines.Add(new Run(" · cleanup failed") { Foreground = Tokens.Brushes.Caution });
+        else if (record.CleanupSeconds is { } seconds)
+            block.Inlines.Add(new Run(" · cleanup " + seconds.ToString("0.0", CultureInfo.CurrentCulture) + "s"));
+
+        return block;
+    }
 
     /// <summary>Wraps a row in the hairline framing the card-less styles use.</summary>
     private static Border HairlineRow(Control content) => new()
