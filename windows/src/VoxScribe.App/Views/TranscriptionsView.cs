@@ -172,10 +172,11 @@ public sealed class TranscriptionsView : UserControl
             },
         };
 
+        var label = record.Edited == true ? "edit" : "cleanup";
         if (record.CleanupFailed == true)
-            block.Inlines.Add(new Run(" · cleanup failed") { Foreground = Tokens.Brushes.Caution });
+            block.Inlines.Add(new Run($" · {label} failed") { Foreground = Tokens.Brushes.Caution });
         else if (record.CleanupSeconds is { } seconds)
-            block.Inlines.Add(new Run(" · cleanup " + seconds.ToString("0.0", CultureInfo.CurrentCulture) + "s"));
+            block.Inlines.Add(new Run($" · {label} " + seconds.ToString("0.0", CultureInfo.CurrentCulture) + "s"));
 
         return block;
     }

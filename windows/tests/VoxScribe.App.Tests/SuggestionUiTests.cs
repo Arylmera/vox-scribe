@@ -61,6 +61,28 @@ public sealed class SuggestionUiTests
     }
 
     [AvaloniaFact]
+    public void An_edited_records_instruction_is_never_mined_as_a_suggestion()
+    {
+        var (dictionary, transcripts) = Stores();
+        for (var i = 0; i < SuggestionEngine.Threshold; i++)
+        {
+            // Same shape as a real recurring rewrite (one substituted word) — if the Edited
+            // flag were ignored this would show up exactly like Rewrites(...) does above.
+            transcripts.Add(new TranscriptRecord
+            {
+                Text = "deploy kubernetes now",
+                RawText = "deploy kubernets now",
+                Edited = true,
+            });
+        }
+
+        var window = new Window { Content = new DictionaryView(dictionary, transcripts) };
+        window.Show();
+
+        ShowsSuggestions(window).ShouldBeFalse();
+    }
+
+    [AvaloniaFact]
     public void Adding_a_suggestion_makes_it_a_rule_and_removes_the_row()
     {
         var (dictionary, transcripts) = Stores();

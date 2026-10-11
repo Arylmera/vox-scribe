@@ -298,6 +298,7 @@ public sealed class Composition : IAsyncDisposable
                     RawText = result.RawText,
                     CleanupSeconds = result.CleanupTime?.TotalSeconds,
                     CleanupFailed = result.CleanupFailed,
+                    Edited = result.Edited ? true : null,
                 });
             };
         }

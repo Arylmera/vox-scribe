@@ -542,4 +542,47 @@ public sealed class HistoryCleanupTimingTests
             CultureInfo.CurrentCulture = culture;
         }
     }
+
+    [AvaloniaFact]
+    public void An_edited_row_reads_edit_not_cleanup()
+    {
+        var culture = CultureInfo.CurrentCulture;
+        CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
+        try
+        {
+            var store = new TranscriptStore(Path.Combine(Path.GetTempPath(), $"vox-{Guid.NewGuid():N}.jsonl"));
+            store.Add(new TranscriptRecord
+            {
+                Text = "the build passes",
+                RawText = "traduis en anglais",
+                CleanupSeconds = 0.7,
+                CleanupFailed = false,
+                Edited = true,
+            });
+
+            var view = new TranscriptionsView(store);
+            var window = new Window { Content = view };
+            try
+            {
+                window.Show();
+
+                var runs = view.GetVisualDescendants().OfType<TextBlock>()
+                    .SelectMany(block => block.Inlines ?? new InlineCollection())
+                    .OfType<Run>()
+                    .ToList();
+                var text = string.Concat(runs.Select(run => run.Text));
+
+                text.ShouldContain("edit 0.7s");
+                text.ShouldNotContain("cleanup");
+            }
+            finally
+            {
+                window.Close();
+            }
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = culture;
+        }
+    }
 }

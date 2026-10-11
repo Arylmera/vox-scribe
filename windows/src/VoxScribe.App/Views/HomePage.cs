@@ -354,7 +354,7 @@ internal sealed class HomePage : UserControl
             }
         };
 
-        var badge = Badge(cleaned: record.RawText is not null);
+        var badge = Badge(edited: record.Edited == true, cleaned: record.RawText is not null);
         badge.Margin = new Thickness(0, 0, Tokens.Space.Snug, 0);
 
         var grid = new Grid
@@ -395,21 +395,21 @@ internal sealed class HomePage : UserControl
         return row;
     }
 
-    /// <summary>RAW or CLEAN. History does not record command mode, so CMD is never shown here.</summary>
-    private static Border Badge(bool cleaned) => new()
+    /// <summary>RAW, CLEAN or EDIT. History does not record command mode, so CMD is never shown here.</summary>
+    private static Border Badge(bool edited, bool cleaned) => new()
     {
         CornerRadius = new CornerRadius(Tokens.Radius.Chip),
         BorderThickness = new Thickness(Tokens.Border.Hairline),
-        BorderBrush = cleaned ? Tokens.Brushes.Accent : Tokens.Brushes.Seam,
+        BorderBrush = edited || cleaned ? Tokens.Brushes.Accent : Tokens.Brushes.Seam,
         Padding = new Thickness(Tokens.Space.Snug, Tokens.Space.Hair),
         VerticalAlignment = VerticalAlignment.Center,
         Child = new TextBlock
         {
-            Text = cleaned ? "CLEAN" : "RAW",
+            Text = edited ? "EDIT" : cleaned ? "CLEAN" : "RAW",
             FontFamily = Tokens.Fonts.Mono,
             FontSize = Tokens.Fonts.Caption,
             LetterSpacing = Tokens.Fonts.SilkscreenTracking,
-            Foreground = cleaned ? Tokens.Brushes.Accent : Tokens.Brushes.InkSecondary,
+            Foreground = edited || cleaned ? Tokens.Brushes.Accent : Tokens.Brushes.InkSecondary,
         },
     };
 

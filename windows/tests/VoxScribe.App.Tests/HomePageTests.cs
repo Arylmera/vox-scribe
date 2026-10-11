@@ -70,6 +70,24 @@ public sealed class HomePageTests
     }
 
     [AvaloniaFact]
+    public void An_edited_record_is_badged_edit_not_clean()
+    {
+        var store = new TranscriptStore(Path.Combine(Directory.CreateTempSubdirectory().FullName, "t.jsonl"));
+        store.Add(new TranscriptRecord
+        {
+            At = DateTimeOffset.Now,
+            Text = "the build passes",
+            RawText = "traduis en anglais",
+            Edited = true,
+        });
+
+        var window = Host(new HomePage(store, null, _ => { }, _ => Task.CompletedTask));
+
+        window.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text == "EDIT").ShouldBeTrue();
+        window.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text == "CLEAN").ShouldBeFalse();
+    }
+
+    [AvaloniaFact]
     public void See_all_opens_history()
     {
         AppPage? went = null;

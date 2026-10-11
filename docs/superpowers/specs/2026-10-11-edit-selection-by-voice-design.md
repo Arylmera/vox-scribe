@@ -33,9 +33,11 @@ Select text anywhere, hold the **Edit** chord, say an instruction ("translate to
    reuses the cleanup split (`1.2s · clean 0.7s` → for Edit: `1.2s · edit 0.7s`; Orb/Tide
    short form `1.2s · 0.7s`). A failed edit shows its notice instead — it never reaches the
    latency phase.
-8. History records the instruction as `RawText`, the result as `Text`, and the call's time and
-   outcome in `CleanupSeconds` / `CleanupFailed` (they mean "the model call" for Edit).
-   Nothing is recorded when nothing was typed.
+8. History records the instruction as `RawText`, the result as `Text`, the call's time and
+   outcome in `CleanupSeconds` / `CleanupFailed` (they mean "the model call" for Edit), and
+   `Edited: true` — so the badge reads `EDIT` rather than `CLEAN`, the meta line reads
+   `edit 0.7s` rather than `cleanup 0.7s`, and the dictionary's suggestion miner skips it (an
+   instruction is not a cleanup rewrite worth mining). Nothing is recorded when nothing was typed.
 
 ## Design
 
@@ -117,6 +119,8 @@ clipboard-open retry, no decisions.
   result and re-injects the original; Undo after a plain dictation unchanged; the Edit chord
   never injects incrementally.
 - `InjectionJournal`: `Replaced` set by an edit, cleared by the next dictation.
+- `TranscriptRecord.Edited`: History badges an edited record `EDIT`, not `CLEAN`; its meta line
+  reads `edit 0.7s`, not `cleanup 0.7s`; the dictionary suggestion miner excludes it.
 - Chords: Edit is added to `Composition.Rearm`'s blocker lists (wiring; `Blockers` itself is
   already covered by `ChordOverlapTests`).
 - Pill: `EDIT` badge and the edit split in every face; widths still fit (the existing

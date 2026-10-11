@@ -37,6 +37,12 @@ public sealed record TranscriptRecord
 
     /// <summary>True when cleanup fell back to the raw text; null when no cleanup ran.</summary>
     public bool? CleanupFailed { get; init; }
+
+    /// <summary>
+    /// True for an Edit-chord rewrite rather than a dictation; null (not false) on every
+    /// older line, which read exactly the same before this existed.
+    /// </summary>
+    public bool? Edited { get; init; }
 }
 
 /// <summary>

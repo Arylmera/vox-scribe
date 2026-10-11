@@ -104,8 +104,10 @@ public sealed class DictionaryView : UserControl
     /// </summary>
     private StackPanel? BuildSuggestions()
     {
+        // An edited record's RawText is the spoken instruction, not a cleanup candidate —
+        // mining it as one would suggest rules out of translate/rewrite instructions.
         var pairs = _transcripts.Records
-            .Where(r => r.RawText is not null)
+            .Where(r => r.RawText is not null && r.Edited != true)
             .Select(r => (r.RawText!, r.Text));
 
         var suggestions = SuggestionEngine.Analyze(pairs)
