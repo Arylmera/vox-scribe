@@ -69,13 +69,16 @@ internal sealed class HomePage : UserControl
         IReadOnlyList<TranscriptRecord> records = _transcripts?.Records ?? [];
         var stats = HomeStats.Compute(records, DateTimeOffset.Now);
 
-        var page = new DockPanel();
-        page.Children.Add(Panels.Docked(BuildFooter(data), Dock.Bottom));
-        page.Children.Add(Panels.Docked(new StackPanel
+        var top = new StackPanel
         {
             Spacing = Tokens.Space.Wide,
             Children = { BuildHeader(data), BuildStats(stats) },
-        }, Dock.Top));
+        };
+        if (stats.MedianCleanup is { } median) top.Children.Add(BuildCleanupLine(median, stats.CleanupFailures));
+
+        var page = new DockPanel();
+        page.Children.Add(Panels.Docked(BuildFooter(data), Dock.Bottom));
+        page.Children.Add(Panels.Docked(top, Dock.Top));
         page.Children.Add(new ScrollViewer { Content = BuildRecent(records) });
         Content = page;
     }
@@ -240,6 +243,16 @@ internal sealed class HomePage : UserControl
         if (tint) cell.Background = new SolidColorBrush(Tokens.Colors.AccentTint);
         return cell;
     }
+
+    /// <summary>"Cleanup · median 0.7s · 1 failed this week" — only once a cleanup ran.</summary>
+    private static TextBlock BuildCleanupLine(TimeSpan median, int failures) => new()
+    {
+        Text = Shell.Caps(string.Create(CultureInfo.InvariantCulture,
+            $"Cleanup · median {median.TotalSeconds:0.0}s · {failures} failed this week")),
+        FontFamily = Tokens.Fonts.Grotesque,
+        FontSize = Tokens.Fonts.Caption,
+        Foreground = Tokens.Brushes.InkSecondary,
+    };
 
     private StackPanel BuildRecent(IReadOnlyList<TranscriptRecord> records)
     {

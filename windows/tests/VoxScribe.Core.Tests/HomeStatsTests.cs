@@ -99,4 +99,25 @@ public sealed class HomeStatsTests
         HomeStats.FormatDuration(TimeSpan.FromMinutes(72)).ShouldBe("1h 12");
         HomeStats.FormatDuration(TimeSpan.Zero).ShouldBe("0 min");
     }
+
+    [Fact]
+    public void Cleanup_median_and_failures_cover_the_week()
+    {
+        TranscriptRecord Cleaned(double hoursAgo, double seconds, bool failed) =>
+            Take(Now.AddHours(-hoursAgo), 3) with { CleanupSeconds = seconds, CleanupFailed = failed };
+
+        var stats = HomeStats.Compute(
+        [
+            Cleaned(1, 0.5, false), Cleaned(2, 0.9, false), Cleaned(3, 5.0, true),
+            Cleaned(24 * 8, 0.1, true),   // outside the week
+            Take(Now.AddHours(-1), 3),    // raw, no cleanup
+        ], Now);
+
+        stats.MedianCleanup.ShouldBe(TimeSpan.FromSeconds(0.9));
+        stats.CleanupFailures.ShouldBe(1);
+    }
+
+    [Fact]
+    public void No_cleanup_this_week_has_no_median() =>
+        HomeStats.Compute([Take(Now.AddHours(-1), 3)], Now).MedianCleanup.ShouldBeNull();
 }

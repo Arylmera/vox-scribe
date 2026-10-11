@@ -7,7 +7,11 @@ namespace VoxScribe.Core;
 /// <param name="AverageWpm">Speaking pace over the week's timed dictations.</param>
 /// <param name="TimeSaved">Typing time at 40 wpm minus speaking time, never negative.</param>
 /// <param name="StreakDays">Consecutive days with a dictation, ending today or yesterday.</param>
-public sealed record HomeStatsResult(int WordsThisWeek, int AverageWpm, TimeSpan TimeSaved, int StreakDays);
+/// <param name="MedianCleanup">Median cleanup time this week; null when none ran.</param>
+/// <param name="CleanupFailures">Cleanups this week that fell back to the raw text.</param>
+public sealed record HomeStatsResult(
+    int WordsThisWeek, int AverageWpm, TimeSpan TimeSaved, int StreakDays,
+    TimeSpan? MedianCleanup = null, int CleanupFailures = 0);
 
 /// <summary>Computes <see cref="HomeStatsResult"/> from transcript history. Pure; the clock is passed in.</summary>
 public static class HomeStats
@@ -28,6 +32,8 @@ public static class HomeStats
         var timedWords = 0;
         var seconds = 0.0;
         var days = new HashSet<DateTime>();
+        var cleanups = new List<double>();
+        var failures = 0;
 
         foreach (var record in records)
         {
@@ -41,6 +47,12 @@ public static class HomeStats
                 timedWords += count;
                 seconds += record.AudioSeconds;
             }
+
+            if (record.CleanupSeconds is { } cleanupSeconds)
+            {
+                cleanups.Add(cleanupSeconds);
+                if (record.CleanupFailed == true) failures++;
+            }
         }
 
         var wpm = seconds > 0
@@ -48,7 +60,15 @@ public static class HomeStats
             : 0;
         var saved = TimeSpan.FromMinutes(Math.Max(0, (words / TypingWordsPerMinute) - (seconds / 60)));
 
-        return new HomeStatsResult(words, wpm, saved, Streak(days, now.Date));
+        return new HomeStatsResult(words, wpm, saved, Streak(days, now.Date), Median(cleanups), failures);
+    }
+
+    /// <summary>Upper median, so it is always a time that actually happened.</summary>
+    private static TimeSpan? Median(List<double> seconds)
+    {
+        if (seconds.Count == 0) return null;
+        seconds.Sort();
+        return TimeSpan.FromSeconds(seconds[seconds.Count / 2]);
     }
 
     /// <summary>Whitespace-separated words.</summary>
