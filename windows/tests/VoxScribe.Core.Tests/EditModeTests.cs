@@ -49,6 +49,7 @@ public sealed class EditModeTests
         gotSelection.ShouldBe("le build passe");
         gotInstruction.ShouldBe("traduis en anglais");
         injector.Injected.ShouldBe(["the build passes"]);
+        injector.Copies.ShouldBe(1);
         engine.Journal.Replaced.ShouldBe("le build passe");
     }
 
@@ -62,6 +63,40 @@ public sealed class EditModeTests
 
         injector.Injected.ShouldBeEmpty();
         engine.Notice.ShouldBe("Nothing selected");
+    }
+
+    [Fact]
+    public async Task Nothing_selected_fires_no_completion_and_journals_nothing()
+    {
+        var (engine, edit, injector) = Build(null, (_, _, _) => Task.FromResult(new EditOutcome("x", null)));
+        await using var _ = engine;
+        DictationResult? result = null;
+        engine.Completed += (_, r) => result = r;
+
+        await DictateAsync(edit, engine);
+
+        result.ShouldBeNull();
+        engine.Journal.InjectedText.ShouldBe(string.Empty);
+    }
+
+    [Fact]
+    public async Task The_record_button_never_inherits_an_edit()
+    {
+        var (engine, edit, injector) = Build("le build passe",
+            (_, _, _) => Task.FromResult(new EditOutcome("the build passes", null)));
+        await using var _ = engine;
+
+        await DictateAsync(edit, engine);
+        injector.Copies.ShouldBe(1);
+
+        engine.TogglePushToTalk();
+        for (var i = 0; i < 2000 && engine.State != DictationState.Recording; i++) await Task.Yield();
+        for (var i = 0; i < 20000 && engine.Level == 0; i++) await Task.Yield();
+        engine.TogglePushToTalk();
+        for (var i = 0; i < 20000 && engine.State != DictationState.Idle; i++) await Task.Yield();
+
+        injector.Injected.ShouldBe(["the build passes", "traduis en anglais"]);
+        injector.Copies.ShouldBe(1);
     }
 
     [Fact]

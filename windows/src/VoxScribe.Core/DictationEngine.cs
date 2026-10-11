@@ -313,7 +313,13 @@ public sealed class DictationEngine : IAsyncDisposable
     {
         // Clicking the button focuses VoxScribe, so the field that had focus at press is our
         // own window: restoring it at release would type the utterance back into the app.
-        if (State == DictationState.Idle) _anchorRequested = false;
+        if (State == DictationState.Idle)
+        {
+            _anchorRequested = false;
+            // Otherwise the button would inherit the Edit chord's mode from whatever utterance
+            // ran last, and start copying a selection instead of typing what is said.
+            EditThisUtterance = false;
+        }
         Toggle();
     }
 
@@ -346,7 +352,9 @@ public sealed class DictationEngine : IAsyncDisposable
 
     /// <summary>
     /// Rewrites a selection: (selection, instruction) → the edit. Null when no endpoint is
-    /// configured, which makes the Edit chord explain itself instead of recording.
+    /// configured, which makes the Edit chord explain itself instead of recording. May throw;
+    /// the engine catches whatever it throws and reports it as a notice rather than letting it
+    /// escape the fire-and-forget end path.
     /// </summary>
     public Func<string, string, CancellationToken, Task<EditOutcome>>? Edit { get; set; }
 
@@ -816,6 +824,12 @@ public sealed class DictationEngine : IAsyncDisposable
     /// </summary>
     private async Task EditSelectionAsync(string instruction, DateTimeOffset releasedAt, Segment[] spoken)
     {
+        if (Edit is not { } edit)
+        {
+            ReportNotice("Set a cleanup endpoint to edit by voice");
+            return;
+        }
+
         await RestoreAnchorAsync().ConfigureAwait(false);
 
         var selection = await _injector.CopySelectionAsync(CancellationToken.None).ConfigureAwait(false);
@@ -831,14 +845,19 @@ public sealed class DictationEngine : IAsyncDisposable
             return;
         }
 
-        if (Edit is not { } edit)
+        var startedAt = _clock.Now;
+        EditOutcome outcome;
+#pragma warning disable CA1031 // the edit endpoint must never take the fire-and-forget end path down
+        try
         {
-            ReportNotice("Set a cleanup endpoint to edit by voice");
+            outcome = await edit(selection, instruction, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception e)
+        {
+            ReportNotice($"Edit failed — {e.Message}");
             return;
         }
-
-        var startedAt = _clock.Now;
-        var outcome = await edit(selection, instruction, CancellationToken.None).ConfigureAwait(false);
+#pragma warning restore CA1031
         var took = _clock.Now - startedAt;
 
         if (outcome.Text is not { } edited)
