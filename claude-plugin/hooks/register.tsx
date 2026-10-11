@@ -269,10 +269,11 @@ export const register: Register = on => {
     }
     const rest = await next(e)
     if (!ours) return rest
+    // Other plugins' bands (Cogitator) go first: Vox sits below them, one blank line apart.
     return (
-      <Box key="vox-col" flexDirection="column">
-        {ours}
+      <Box key="vox-col" flexDirection="column" gap={1}>
         {rest}
+        {ours}
       </Box>
     )
   })
