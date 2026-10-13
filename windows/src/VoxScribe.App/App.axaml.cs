@@ -47,9 +47,17 @@ public partial class App : Application
                 desktop.MainWindow = _main;
             }
 
-            // The dictation pill manages its own visibility from the engine state; it only
-            // needs to exist. Never becomes MainWindow — it must never own focus.
-            if (_composition.Engine is not null) _ = new HudWindow(_composition.Engine);
+            // The dictation indicator (pill or mascot) manages its own visibility from the engine
+            // state and the settings; it only needs to exist. Never becomes MainWindow — it must
+            // never own focus.
+            if (_composition.Engine is not null)
+            {
+                _ = new HudWindow(_composition.Engine, settings, ShowMain, () =>
+                {
+                    ShowMain();
+                    _main?.ShowSettings(SettingsTab.Appearance);
+                });
+            }
 
             // The pill only shows while dictating, so a read-aloud failure also lands on the
             // tray tooltip, where it stays until the next one. Raised off the UI thread.
@@ -115,6 +123,24 @@ public partial class App : Application
     {
         ShowMain();
         _main?.ShowPage(AppPage.Settings);
+    }
+
+    /// <summary>
+    /// Shows or hides the mascot. With none chosen yet, opens Settings → Appearance, where one
+    /// is picked.
+    /// </summary>
+    private void OnTrayMascot(object? sender, EventArgs e)
+    {
+        if (_composition?.Settings is not { } settings) return;
+
+        if (settings.Data.Mascot is null)
+        {
+            ShowMain();
+            _main?.ShowSettings(SettingsTab.Appearance);
+            return;
+        }
+
+        settings.Update(settings.Data with { MascotHidden = !settings.Data.MascotHidden });
     }
 
     /// <summary>

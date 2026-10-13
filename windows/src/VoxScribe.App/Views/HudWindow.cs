@@ -2,56 +2,71 @@
 using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Threading;
 using VoxScribe.App.Design;
+using VoxScribe.App.Views.Chibi;
 using VoxScribe.App.Views.Pill;
 using VoxScribe.Core;
 
 namespace VoxScribe.App.Views;
 
 /// <summary>
-/// The dictation pill: a fixed, transparent, click-through window at the bottom of the screen
-/// hosting the active theme's <see cref="PillFace"/>. Hidden when idle.
+/// The dictation indicator. In pill mode: a fixed, transparent, click-through window at the
+/// bottom of the screen hosting the active theme's <see cref="PillFace"/>, hidden when idle.
+/// In mascot mode: a <see cref="ChibiFace"/> that stays on the desktop, can be dragged, and
+/// sizes to its content, anchored at its saved bottom-left corner.
 /// </summary>
 /// <remarks>
 /// <para>
 /// <b>This window must never take focus.</b> The text lands wherever the caret is, so
 /// activating the overlay would redirect the injection into nothing. Hence
-/// <see cref="Window.ShowActivated"/> false, nothing focusable, hit-testing off, and
-/// <see cref="Overlay.MakeOverlay"/>'s NOACTIVATE / TRANSPARENT styles.
+/// <see cref="Window.ShowActivated"/> false, nothing focusable, and
+/// <see cref="Overlay.MakeOverlay"/>'s NOACTIVATE style in both modes. The pill is also
+/// hit-test invisible and TRANSPARENT; the mascot is neither, so it can be grabbed.
 /// </para>
 /// <para>
 /// Polled at ~30 fps, not pushed: the engine raises Changed at buffer rate on a worker thread.
-/// The window never resizes; the face animates inside it. Plain transparency, no acrylic —
-/// system blur backs the whole rectangle.
+/// Plain transparency, no acrylic — system blur backs the whole rectangle.
 /// </para>
 /// </remarks>
 public sealed class HudWindow : Window
 {
     private readonly DictationEngine _engine;
+    private readonly AppSettings _settings;
+    private readonly Action _showMain;
+    private readonly Action _showSettings;
     private readonly Stopwatch _clock = new();
     private readonly Stopwatch _noticeClock = new();
     private readonly Stopwatch _latencyClock = new();
     private readonly DispatcherTimer _timerTick;
 
     private PillFace _face;
+    private Mascot? _mascot;
+    private (string? Id, bool Hidden, string? Accent) _mascotKey;
+    private PixelPoint _anchor;
     private bool _faceStale;
     private TimeSpan? _lastLatency;
     private TimeSpan? _lastCleanup;
     private bool _lastCleanupFailed;
     private int _frames;
 
-    /// <summary>Builds the pill over <paramref name="engine"/> and starts watching it.</summary>
-    public HudWindow(DictationEngine engine)
+    /// <summary>Builds the indicator over <paramref name="engine"/> and starts watching it.</summary>
+    /// <param name="engine">The dictation engine to mirror.</param>
+    /// <param name="settings">Which indicator, which mascot, and where it sits.</param>
+    /// <param name="showMain">Opens the main window (mascot double-click).</param>
+    /// <param name="showSettings">Opens Settings → Appearance (mascot menu).</param>
+    public HudWindow(DictationEngine engine, AppSettings settings, Action showMain, Action showSettings)
     {
         _engine = engine;
+        _settings = settings;
+        _showMain = showMain;
+        _showSettings = showSettings;
 
         // Raised on a worker thread; a torn TimeSpan? read would only garble one frame.
         engine.Completed += OnEngineCompleted;
 
-        Width = Tokens.Size.PillWindowWidth;
-        Height = Tokens.Size.PillWindowHeight;
         SystemDecorations = SystemDecorations.None;
         TransparencyLevelHint = [WindowTransparencyLevel.Transparent];
         Background = Brushes.Transparent;
@@ -60,27 +75,49 @@ public sealed class HudWindow : Window
         ShowActivated = false;
         CanResize = false;
         Focusable = false;
-        IsHitTestVisible = false;
+        WindowStartupLocation = WindowStartupLocation.Manual;
 
-        _face = PillFace.Create(Themes.Active.Pill);
+        _mascotKey = KeyOf(settings.Data);
+        _mascot = Mascots.Active(settings.Data);
+        _face = CreateFace();
         Content = _face;
+        ApplyMode();
 
-        // Swapped only while hidden: a theme change never repaints a dictation in progress.
+        // Swapped only between dictations: a theme or mascot change never repaints one in progress.
         Themes.Changed += OnThemeChanged;
+        settings.Changed += OnSettingsChanged;
+
+        // The anchor (bottom-left corner) follows wherever the window actually is, however it
+        // got there, so a drag can never be undone by the next resize.
+        PositionChanged += (_, e) =>
+        {
+            if (_mascot is null || !IsVisible) return;
+            _anchor = new PixelPoint(e.Point.X, e.Point.Y + (int)Math.Ceiling(Bounds.Height * RenderScaling));
+        };
+
+        // The bubble grows and shrinks the mascot window; keep its bottom-left corner put.
+        SizeChanged += (_, e) =>
+        {
+            if (_mascot is null || !IsVisible) return;
+            Position = new PixelPoint(_anchor.X, _anchor.Y - (int)Math.Ceiling(e.NewSize.Height * RenderScaling));
+        };
 
         _timerTick = new DispatcherTimer(DispatcherPriority.Background) { Interval = Tokens.Motion.PillFrame };
         _timerTick.Tick += (_, _) => Sync();
         _timerTick.Start();
 
-        // The pill is a singleton for the app's lifetime, but a closed window must still let go
-        // of everything it subscribed to, rather than outlive its usefulness pinned by events.
+        // A singleton for the app's lifetime, but a closed window must still let go of
+        // everything it subscribed to, rather than outlive its usefulness pinned by events.
         Closed += (_, _) =>
         {
             _timerTick.Stop();
             Themes.Changed -= OnThemeChanged;
+            settings.Changed -= OnSettingsChanged;
             engine.Completed -= OnEngineCompleted;
         };
     }
+
+    private static (string?, bool, string?) KeyOf(SettingsData d) => (d.Mascot, d.MascotHidden, d.MascotAccent);
 
     private void OnEngineCompleted(object? sender, DictationResult result)
     {
@@ -91,10 +128,61 @@ public sealed class HudWindow : Window
 
     private void OnThemeChanged(object? sender, EventArgs e) => _faceStale = true;
 
+    private void OnSettingsChanged(object? sender, EventArgs e)
+    {
+        // A drag saves the position, which raises Changed too; only a change of mascot,
+        // visibility or accent rebuilds the face.
+        var key = KeyOf(_settings.Data);
+        if (key == _mascotKey) return;
+        _mascotKey = key;
+        _faceStale = true;
+    }
+
     private string Mode() =>
         _engine.CommandThisUtterance ? "CMD"
         : _engine.EditThisUtterance ? "EDIT"
         : _engine.CleaningThisUtterance ? "CLEAN" : "RAW";
+
+    private PillFace CreateFace()
+    {
+        if (_mascot is null) return PillFace.Create(Themes.Active.Pill);
+
+        var face = _mascot.Create(Mascots.Accent(_settings.Data));
+        face.PointerPressed += OnMascotPressed;
+        face.ContextMenu = MascotMenu();
+        return face;
+    }
+
+    private void ApplyMode()
+    {
+        if (_mascot is null)
+        {
+            SizeToContent = SizeToContent.Manual;
+            Width = Tokens.Size.PillWindowWidth;
+            Height = Tokens.Size.PillWindowHeight;
+            IsHitTestVisible = false;
+        }
+        else
+        {
+            SizeToContent = SizeToContent.WidthAndHeight;
+            IsHitTestVisible = true;
+        }
+    }
+
+    private void Rebuild()
+    {
+        _faceStale = false;
+        var wasMascot = _mascot is not null;
+        _mascot = Mascots.Active(_settings.Data);
+
+        // Switching pill ⇄ mascot: hide now, and let the next show apply the new mode's
+        // position and overlay styles from scratch.
+        if (IsVisible && wasMascot != (_mascot is not null)) Hide();
+
+        _face = CreateFace();
+        Content = _face;
+        ApplyMode();
+    }
 
     private void Sync()
     {
@@ -102,8 +190,8 @@ public sealed class HudWindow : Window
 
         if (state == DictationState.Idle)
         {
-            // A failure notice holds the pill up briefly: the moment the user looks here is the
-            // moment their text failed to appear.
+            // A failure notice holds the indicator up briefly: the moment the user looks here
+            // is the moment their text failed to appear.
             if (_engine.Notice is { Length: > 0 } notice)
             {
                 if (!_noticeClock.IsRunning) _noticeClock.Restart();
@@ -118,7 +206,7 @@ public sealed class HudWindow : Window
                 _noticeClock.Reset();
             }
 
-            // After a clean finish, hold the pill long enough to read the felt latency.
+            // After a clean finish, hold long enough to read the felt latency.
             if (_lastLatency is { } latency)
             {
                 if (!_latencyClock.IsRunning) _latencyClock.Restart();
@@ -134,12 +222,16 @@ public sealed class HudWindow : Window
 
             _latencyClock.Reset();
 
-            if (IsVisible) Hide();
-            if (_faceStale)
+            if (_faceStale) Rebuild();
+
+            if (_mascot is null)
             {
-                _faceStale = false;
-                _face = PillFace.Create(Themes.Active.Pill);
-                Content = _face;
+                if (IsVisible) Hide();
+            }
+            else
+            {
+                _face.Update(new PillState(PillPhase.Idle, 0, TimeSpan.Zero, Mode(), string.Empty));
+                ShowIfHidden();
             }
 
             _clock.Reset();
@@ -159,12 +251,19 @@ public sealed class HudWindow : Window
         _face.Update(new PillState(
             recording ? PillPhase.Recording : PillPhase.Working, level, _clock.Elapsed, Mode(), _engine.PartialText));
 
+        ShowIfHidden();
+    }
+
+    private void ShowIfHidden()
+    {
         if (!IsVisible)
         {
-            PositionBottomCenter();
+            if (_mascot is null) PositionBottomCenter();
+            else PlaceMascot();
+
             Show();
             _frames = 0;
-            Overlay.MakeOverlay(this);
+            Overlay.MakeOverlay(this, clickThrough: _mascot is null);
         }
         else if (++_frames % 15 == 0)
         {
@@ -184,6 +283,61 @@ public sealed class HudWindow : Window
         var margin = (int)(Tokens.Material.PillScreenMargin * screen.Scaling);
 
         Position = new PixelPoint(area.X + ((area.Width - width) / 2), area.Y + area.Height - height - margin);
+    }
+
+    private void PlaceMascot()
+    {
+        var scaling = Screens.Primary?.Scaling ?? 1;
+        _face.Measure(Size.Infinity);
+        var size = new PixelSize(
+            (int)Math.Ceiling(_face.DesiredSize.Width * scaling), (int)Math.Ceiling(_face.DesiredSize.Height * scaling));
+        var areas = Screens.All.OrderByDescending(s => s.IsPrimary).Select(s => s.WorkingArea).ToList();
+        var saved = _settings.Data is { MascotX: { } x, MascotY: { } y } ? new PixelPoint(x, y) : (PixelPoint?)null;
+
+        _anchor = MascotPlacement.Anchor(saved, areas, size, (int)(Tokens.Material.PillScreenMargin * scaling));
+        Position = new PixelPoint(_anchor.X, _anchor.Y - size.Height);
+    }
+
+    private void OnMascotPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
+
+        if (e.ClickCount == 2)
+        {
+            _showMain();
+            return;
+        }
+
+        // On Windows the move loop is modal: this returns once the button is released, and
+        // PositionChanged has kept _anchor current throughout.
+        BeginMoveDrag(e);
+
+        if (_settings.Data is { MascotX: { } x, MascotY: { } y } && new PixelPoint(x, y) == _anchor) return;
+        _settings.Update(_settings.Data with { MascotX = _anchor.X, MascotY = _anchor.Y });
+    }
+
+    private ContextMenu MascotMenu()
+    {
+        var characters = new MenuItem { Header = "Character" };
+        foreach (var mascot in Mascots.All)
+        {
+            var item = new MenuItem
+            {
+                Header = mascot.Label,
+                ToggleType = MenuItemToggleType.Radio,
+                IsChecked = mascot.Id == _mascot?.Id,
+            };
+            item.Click += (_, _) => _settings.Update(_settings.Data with { Mascot = mascot.Id });
+            characters.Items.Add(item);
+        }
+
+        var hide = new MenuItem { Header = "Hide mascot" };
+        hide.Click += (_, _) => _settings.Update(_settings.Data with { MascotHidden = true });
+
+        var settings = new MenuItem { Header = "Settings…" };
+        settings.Click += (_, _) => _showSettings();
+
+        return new ContextMenu { Items = { characters, hide, new Separator(), settings } };
     }
 }
 
@@ -222,14 +376,20 @@ internal static class Overlay
 
     private static readonly IntPtr HwndTopmost = new(-1);
 
-    /// <summary>Stamps the overlay extended styles on. Call once each time the pill is shown.</summary>
-    public static void MakeOverlay(Window window)
+    /// <summary>
+    /// Stamps the overlay extended styles on. Call each time the window is shown. NOACTIVATE
+    /// and TOOLWINDOW always; TRANSPARENT (clicks fall through) only when
+    /// <paramref name="clickThrough"/> — the pill, not the mascot, which must be grabbable.
+    /// Cleared as well as set, because the same window switches between the two.
+    /// </summary>
+    public static void MakeOverlay(Window window, bool clickThrough = true)
     {
         var hwnd = HandleOf(window);
         if (hwnd == IntPtr.Zero) return;
 
-        var style = GetWindowLongPtrW(hwnd, GwlExStyle);
-        SetWindowLongPtrW(hwnd, GwlExStyle, style | WsExNoActivate | WsExToolWindow | WsExTransparent);
+        var style = GetWindowLongPtrW(hwnd, GwlExStyle) | WsExNoActivate | WsExToolWindow;
+        style = clickThrough ? style | WsExTransparent : style & ~(nint)WsExTransparent;
+        SetWindowLongPtrW(hwnd, GwlExStyle, style);
         KeepOnTop(window);
     }
 
