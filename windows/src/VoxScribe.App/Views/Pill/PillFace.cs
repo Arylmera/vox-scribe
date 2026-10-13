@@ -23,6 +23,9 @@ internal enum PillPhase
 
     /// <summary>The felt latency lingering after a clean finish.</summary>
     Latency,
+
+    /// <summary>Nothing happening. Only the mascot is shown in it; the pill is hidden.</summary>
+    Idle,
 }
 
 /// <summary>One display frame for a pill face.</summary>

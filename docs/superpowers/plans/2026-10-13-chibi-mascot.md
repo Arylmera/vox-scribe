@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Build and test from `windows/`: `dotnet test VoxScribe.CrossPlatform.slnf`. CI builds with warnings as errors; before each commit also run `dotnet build VoxScribe.CrossPlatform.slnf --no-incremental -warnaserror` and fix every warning.
-- **Red means recording.** `Tokens.Colors.Record` (`#E5484D`) is the recording dot and nothing else. No character colour may satisfy `DoctrineTests.IsRed` (hue ≤ 15° or ≥ 345°, saturation ≥ 0.5, value ≥ 0.35, alpha ≥ 0x40). Clawd's terracotta is `#D9825A` (hue ≈ 19°), not Anthropic's `#D97757` (hue ≈ 14.8°, caught by the detector).
+- **Red means recording.** `Tokens.Colors.Record` (`#E5484D`) is the recording dot and nothing else. No character colour may satisfy `DoctrineTests.IsRed` (hue ≤ 15° or ≥ 345°, saturation ≥ 0.5, value ≥ 0.35, alpha ≥ 0x40) — with **one owner-approved exception**: Clawd's body is Anthropic's official terracotta `#D97757` (hue ≈ 14.8°, inside the detector's window). The exemption is that exact colour on `ClawdChibi` only, pinned by a test; nothing else may use it.
 - **The mascot never takes focus.** Text lands at the caret; `WS_EX_NOACTIVATE` stays on in both modes.
 - **No literal values in views** except a control's own drawing numbers/colours as named `private const` in that control. Shared sizes are tokens in `Design/DesignTokens.cs`.
 - Every number formatted into a path string goes through `FormattableString.Invariant` (French culture writes `44,5`, which `Geometry.Parse` rejects).
@@ -456,7 +456,7 @@ In `docs/superpowers/specs/2026-10-13-chibi-mascot-design.md`, replace the whole
 ```
 
 Also in that spec:
-- In the Characters table, Clawd's row: replace `terracotta block` with `terracotta block (#D9825A — nudged 4° off Anthropic's #D97757, which the red detector flags)`.
+- In the Characters table, Clawd's row: replace `terracotta block` with `terracotta block (Anthropic's official #D97757 — inside the red detector's window; the owner's explicit exemption, Clawd only)`.
 - In `## Window`, replace `Double-click opens the main window.` with `Double-click (the press's ClickCount = 2) opens the main window.`; add a bullet: `- The window sizes to its content (the bubble collapses when idle), anchored at its bottom-left corner, so only the character blocks clicks while idle.`
 - In `## Testing`, replace the `HudWindow in mascot mode stays shown…` bullet with `- Mode and placement are pure functions (Mascots.Active, MascotPlacement.Anchor), unit-tested; HudWindow itself is covered by the hand check (it needs a live DictationEngine).`
 
@@ -2432,12 +2432,30 @@ Append to `ChibiTests`:
 
 ```csharp
     [Fact]
-    public void Clawd_stays_terracotta_but_off_the_recording_red()
+    public void Clawd_wears_the_official_terracotta_and_nothing_else_does()
     {
-        IsRed(Tokens.Colors.Rgb(0xD97757)).ShouldBeTrue("Anthropic's own terracotta sits inside the red window");
-        IsRed(Tokens.Colors.Rgb(ClawdChibi.Body)).ShouldBeFalse();
-        Tokens.Colors.Rgb(ClawdChibi.Body).ToHsv().H.ShouldBeInRange(16, 25, "still terracotta");
+        // The owner chose Anthropic's exact terracotta over a nudged one (2026-10-13), knowing
+        // it sits inside the red window. The exemption is this one colour on Clawd only.
+        ClawdChibi.Body.ShouldBe(0xD97757u);
+        IsRed(Tokens.Colors.Rgb(ClawdChibi.Body)).ShouldBeTrue("if this flips, drop the exemption");
+        Tokens.Colors.Rgb(ClawdChibi.Body).ShouldNotBe(Tokens.Colors.Record);
     }
+```
+
+In `ChibiTests.Nothing_on_a_mascot_is_red_but_the_dot`, narrow the scan by exactly the one approved exemption — replace its `.Where(...)` line with:
+
+```csharp
+                .Where(c => !ReferenceEquals(c, face.RecordDot)
+                    && Colours(c).Any(colour => IsRed(colour) && !IsClawdTerracotta(mascot, colour)))
+```
+
+and add to the class:
+
+```csharp
+    // Owner-approved exemption (2026-10-13): Clawd's body is Anthropic's official terracotta,
+    // which the red detector flags. Only that exact colour, only on Clawd.
+    private static bool IsClawdTerracotta(Mascot mascot, Color colour) =>
+        mascot.Id == "clawd" && colour == Tokens.Colors.Rgb(ClawdChibi.Body);
 ```
 
 Run: `cd windows && dotnet build VoxScribe.CrossPlatform.slnf`
@@ -2459,13 +2477,14 @@ namespace VoxScribe.App.Views.Chibi;
 /// the listening waves and the sparkles do.
 /// </summary>
 /// <remarks>
-/// <see cref="Body"/> is <c>#D9825A</c>, not Anthropic's <c>#D97757</c>: that one sits at hue
-/// 14.8°, inside the red detector's window, and red means recording.
+/// <see cref="Body"/> is Anthropic's official terracotta. It sits at hue 14.8°, inside the red
+/// detector's window; the owner chose it anyway (2026-10-13), and <c>ChibiTests</c> exempts
+/// exactly this colour on Clawd and nothing else. Red still means recording everywhere else.
 /// </remarks>
 internal sealed class ClawdChibi(Color accent) : ChibiFace(accent)
 {
-    /// <summary>The terracotta, nudged 4° off the recording red.</summary>
-    internal const uint Body = 0xD9825A;
+    /// <summary>Anthropic's terracotta, <c>#D97757</c>.</summary>
+    internal const uint Body = 0xD97757;
 
     private const uint Eye = 0x1A1A1A;
     private const double Unit = 6;
@@ -2691,7 +2710,7 @@ The two `Begin()` groups in Done are full-canvas `Canvas`es: `ChibiMove.Rise` on
 - [ ] **Step 5: Run, expect PASS**
 
 Run: `cd windows && dotnet test VoxScribe.CrossPlatform.slnf --filter "FullyQualifiedName~ChibiTests|FullyQualifiedName~AppearanceSectionTests"`
-Expected: all pass, including `Clawd_stays_terracotta_but_off_the_recording_red`.
+Expected: all pass, including `Clawd_wears_the_official_terracotta_and_nothing_else_does`.
 
 - [ ] **Step 6: Full suite, warnings gate, commit, push**
 
@@ -2951,8 +2970,9 @@ In "Design system", after the "Red means recording" bullet, add:
 
 ```markdown
   Mascot colours are `private const` in each character, so `ChibiTests` walks every mascot's
-  rendered tree in every phase instead. Clawd is `#D9825A`, not Anthropic's `#D97757`, which
-  sits inside the red window.
+  rendered tree in every phase instead. One exemption, the owner's call: Clawd's body is
+  Anthropic's official `#D97757`, which sits inside the red window; the test allows exactly
+  that colour on Clawd and nothing else.
 ```
 
 - [ ] **Step 2: README**

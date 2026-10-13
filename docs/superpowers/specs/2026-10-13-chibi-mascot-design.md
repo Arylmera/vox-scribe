@@ -20,7 +20,7 @@ Nine, all vector, all drawn in code. Each has one **accent part** that takes the
 | `servo-skull` | Servo-skull | Floating skull, bionic eye in a brass ring, cables, a parchment hanging below | Eye lens, antenna tip, vox grille glow |
 | `netrunner` | Netrunner | Neon hair, hood, visor | Visor and its equaliser |
 | `wizard` | Wizard | Starred pointy hat, beard, staff with a crystal | Robe and hat |
-| `clawd` | Clawd | Claude Code's pixel crab: terracotta block, two eyes, stubby arms, four legs. Drawn aliased, as pixels | Listening waves and sparkles only — the body stays terracotta |
+| `clawd` | Clawd | Claude Code's pixel crab: terracotta block (Anthropic's official #D97757 — inside the red detector's window; the owner's explicit exemption, Clawd only), two eyes, stubby arms, four legs. Drawn aliased, as pixels | Listening waves and sparkles only — the body stays terracotta |
 | `owl` | Owl scribe | Round glasses, ear tufts, quill under the wing | Glasses rims |
 | `mic` | Vintage mic | 1950s chrome broadcast mic with a face | Grille glow and rising notes |
 | `cat` | Cat | Big sitting cat, tail | A collar (new, not in the mockup) |
@@ -68,26 +68,29 @@ active theme's surface/text tokens, so it is covered by `ContrastTests` like any
 - **Still never takes focus.** `Overlay.MakeOverlay` gets a variant that keeps
   `WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW` but drops `WS_EX_TRANSPARENT`, so clicks land on the
   mascot without activating it. The text must keep going to the caret.
-- Right-click opens a small menu: change character, hide mascot, settings. Double-click opens
-  the main window.
+- Right-click opens a small menu: change character, hide mascot, settings. Double-click (the
+  press's ClickCount = 2) opens the main window.
 - Fixed size, about 100 px tall plus the bubble. A size setting can come later.
+- The window sizes to its content (the bubble collapses when idle), anchored at its
+  bottom-left corner, so only the character blocks clicks while idle.
 
 Switching pill ⇄ mascot or changing the character happens live, like a theme change (rebuild
 between dictations, never mid-dictation).
 
 ## Animation and rendering
 
-- Ambient motion (bob, blink, idle float) runs as **Avalonia composition / keyframe
-  animations** on the render thread, not on the 30 fps `Sync` tick, because the mascot is
-  visible all day and must cost nearly nothing while idle. The tick only pushes state changes
-  and the input level.
-- The `Latency` hop uses a bounce/elastic easing.
-- Soft drop shadow under the character; glow (`DropShadowEffect`) on the accent part.
+- All motion (bob, blink, hop, mouth, equaliser, glow pulse, spin, wag, flap, squash, rising
+  notes/smoke) is a **pure function of time and input level** (`ChibiMotion`), applied from
+  `HudWindow`'s existing 33 ms tick. Values are quantised (half pixels, 6°, 0.05 scale), so an
+  idle frame that changes nothing sets unchanged values and repaints nothing.
+  Composition/keyframe animations were considered and rejected: continuous motion repaints
+  every frame either way, and animating offsets fights layout.
+- The `Latency` hop is a decaying bounce.
+- Soft glow (`DropShadowEffect`) on the accent part while listening.
 - Mockup path data ports directly: Avalonia's `Geometry.Parse` reads SVG path syntax.
 - Clawd renders aliased (`RenderOptions.EdgeMode = Aliased`) so its pixels stay crisp.
-- Character colours and drawing numbers are `private const` in each character's file (they
-  are its own drawing, not design tokens); sizes and durations shared with the window are
-  tokens.
+- Character colours and drawing numbers are `private const` in each character's file; sizes
+  shared with the window are tokens.
 
 ## Accent
 
@@ -128,7 +131,8 @@ mascot".
   exposes its recording dot only in `Recording` (extend `PillTests`).
 - Doctrine: no character constant is red (same distance test `DoctrineTests` uses), and the
   bubble's text/ground pairs pass `ContrastTests`.
-- `HudWindow` in mascot mode stays shown when the engine idles; in pill mode it still hides.
+- Mode and placement are pure functions (Mascots.Active, MascotPlacement.Anchor), unit-tested;
+  HudWindow itself is covered by the hand check (it needs a live DictationEngine).
 - Position fallback: a saved point outside every screen resolves to the default corner (pure
   function, unit-tested).
 - **By hand, required**: drag the mascot while a text field has the caret, then dictate — the

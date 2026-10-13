@@ -239,6 +239,27 @@ public sealed record SettingsData
     /// An id the theme does not offer falls back the same way.
     /// </summary>
     public string? AccentVariant { get; init; }
+
+    /// <summary>
+    /// Desktop mascot id ("servo-skull", "netrunner", "wizard", "clawd", "owl", "mic", "cat",
+    /// "slime", "dragon"), or null for the dictation pill. An unknown id falls back to the pill.
+    /// </summary>
+    public string? Mascot { get; init; }
+
+    /// <summary>
+    /// The mascot is put away (tray or right-click "hide"). Dictation then shows the pill, so
+    /// feedback is never lost.
+    /// </summary>
+    public bool MascotHidden { get; init; }
+
+    /// <summary>Accent variant id from any theme to pin on the mascot, or null to follow the theme.</summary>
+    public string? MascotAccent { get; init; }
+
+    /// <summary>Mascot window's bottom-left corner, in screen pixels, or null for the default corner.</summary>
+    public int? MascotX { get; init; }
+
+    /// <summary>See <see cref="MascotX"/>.</summary>
+    public int? MascotY { get; init; }
 }
 
 /// <summary>Settings, persisted as JSON.</summary>

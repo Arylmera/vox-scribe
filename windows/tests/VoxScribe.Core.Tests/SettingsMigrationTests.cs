@@ -59,4 +59,38 @@ public sealed class SettingsMigrationTests
             File.Delete(path);
         }
     }
+
+    [Fact]
+    public void The_mascot_is_off_by_default() =>
+        new SettingsData().ShouldSatisfyAllConditions(
+            d => d.Mascot.ShouldBeNull(),
+            d => d.MascotHidden.ShouldBeFalse(),
+            d => d.MascotAccent.ShouldBeNull(),
+            d => d.MascotX.ShouldBeNull(),
+            d => d.MascotY.ShouldBeNull());
+
+    [Fact]
+    public void Mascot_settings_survive_a_save()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"vox-{Guid.NewGuid():N}.json");
+        try
+        {
+            var settings = new AppSettings(path);
+            settings.Update(settings.Data with
+            {
+                Mascot = "slime", MascotHidden = true, MascotAccent = "moss", MascotX = 120, MascotY = 900,
+            });
+
+            new AppSettings(path).Data.ShouldSatisfyAllConditions(
+                d => d.Mascot.ShouldBe("slime"),
+                d => d.MascotHidden.ShouldBeTrue(),
+                d => d.MascotAccent.ShouldBe("moss"),
+                d => d.MascotX.ShouldBe(120),
+                d => d.MascotY.ShouldBe(900));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
 }
