@@ -1,0 +1,159 @@
+using Avalonia.Controls;
+using Avalonia.Controls.Shapes;
+using Avalonia.Headless.XUnit;
+using Avalonia.Media;
+using Avalonia.VisualTree;
+using Shouldly;
+using VoxScribe.App.Design;
+using VoxScribe.App.Views.Chibi;
+using VoxScribe.App.Views.Pill;
+
+namespace VoxScribe.AppTests;
+
+/// <summary>Every mascot, every phase, both modes.</summary>
+public sealed class ChibiTests
+{
+    // Same detector as Design/DoctrineTests: red hue window, saturated, bright, visible.
+    private static bool IsRed(Color c)
+    {
+        if (c.A < 0x40) return false;
+        var hsv = c.ToHsv();
+        return (hsv.H <= 15 || hsv.H >= 345) && hsv.S >= 0.5 && hsv.V >= 0.35;
+    }
+
+    private static readonly TimeSpan[] Moments =
+        [TimeSpan.Zero, TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(1.7), TimeSpan.FromSeconds(3.9)];
+
+    private static void EachMascot(Action<Mascot, ChibiFace> check)
+    {
+        try
+        {
+            foreach (var dark in new[] { false, true })
+                foreach (var mascot in Mascots.All)
+                {
+                    Themes.Apply(Themes.DefaultId, null, dark);
+                    var face = mascot.Create(Tokens.Colors.Accent);
+                    var window = new Window { Content = face, SizeToContent = SizeToContent.WidthAndHeight };
+                    window.Show();
+                    check(mascot, face);
+                    window.Close();
+                }
+        }
+        finally
+        {
+            Themes.Apply(Themes.DefaultId, null, false);
+        }
+    }
+
+    private static IEnumerable<Color> Colours(Control c) => c switch
+    {
+        Shape s => new[] { s.Fill, s.Stroke }.OfType<ISolidColorBrush>().Select(b => b.Color),
+        TextBlock t => new[] { t.Foreground }.OfType<ISolidColorBrush>().Select(b => b.Color),
+        Border b => new[] { b.Background, b.BorderBrush }.OfType<ISolidColorBrush>().Select(x => x.Color),
+        _ => [],
+    };
+
+    [AvaloniaFact]
+    public void Every_mascot_draws_every_phase_at_any_moment() => EachMascot((mascot, face) =>
+    {
+        foreach (var phase in Enum.GetValues<PillPhase>())
+            foreach (var now in Moments)
+            {
+                Should.NotThrow(() => face.Update(new PillState(phase, 0.7, now, "CLEAN", "bonjour"), now), $"{mascot.Id} {phase}");
+            }
+    });
+
+    [AvaloniaFact]
+    public void The_red_dot_shows_only_while_recording() => EachMascot((mascot, face) =>
+    {
+        foreach (var phase in Enum.GetValues<PillPhase>())
+        {
+            face.Update(new PillState(phase, 0.6, TimeSpan.FromSeconds(4), "RAW", "bonjour"), TimeSpan.FromSeconds(1));
+            face.RecordDot.IsVisible.ShouldBe(phase == PillPhase.Recording, $"{mascot.Id} {phase}");
+        }
+    });
+
+    [AvaloniaFact]
+    public void Nothing_on_a_mascot_is_red_but_the_dot() => EachMascot((mascot, face) =>
+    {
+        foreach (var phase in Enum.GetValues<PillPhase>())
+        {
+            face.Update(new PillState(phase, 0.8, TimeSpan.FromSeconds(1), "CLEAN", "texte"), TimeSpan.FromSeconds(1));
+            var red = face.GetVisualDescendants().OfType<Control>()
+                .Where(c => !ReferenceEquals(c, face.RecordDot) && Colours(c).Any(IsRed))
+                .Select(c => c.GetType().Name);
+            red.ShouldBeEmpty($"{mascot.Id} {phase}");
+        }
+    });
+
+    [AvaloniaFact]
+    public void The_bubble_speaks_only_when_there_is_something_to_say() => EachMascot((mascot, face) =>
+    {
+        face.Update(new PillState(PillPhase.Idle, 0, TimeSpan.Zero, "RAW", string.Empty), TimeSpan.Zero);
+        face.Bubble.IsVisible.ShouldBeFalse(mascot.Id);
+
+        face.Update(new PillState(PillPhase.Recording, 0.4, TimeSpan.FromSeconds(2), "RAW", "bonjour"), TimeSpan.Zero);
+        face.Bubble.IsVisible.ShouldBeTrue(mascot.Id);
+        string.Join(' ', face.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text)).ShouldContain("bonjour");
+    });
+
+    [AvaloniaFact]
+    public void The_latency_shows_the_cleanup_split() => EachMascot((mascot, face) =>
+    {
+        face.Update(new PillState(PillPhase.Latency, 0, TimeSpan.FromSeconds(1.2), "CLEAN", string.Empty,
+            Cleanup: TimeSpan.FromSeconds(0.7)), TimeSpan.Zero);
+        var text = string.Join(' ', face.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text));
+        text.ShouldContain("1.2s", customMessage: mascot.Id);
+        text.ShouldContain("0.7s", customMessage: mascot.Id);
+
+        face.Update(new PillState(PillPhase.Latency, 0, TimeSpan.FromSeconds(1.2), "EDIT", string.Empty,
+            Cleanup: TimeSpan.FromSeconds(0.7)), TimeSpan.Zero);
+        string.Join(' ', face.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text))
+            .ToLowerInvariant().ShouldNotContain("clean", customMessage: mascot.Id);
+    });
+
+    [AvaloniaFact]
+    public void A_clean_working_phase_says_clean_and_a_raw_one_does_not() => EachMascot((mascot, face) =>
+    {
+        face.Update(new PillState(PillPhase.Working, 0.4, TimeSpan.FromSeconds(3), "RAW", "bonjour"), TimeSpan.Zero);
+        string.Join(' ', face.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text))
+            .ToLowerInvariant().ShouldNotContain("clean", customMessage: mascot.Id);
+
+        face.Update(new PillState(PillPhase.Working, 0.4, TimeSpan.FromSeconds(3), "CLEAN", "bonjour"), TimeSpan.Zero);
+        string.Join(' ', face.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text))
+            .ToLowerInvariant().ShouldContain("clean", customMessage: mascot.Id);
+    });
+
+    [AvaloniaFact]
+    public void A_lingering_notice_keeps_its_subject() => EachMascot((mascot, face) =>
+    {
+        const string Notice = "Nothing was typed: the focused window refused the text, try again in a moment";
+        face.Update(new PillState(PillPhase.Notice, 0, TimeSpan.Zero, "RAW", Notice), TimeSpan.Zero);
+
+        face.GetVisualDescendants().OfType<TextBlock>()
+            .First(t => t.TextTrimming == TextTrimming.CharacterEllipsis)
+            .Text.ShouldStartWith("Nothing was", customMessage: mascot.Id);
+    });
+
+    [AvaloniaFact]
+    public void The_pose_follows_the_phase() => EachMascot((mascot, face) =>
+    {
+        (PillPhase Phase, ChibiPose Pose)[] map =
+        [
+            (PillPhase.Idle, ChibiPose.Idle), (PillPhase.Recording, ChibiPose.Listen), (PillPhase.Working, ChibiPose.Think),
+            (PillPhase.Latency, ChibiPose.Done), (PillPhase.Notice, ChibiPose.Worried),
+        ];
+        foreach (var (phase, pose) in map)
+        {
+            face.Update(new PillState(phase, 0, TimeSpan.Zero, "RAW", string.Empty), TimeSpan.Zero);
+            face.Pose.ShouldBe(pose, mascot.Id);
+        }
+    });
+
+    [AvaloniaFact]
+    public void A_mascot_can_be_grabbed() => EachMascot((mascot, face) =>
+    {
+        face.IsHitTestVisible.ShouldBeTrue(mascot.Id);
+        face.Focusable.ShouldBeFalse(mascot.Id);
+    });
+}

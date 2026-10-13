@@ -402,6 +402,9 @@ public static class Tokens
 
         /// <summary>How far the pill sits above the bottom of the working area.</summary>
         public const double PillScreenMargin = 24;
+
+        /// <summary>A mascot's preview in the Appearance picker.</summary>
+        public const double MascotPreviewSize = 56;
     }
 
     // ---- Motion ----
@@ -483,5 +486,14 @@ public static class Tokens
 
         /// <summary>The pill's OS window height. See <see cref="PillWindowWidth"/>.</summary>
         public const double PillWindowHeight = 180;
+
+        /// <summary>The mascot's drawn width (its 120×140 sketch, scaled).</summary>
+        public const double MascotWidth = 96;
+
+        /// <summary>The mascot's drawn height. See <see cref="MascotWidth"/>.</summary>
+        public const double MascotHeight = 112;
+
+        /// <summary>The mascot's speech bubble. The mascot window sizes to its content.</summary>
+        public const double MascotBubbleWidth = 280;
     }
 }
