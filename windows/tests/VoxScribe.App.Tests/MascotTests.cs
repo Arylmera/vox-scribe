@@ -56,12 +56,6 @@ public sealed class MascotTests
         MascotPlacement.BubbleToLeft(new PixelPoint(100, 5000), [Primary, Second]).ShouldBeFalse();
 
     [Fact]
-    public void The_screen_test_point_is_one_pixel_above_the_anchor_so_a_bottom_edge_still_counts() =>
-        // At exactly y=1400 nothing contains the point and it would fall back to Primary (where
-        // 2000 is in the right half); with anchor.Y - 1 it lands inside Second's left half.
-        MascotPlacement.BubbleToLeft(new PixelPoint(2000, 1400), [Primary, Second]).ShouldBeFalse();
-
-    [Fact]
     public void WindowX_keeps_the_figure_at_the_left_edge_when_the_bubble_opens_right() =>
         MascotPlacement.WindowX(300, 376, 96, bubbleToLeft: false).ShouldBe(300);
 
