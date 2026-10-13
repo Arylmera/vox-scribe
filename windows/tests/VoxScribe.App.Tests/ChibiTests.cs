@@ -184,4 +184,29 @@ public sealed class ChibiTests
     // which the red detector flags. Only that exact colour, only on Clawd.
     private static bool IsClawdTerracotta(Mascot mascot, Color colour) =>
         mascot.Id == "clawd" && colour == Tokens.Colors.Rgb(ClawdChibi.Body);
+
+    private static int ShapesIn(ChibiFace face, PillPhase phase)
+    {
+        face.Update(new PillState(phase, 0.5, TimeSpan.Zero, "RAW", string.Empty), TimeSpan.Zero);
+        return face.GetVisualDescendants().OfType<Shape>().Count();
+    }
+
+    [AvaloniaTheory]
+    [InlineData("servo-skull", PillPhase.Recording, 26)]
+    [InlineData("netrunner", PillPhase.Working, 21)]
+    [InlineData("wizard", PillPhase.Recording, 22)]
+    internal void Each_signature_draws_in_its_pose(string id, PillPhase phase, int atLeast)
+    {
+        var face = Mascots.Find(id)!.Create(Tokens.Colors.Accent);
+        var window = new Window { Content = face, SizeToContent = SizeToContent.WidthAndHeight };
+        try
+        {
+            window.Show();
+            ShapesIn(face, phase).ShouldBeGreaterThanOrEqualTo(atLeast, id);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
 }

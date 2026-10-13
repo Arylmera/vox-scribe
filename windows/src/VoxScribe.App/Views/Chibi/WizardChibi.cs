@@ -19,10 +19,17 @@ internal sealed class WizardChibi(Color accent) : ChibiFace(accent)
     private const uint Mouth = 0x5A3A30;
     private const uint Glint = 0xFFFFFF;
     private const uint Brim = 0x000000;
+    private const uint Cover = 0x7A4E2D;
+    private const uint Paper = 0xF4ECD8;
+    private const uint Page = 0xFFF8E7;
+    private const uint PageEdge = 0xD9CBA8;
+    private const uint Script = 0xB49A6A;
     private const double BrimShade = 0.25;
     private const double HaloOpacity = 0.35;
     private const double RuneOpacity = 0.7;
     private const double RuneWidth = 1.5;
+    private const double PageEdgeWidth = 0.6;
+    private const double ScriptWidth = 0.8;
 
     /// <inheritdoc />
     protected override void Draw(Sketch s, ChibiPose pose)
@@ -83,5 +90,15 @@ internal sealed class WizardChibi(Color accent) : ChibiFace(accent)
         s.Path("M34 54 q14 -10 26 -46 q8 18 4 22 q20 6 26 24z", Accent);
         s.Path("M56 14 q10 -6 10 4", null, Accent, 6);
         s.Path("M50 40 l2 4 4 1 -4 2 -2 4 -2 -4 -4 -2 4 -1z M70 30 l1.5 3 3 1 -3 1.5 -1.5 3 -1.5 -3 -3 -1.5 3 -1z", Rgb(Star));
+
+        // An open grimoire floats in front while you speak; its right page turns.
+        if (pose == ChibiPose.Listen)
+        {
+            s.Path("M34 112 q13 -6 26 0 q13 -6 26 0 v14 q-13 -6 -26 0 q-13 -6 -26 0z", Rgb(Cover));
+            s.Path("M36 111 q12 -5 24 0 v12 q-12 -5 -24 0z M60 111 q12 -5 24 0 v12 q-12 -5 -24 0z", Rgb(Paper));
+            s.Path("M40 114 h14 M40 117 h14 M40 120 h14", null, Rgb(Script), ScriptWidth);
+            var page = s.Path("M60 111 q12 -5 24 0 v12 q-12 -5 -24 0z", Rgb(Page), Rgb(PageEdge), PageEdgeWidth);
+            s.Move(page, ChibiMove.Flap, origin: new Point(60, 117));
+        }
     }
 }

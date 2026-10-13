@@ -17,6 +17,8 @@ internal sealed class NetrunnerChibi(Color accent) : ChibiFace(accent)
     private const double DimVisor = 0.9;
     private const double DimLine = 0.5;
     private const double LoadSize = 10;
+    private const double HoloFill = 0.18;
+    private const double HoloEdge = 0.85;
 
     /// <inheritdoc />
     protected override void Draw(Sketch s, ChibiPose pose)
@@ -60,5 +62,20 @@ internal sealed class NetrunnerChibi(Color accent) : ChibiFace(accent)
 
         var ear = s.Circle(90, 70, 3, Accent);
         if (listen) s.Move(Glow(ear), ChibiMove.Pulse);
+
+        // A holo screen floats in front while the text is transcribed; lines type in, staggered.
+        if (pose == ChibiPose.Think)
+        {
+            const string Panel = "M70 96 l40 -8 v26 l-40 8z";
+            s.Path(Panel, Accent).Opacity = HoloFill;
+            s.Path(Panel, null, Accent, 1).Opacity = HoloEdge;
+            for (var i = 0; i < 4; i++)
+            {
+                double y = 100 + (i * 5);
+                double length = 26 - (i * 4);
+                var line = s.Path(FormattableString.Invariant($"M74 {y} l{length} {-length / 5}"), null, Accent, 1.8);
+                s.Move(line, ChibiMove.Pulse, i);
+            }
+        }
     }
 }

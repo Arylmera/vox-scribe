@@ -19,6 +19,7 @@ internal sealed class ServoSkullChibi(Color accent) : ChibiFace(accent)
     private const uint Parchment = 0xEFE3C2;
     private const uint ParchmentInk = 0x8B7A55;
     private const uint LensGlint = 0xE8FFF0;
+    private const uint Quill = 0xF4F1EA;
     private const double FieldOpacity = 0.25;
     private const double DimLens = 0.45;
 
@@ -84,6 +85,17 @@ internal sealed class ServoSkullChibi(Color accent) : ChibiFace(accent)
         {
             if (listen) s.Move(s.Rect(bars[i], 80, 4, 9, 1, Accent), ChibiMove.Eq, i);
             else s.Rect(bars[i], 81, 4, 7, 1, Rgb(Shade));
+        }
+
+        // The servo-scribe writes: a mechadendrite scribbles on the parchment while you speak.
+        if (listen)
+        {
+            var arm = s.Begin();
+            s.Path("M80 92 q14 4 10 22", null, Rgb(Cable), 2.5);
+            s.Path("M88 112 l-14 10 2 2 14 -10z", Rgb(Quill));
+            s.Path("M74 122 l-2 3", null, Rgb(Socket), 1.5);
+            s.End();
+            s.Move(arm, ChibiMove.Wag, origin: new Point(82, 92));
         }
     }
 }
