@@ -6,8 +6,8 @@ The Windows port of VoxScribe — push-to-talk dictation, on-device.
 > streaming transcription while you speak, a dictation pill, tray, start-at-login, an
 > installer, and five selectable themes (Paper, Orb, Tide, Mono, Fluent) that follow Windows
 > light/dark mode. Local Parakeet and a remote OpenAI-compatible STT
-> gateway are both wired and both used. What is still unverified is listed under
-> [Honesty](#honesty).
+> gateway are both wired and both used. Prefer a companion? Settings → Appearance → Dictation indicator swaps the pill for a desktop mascot you can drag anywhere (right-click for its menu, double-click to open the app).
+> What is still unverified is listed under [Honesty](#honesty).
 
 ---
 

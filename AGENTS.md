@@ -18,6 +18,8 @@ installer, and five selectable themes (Paper, Orb, Tide, Mono, Fluent), each wit
 dark palettes and curated accents. Local Parakeet and a remote OpenAI-compatible STT gateway
 are both wired and both exercised by hand.
 
+An optional desktop mascot (nine characters, Settings → Appearance) can replace the pill.
+
 **There was a macOS build in Swift, and it was deleted on 2026-08-28** at the owner's
 request, to leave one app in the tree while the Windows side is the one being worked on. It
 is not gone — `git log -- Sources/` still has all of it, and it will come back when it is
@@ -57,6 +59,12 @@ about half a second.
 every phrase is typed the moment it is transcribed, so by the end of the utterance there is
 nothing left to improve. The pill's badge reads RAW rather than CLEAN, because it reports
 what will actually happen and not which key was pressed.
+
+**The mascot window is not click-through, the pill window is.** Same `HudWindow`, two modes.
+The mascot must be grabbable, so its window drops `WS_EX_TRANSPARENT` (it keeps
+`WS_EX_NOACTIVATE`: dragging or right-clicking it must never move the caret). It sizes to its
+content and is anchored at its bottom-left corner, so only the character blocks clicks while
+idle. Its motion is quantised and driven by the 33 ms tick on purpose — see `ChibiMotion`.
 
 **Four chords, and the longer one wins.** Binding Right Shift for raw and Left Shift +
 Right Shift for cleanup means both chords are satisfied by the second gesture. Each hook is
@@ -126,6 +134,10 @@ Two rules that are not negotiable, pinned by `VoxScribe.App.Tests/Design/`:
 
 - **Red means recording.** `#E5484D` is the recording dot and nothing else, in every theme —
   `DoctrineTests` scans every colour token of every theme, mode and variant.
+- **Mascot colours are `private const` in each character**, so `ChibiTests` walks every mascot's
+  rendered tree in every phase instead. One exemption, the owner's call: Clawd's body is
+  Anthropic's official `#D97757`, which sits inside the red window; the test allows exactly
+  that colour on Clawd and nothing else.
 - **WCAG AA.** `ContrastTests` checks every text/ground pair the views draw, 4.5:1, across all
   themes, modes and variants. Accent text never sits on `Hover`.
 
