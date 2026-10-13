@@ -38,7 +38,7 @@ The mascot reads the same frame the pill does (`PillState`), plus one new phase.
 
 | Phase | Mascot does |
 |---|---|
-| `Idle` (new) | Sleepy eyes, slow float/bob, occasional blink |
+| `Idle` (new) | Sleepy closed eyes, slow float/bob |
 | `Recording` | Eyes open; mouth / equaliser / squash driven by the **real input level** (`PillState.Level`); **red recording dot** on the character |
 | `Working` | Looks up, "…" dots, character flourish (eye focusing, runes, smoke, tail wag) |
 | `Latency` | Happy `^^` eyes and a hop, then back to `Idle` |

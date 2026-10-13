@@ -46,11 +46,13 @@ public sealed class HudWindow : Window
     private Mascot? _mascot;
     private (string? Id, bool Hidden, string? Accent) _mascotKey;
     private PixelPoint _anchor;
+    private bool _bubbleToLeft;
     private bool _faceStale;
     private TimeSpan? _lastLatency;
     private TimeSpan? _lastCleanup;
     private bool _lastCleanupFailed;
     private int _frames;
+    private bool _wasIdle = true;
 
     /// <summary>Builds the indicator over <paramref name="engine"/> and starts watching it.</summary>
     /// <param name="engine">The dictation engine to mirror.</param>
@@ -92,14 +94,22 @@ public sealed class HudWindow : Window
         PositionChanged += (_, e) =>
         {
             if (_mascot is null || !IsVisible) return;
-            _anchor = new PixelPoint(e.Point.X, e.Point.Y + (int)Math.Ceiling(Bounds.Height * RenderScaling));
+            var windowWidthPx = (int)Math.Ceiling(Bounds.Width * RenderScaling);
+            var figureWidthPx = (int)Math.Ceiling(Tokens.Size.MascotWidth * RenderScaling);
+            var anchorX = _bubbleToLeft ? e.Point.X + (windowWidthPx - figureWidthPx) : e.Point.X;
+            _anchor = new PixelPoint(anchorX, e.Point.Y + (int)Math.Ceiling(Bounds.Height * RenderScaling));
         };
 
-        // The bubble grows and shrinks the mascot window; keep its bottom-left corner put.
+        // The bubble grows and shrinks the mascot window; keep the figure's bottom-left corner
+        // put (bottom-right of the window instead, when the bubble opens to the left).
         SizeChanged += (_, e) =>
         {
             if (_mascot is null || !IsVisible) return;
-            Position = new PixelPoint(_anchor.X, _anchor.Y - (int)Math.Ceiling(e.NewSize.Height * RenderScaling));
+            var windowWidthPx = (int)Math.Ceiling(e.NewSize.Width * RenderScaling);
+            var figureWidthPx = (int)Math.Ceiling(Tokens.Size.MascotWidth * RenderScaling);
+            Position = new PixelPoint(
+                MascotPlacement.WindowX(_anchor.X, windowWidthPx, figureWidthPx, _bubbleToLeft),
+                _anchor.Y - (int)Math.Ceiling(e.NewSize.Height * RenderScaling));
         };
 
         _timerTick = new DispatcherTimer(DispatcherPriority.Background) { Interval = Tokens.Motion.PillFrame };
@@ -148,6 +158,7 @@ public sealed class HudWindow : Window
         if (_mascot is null) return PillFace.Create(Themes.Active.Pill);
 
         var face = _mascot.Create(Mascots.Accent(_settings.Data));
+        face.BubbleToLeft = _bubbleToLeft;
         face.PointerPressed += OnMascotPressed;
         face.ContextMenu = MascotMenu();
         return face;
@@ -231,7 +242,7 @@ public sealed class HudWindow : Window
             else
             {
                 _face.Update(new PillState(PillPhase.Idle, 0, TimeSpan.Zero, Mode(), string.Empty));
-                ShowIfHidden();
+                ShowIfHidden(idle: true);
             }
 
             _clock.Reset();
@@ -251,10 +262,18 @@ public sealed class HudWindow : Window
         _face.Update(new PillState(
             recording ? PillPhase.Recording : PillPhase.Working, level, _clock.Elapsed, Mode(), _engine.PartialText));
 
-        ShowIfHidden();
+        ShowIfHidden(idle: false);
     }
 
-    private void ShowIfHidden()
+    /// <summary>
+    /// Shows the indicator if it is hidden. While visible and not idle, re-claims the front of
+    /// the topmost band: once right away on the first non-idle frame (so a dictation starting
+    /// brings it forward over whatever eclipsed it while idle), then every 15 frames as a window
+    /// going full-screen can otherwise push itself in front again at any time. While idle, the
+    /// mascot keeps plain <c>Topmost</c> and never re-claims, so it stops pushing a
+    /// click-blocking window in front of full-screen video or games all day.
+    /// </summary>
+    private void ShowIfHidden(bool idle)
     {
         if (!IsVisible)
         {
@@ -263,13 +282,20 @@ public sealed class HudWindow : Window
 
             Show();
             _frames = 0;
+            _wasIdle = idle;
             Overlay.MakeOverlay(this, clickThrough: _mascot is null);
+            return;
         }
-        else if (++_frames % 15 == 0)
+
+        if (idle)
         {
-            // A window going full-screen pushes itself to the front of the topmost band.
-            Overlay.KeepOnTop(this);
+            _wasIdle = true;
+            return;
         }
+
+        _frames++;
+        if (_wasIdle || _frames % 15 == 0) Overlay.KeepOnTop(this);
+        _wasIdle = false;
     }
 
     private void PositionBottomCenter()
@@ -287,15 +313,26 @@ public sealed class HudWindow : Window
 
     private void PlaceMascot()
     {
-        var scaling = Screens.Primary?.Scaling ?? 1;
+        var saved = _settings.Data is { MascotX: { } x, MascotY: { } y } ? new PixelPoint(x, y) : (PixelPoint?)null;
+
+        // The screen the saved point is actually on, not always Primary, or a mascot saved on a
+        // second, differently-scaled monitor starts out positioned (and sized) for the wrong DPI.
+        var screen = saved is { } s ? Screens.ScreenFromPoint(new PixelPoint(s.X, s.Y - 1)) : null;
+        var scaling = screen?.Scaling ?? Screens.Primary?.Scaling ?? 1;
+
         _face.Measure(Size.Infinity);
         var size = new PixelSize(
             (int)Math.Ceiling(_face.DesiredSize.Width * scaling), (int)Math.Ceiling(_face.DesiredSize.Height * scaling));
         var areas = Screens.All.OrderByDescending(s => s.IsPrimary).Select(s => s.WorkingArea).ToList();
-        var saved = _settings.Data is { MascotX: { } x, MascotY: { } y } ? new PixelPoint(x, y) : (PixelPoint?)null;
 
         _anchor = MascotPlacement.Anchor(saved, areas, size, (int)(Tokens.Material.PillScreenMargin * scaling));
-        Position = new PixelPoint(_anchor.X, _anchor.Y - size.Height);
+
+        _bubbleToLeft = MascotPlacement.BubbleToLeft(_anchor, areas);
+        if (_face is ChibiFace chibi) chibi.BubbleToLeft = _bubbleToLeft;
+
+        var figureWidthPx = (int)Math.Ceiling(Tokens.Size.MascotWidth * scaling);
+        Position = new PixelPoint(
+            MascotPlacement.WindowX(_anchor.X, size.Width, figureWidthPx, _bubbleToLeft), _anchor.Y - size.Height);
     }
 
     private void OnMascotPressed(object? sender, PointerPressedEventArgs e)
@@ -309,8 +346,24 @@ public sealed class HudWindow : Window
         }
 
         // On Windows the move loop is modal: this returns once the button is released, and
-        // PositionChanged has kept _anchor current throughout.
+        // PositionChanged has kept _anchor current throughout (using today's side — the bubble
+        // may be up mid-drag, and the window doesn't resize just because the mascot moved).
         BeginMoveDrag(e);
+
+        var areas = Screens.All.OrderByDescending(s => s.IsPrimary).Select(s => s.WorkingArea).ToList();
+        var bubbleToLeft = MascotPlacement.BubbleToLeft(_anchor, areas);
+        if (bubbleToLeft != _bubbleToLeft)
+        {
+            // The side flipped crossing a screen's midline. Re-pin the figure to the window's
+            // new edge now, rather than waiting for a SizeChanged that a same-size drag never
+            // raises — otherwise the figure jumps and _anchor no longer matches it.
+            _bubbleToLeft = bubbleToLeft;
+            if (_face is ChibiFace chibi) chibi.BubbleToLeft = _bubbleToLeft;
+            var windowWidthPx = (int)Math.Ceiling(Bounds.Width * RenderScaling);
+            var figureWidthPx = (int)Math.Ceiling(Tokens.Size.MascotWidth * RenderScaling);
+            Position = new PixelPoint(
+                MascotPlacement.WindowX(_anchor.X, windowWidthPx, figureWidthPx, _bubbleToLeft), Position.Y);
+        }
 
         if (_settings.Data is { MascotX: { } x, MascotY: { } y } && new PixelPoint(x, y) == _anchor) return;
         _settings.Update(_settings.Data with { MascotX = _anchor.X, MascotY = _anchor.Y });
@@ -342,7 +395,8 @@ public sealed class HudWindow : Window
 }
 
 /// <summary>
-/// Keeps the pill above everything else on Windows. No-op on other platforms.
+/// Keeps the dictation indicator (pill or mascot) above everything else on Windows. No-op on
+/// other platforms.
 /// </summary>
 /// <remarks>
 /// <para>

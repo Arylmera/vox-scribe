@@ -17,7 +17,9 @@ public sealed class DoctrineTests
     private const double MinValue = 0.35;
     private const byte VisibleAlpha = 0x40;
 
-    private static bool IsRed(Color c)
+    /// <summary>The red hue window this suite enforces: saturated, bright, visible. Also used by
+    /// <c>VoxScribe.AppTests.ChibiTests</c>, so a mascot colour is judged by the same rule.</summary>
+    internal static bool IsRed(Color c)
     {
         if (c.A < VisibleAlpha) return false;
         var hsv = c.ToHsv();

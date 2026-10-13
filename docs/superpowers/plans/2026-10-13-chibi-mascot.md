@@ -19,7 +19,7 @@
 - Every number formatted into a path string goes through `FormattableString.Invariant` (French culture writes `44,5`, which `Geometry.Parse` rejects).
 - `VoxScribe.Platform.Windows` is not touched. `Overlay` (P/Invoke in `HudWindow.cs`) already lives in the App project.
 - Commit after each task, then `git push` (house rule). No attribution lines in commit messages.
-- Files use CRLF line endings and the existing header style (`using` block, file-scoped namespace, XML `<summary>` on every type and non-private member).
+- Files keep the line endings already in the repo (LF) and the existing header style (`using` block, file-scoped namespace, XML `<summary>` on every type and non-private member).
 
 ## File Structure
 

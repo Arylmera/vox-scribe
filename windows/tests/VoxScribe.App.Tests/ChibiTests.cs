@@ -5,6 +5,7 @@ using Avalonia.Media;
 using Avalonia.VisualTree;
 using Shouldly;
 using VoxScribe.App.Design;
+using VoxScribe.App.Tests.Design;
 using VoxScribe.App.Views.Chibi;
 using VoxScribe.App.Views.Pill;
 using Xunit;
@@ -14,14 +15,6 @@ namespace VoxScribe.AppTests;
 /// <summary>Every mascot, every phase, both modes.</summary>
 public sealed class ChibiTests
 {
-    // Same detector as Design/DoctrineTests: red hue window, saturated, bright, visible.
-    private static bool IsRed(Color c)
-    {
-        if (c.A < 0x40) return false;
-        var hsv = c.ToHsv();
-        return (hsv.H <= 15 || hsv.H >= 345) && hsv.S >= 0.5 && hsv.V >= 0.35;
-    }
-
     private static readonly TimeSpan[] Moments =
         [TimeSpan.Zero, TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(1.7), TimeSpan.FromSeconds(3.9)];
 
@@ -82,7 +75,7 @@ public sealed class ChibiTests
             face.Update(new PillState(phase, 0.8, TimeSpan.FromSeconds(1), "CLEAN", "texte"), TimeSpan.FromSeconds(1));
             var red = face.GetVisualDescendants().OfType<Control>()
                 .Where(c => !ReferenceEquals(c, face.RecordDot)
-                    && Colours(c).Any(colour => IsRed(colour) && !IsClawdTerracotta(mascot, colour)))
+                    && Colours(c).Any(colour => DoctrineTests.IsRed(colour) && !IsClawdTerracotta(mascot, colour)))
                 .Select(c => c.GetType().Name);
             red.ShouldBeEmpty($"{mascot.Id} {phase}");
         }
@@ -165,7 +158,7 @@ public sealed class ChibiTests
         // The owner chose Anthropic's exact terracotta over a nudged one (2026-10-13), knowing
         // it sits inside the red window. The exemption is this one colour on Clawd only.
         ClawdChibi.Body.ShouldBe(0xD97757u);
-        IsRed(Tokens.Colors.Rgb(ClawdChibi.Body)).ShouldBeTrue("if this flips, drop the exemption");
+        DoctrineTests.IsRed(Tokens.Colors.Rgb(ClawdChibi.Body)).ShouldBeTrue("if this flips, drop the exemption");
         Tokens.Colors.Rgb(ClawdChibi.Body).ShouldNotBe(Tokens.Colors.Record);
     }
 

@@ -38,6 +38,38 @@ public sealed class MascotTests
         MascotPlacement.Anchor(new PixelPoint(10, 10), [], Size, Margin).ShouldBe(new PixelPoint(10, 10));
 
     [Fact]
+    public void Bubble_opens_right_when_the_anchor_is_in_the_left_half_of_its_screen()
+    {
+        MascotPlacement.BubbleToLeft(new PixelPoint(100, 500), [Primary, Second]).ShouldBeFalse();
+        MascotPlacement.BubbleToLeft(new PixelPoint(2000, 500), [Primary, Second]).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Bubble_opens_left_when_the_anchor_is_in_the_right_half_of_its_screen()
+    {
+        MascotPlacement.BubbleToLeft(new PixelPoint(1800, 500), [Primary, Second]).ShouldBeTrue();
+        MascotPlacement.BubbleToLeft(new PixelPoint(4000, 500), [Primary, Second]).ShouldBeTrue();
+    }
+
+    [Fact]
+    public void An_anchor_on_no_screen_falls_back_to_the_primary_areas_half() =>
+        MascotPlacement.BubbleToLeft(new PixelPoint(100, 5000), [Primary, Second]).ShouldBeFalse();
+
+    [Fact]
+    public void The_screen_test_point_is_one_pixel_above_the_anchor_so_a_bottom_edge_still_counts() =>
+        // At exactly y=1400 nothing contains the point and it would fall back to Primary (where
+        // 2000 is in the right half); with anchor.Y - 1 it lands inside Second's left half.
+        MascotPlacement.BubbleToLeft(new PixelPoint(2000, 1400), [Primary, Second]).ShouldBeFalse();
+
+    [Fact]
+    public void WindowX_keeps_the_figure_at_the_left_edge_when_the_bubble_opens_right() =>
+        MascotPlacement.WindowX(300, 376, 96, bubbleToLeft: false).ShouldBe(300);
+
+    [Fact]
+    public void WindowX_keeps_the_figure_at_the_right_edge_when_the_bubble_opens_left() =>
+        MascotPlacement.WindowX(300, 376, 96, bubbleToLeft: true).ShouldBe(20);
+
+    [Fact]
     public void Ids_are_unique_and_unknown_ids_mean_the_pill()
     {
         Mascots.All.Select(m => m.Id).ShouldBeUnique();

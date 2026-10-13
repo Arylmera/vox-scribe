@@ -43,6 +43,7 @@ internal abstract class ChibiFace : PillFace
     private readonly TextBlock _bubbleHead;
     private readonly TextBlock _bubbleText;
     private readonly TailClip _bubbleHost;
+    private readonly Grid _figureGrid;
     private readonly Decorator _figure = new();
     private readonly TranslateTransform _lift = new();
     private Sketch _sketch = new();
@@ -86,7 +87,7 @@ internal abstract class ChibiFace : PillFace
         _dot.IsVisible = false;
 
         _figure.RenderTransform = _lift;
-        var figure = new Grid
+        _figureGrid = new Grid
         {
             Width = Tokens.Size.MascotWidth,
             Height = Tokens.Size.MascotHeight,
@@ -94,7 +95,24 @@ internal abstract class ChibiFace : PillFace
             Children = { new Viewbox { Child = _figure }, _dot },
         };
 
-        Child = new StackPanel { Spacing = Tokens.Space.Snug, Children = { _bubble, figure } };
+        Child = new StackPanel { Spacing = Tokens.Space.Snug, Children = { _bubble, _figureGrid } };
+    }
+
+    /// <summary>
+    /// Which side the bubble opens toward: true keeps the figure at the window's right edge
+    /// and grows the bubble to its left; false (the default) is today's layout. Set by
+    /// <see cref="HudWindow"/> from <see cref="MascotPlacement.BubbleToLeft"/> so the bubble
+    /// never grows off the edge of the screen.
+    /// </summary>
+    internal bool BubbleToLeft
+    {
+        set
+        {
+            var align = value ? HorizontalAlignment.Right : HorizontalAlignment.Left;
+            _bubble.HorizontalAlignment = align;
+            _figureGrid.HorizontalAlignment = align;
+            HorizontalAlignment = align;
+        }
     }
 
     /// <summary>The accent part's colour.</summary>

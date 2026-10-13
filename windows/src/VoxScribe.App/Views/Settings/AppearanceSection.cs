@@ -43,12 +43,13 @@ internal static class AppearanceSection
             }));
         }
 
+        var mascotAccent = Mascots.Accent(settings.Data);
         var mascots = new WrapPanel { ItemSpacing = Tokens.Space.Base, LineSpacing = Tokens.Space.Base };
         mascots.Children.Add(MascotCard(null, "Pill", settings.Data.Mascot is null, () =>
         {
             if (IsBusy(engine)) return;
             save(settings.Data with { Mascot = null });
-        }));
+        }, mascotAccent));
         foreach (var mascot in Mascots.All)
         {
             var selected = string.Equals(mascot.Id, settings.Data.Mascot, StringComparison.OrdinalIgnoreCase);
@@ -56,7 +57,7 @@ internal static class AppearanceSection
             {
                 if (IsBusy(engine)) return;
                 save(settings.Data with { Mascot = mascot.Id, MascotHidden = false });
-            }));
+            }, mascotAccent));
         }
 
         var mascotAccents = new WrapPanel { ItemSpacing = Tokens.Space.Base, LineSpacing = Tokens.Space.Base };
@@ -238,7 +239,7 @@ internal static class AppearanceSection
         return swatch;
     }
 
-    private static Button MascotCard(Mascot? mascot, string label, bool selected, Action pick)
+    private static Button MascotCard(Mascot? mascot, string label, bool selected, Action pick, Color accent)
     {
         Control preview;
         if (mascot is null)
@@ -256,7 +257,7 @@ internal static class AppearanceSection
         }
         else
         {
-            var face = mascot.Create(Mascots.Accent(new SettingsData()));
+            var face = mascot.Create(accent);
             face.IsHitTestVisible = false;
             face.Update(new PillState(PillPhase.Idle, 0, TimeSpan.Zero, "RAW", string.Empty), TimeSpan.Zero);
             preview = new Viewbox { Width = Tokens.Material.MascotPreviewSize, Height = Tokens.Material.MascotPreviewSize, Child = face };

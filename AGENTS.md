@@ -63,8 +63,9 @@ what will actually happen and not which key was pressed.
 **The mascot window is not click-through, the pill window is.** Same `HudWindow`, two modes.
 The mascot must be grabbable, so its window drops `WS_EX_TRANSPARENT` (it keeps
 `WS_EX_NOACTIVATE`: dragging or right-clicking it must never move the caret). It sizes to its
-content and is anchored at its bottom-left corner, so only the character blocks clicks while
-idle. Its motion is quantised and driven by the 33 ms tick on purpose — see `ChibiMotion`.
+content and is anchored at its bottom-left corner; the face has a transparent background, so
+only the mascot's own rectangle (96 x 112 while idle, wider with the bubble) blocks clicks.
+Its motion is quantised and driven by the 33 ms tick on purpose — see `ChibiMotion`.
 
 **Four chords, and the longer one wins.** Binding Right Shift for raw and Left Shift +
 Right Shift for cleanup means both chords are satisfied by the second gesture. Each hook is
