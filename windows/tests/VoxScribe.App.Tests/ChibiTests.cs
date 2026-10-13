@@ -191,10 +191,17 @@ public sealed class ChibiTests
         return face.GetVisualDescendants().OfType<Shape>().Count();
     }
 
+    private static string TextIn(ChibiFace face, PillPhase phase)
+    {
+        face.Update(new PillState(phase, 0.5, TimeSpan.Zero, "RAW", string.Empty), TimeSpan.Zero);
+        return string.Join(' ', face.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text));
+    }
+
     [AvaloniaTheory]
     [InlineData("servo-skull", PillPhase.Recording, 26)]
     [InlineData("netrunner", PillPhase.Working, 21)]
     [InlineData("wizard", PillPhase.Recording, 22)]
+    [InlineData("owl", PillPhase.Latency, 19)]
     internal void Each_signature_draws_in_its_pose(string id, PillPhase phase, int atLeast)
     {
         var face = Mascots.Find(id)!.Create(Tokens.Colors.Accent);
@@ -203,6 +210,24 @@ public sealed class ChibiTests
         {
             window.Show();
             ShapesIn(face, phase).ShouldBeGreaterThanOrEqualTo(atLeast, id);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [AvaloniaTheory]
+    [InlineData("clawd", PillPhase.Working, "Thinking…")]
+    [InlineData("mic", PillPhase.Recording, "ON AIR")]
+    internal void A_signature_says_its_word(string id, PillPhase phase, string word)
+    {
+        var face = Mascots.Find(id)!.Create(Tokens.Colors.Accent);
+        var window = new Window { Content = face, SizeToContent = SizeToContent.WidthAndHeight };
+        try
+        {
+            window.Show();
+            TextIn(face, phase).ShouldContain(word, customMessage: id);
         }
         finally
         {

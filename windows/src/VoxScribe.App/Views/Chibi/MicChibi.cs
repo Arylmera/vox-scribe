@@ -14,8 +14,12 @@ internal sealed class MicChibi(Color accent) : ChibiFace(accent)
     private const uint Grille = 0x9AA0AD;
     private const uint Blush = 0xF0B8A0;
     private const uint Shine = 0xFFFFFF;
+    private const uint Plaque = 0x2A2D38;
+    private const uint Amber = 0xFFC857;
     private const double ShineOpacity = 0.8;
     private const double BlushOpacity = 0.6;
+    private const double OnAirSize = 8;
+    private const double RingWidth = 1.2;
 
     /// <inheritdoc />
     protected override void Draw(Sketch s, ChibiPose pose)
@@ -74,5 +78,21 @@ internal sealed class MicChibi(Color accent) : ChibiFace(accent)
 
         s.Ellipse(45, 86, 4, 2.5, Rgb(Blush)).Opacity = BlushOpacity;
         s.Ellipse(75, 86, 4, 2.5, Rgb(Blush)).Opacity = BlushOpacity;
+
+        // ON AIR lights up (amber, never red) and rings spread from the grille while you speak.
+        if (pose == ChibiPose.Listen)
+        {
+            var plaque = s.Rect(38, 4, 44, 12, 3, Rgb(Plaque));
+            plaque.Stroke = Rgb(Amber);
+            plaque.StrokeThickness = 1;
+            s.Move(s.Text("ON AIR", 38, 5, 44, OnAirSize, Rgb(Amber)), ChibiMove.Pulse);
+            for (var i = 0; i < 3; i++)
+            {
+                var ring = s.Circle(60, 47, 26, null);
+                ring.Stroke = Rgb(Amber);
+                ring.StrokeThickness = RingWidth;
+                s.Move(ring, ChibiMove.Ring, i);
+            }
+        }
     }
 }

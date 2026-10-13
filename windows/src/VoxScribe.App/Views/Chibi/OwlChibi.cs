@@ -27,7 +27,7 @@ internal sealed class OwlChibi(Color accent) : ChibiFace(accent)
         var listen = pose == ChibiPose.Listen;
 
         var head = s.Begin();
-        if (pose == ChibiPose.Think) s.Move(head, ChibiMove.Tilt, origin: new Point(60, 100));
+        if (pose == ChibiPose.Think) s.Move(head, ChibiMove.Swivel, origin: new Point(60, 100));
 
         s.Ellipse(60, 88, 34, 40, Rgb(Feather));
         s.Ellipse(60, 100, 22, 24, Rgb(Belly));
@@ -43,7 +43,10 @@ internal sealed class OwlChibi(Color accent) : ChibiFace(accent)
                 SleepyEyes(s, 48, 72, 66, ink);
                 break;
             case ChibiPose.Done:
-                HappyEyes(s, 48, 72, 68, ink);
+                // A wink: one happy eye, one open.
+                s.Path("M42 68 q6 -7 12 0", null, ink, 3.5);
+                s.Circle(72, 66, 5, ink);
+                s.Circle(70, 64, 2, Rgb(Glint));
                 break;
             default:
                 var r = listen ? 7 : 5;

@@ -19,9 +19,12 @@ internal sealed class ClawdChibi(Color accent) : ChibiFace(accent)
     internal const uint Body = 0xD97757;
 
     private const uint Eye = 0x1A1A1A;
+    private const uint Caption = 0xCFD3DC;
     private const double Unit = 6;
     private const double OriginX = 12;
     private const double OriginY = 50;
+    private const double SpinnerSize = 18;
+    private const double CaptionSize = 7;
 
     /// <inheritdoc />
     protected override bool Shaded => false;
@@ -42,7 +45,13 @@ internal sealed class ClawdChibi(Color accent) : ChibiFace(accent)
             s.Move(right, ChibiMove.Wave, 1);
         }
 
-        foreach (var x in new[] { 3, 5, 10, 12 }) Pixel(s, x, 6, 1, 2, body);
+        // Four legs; while idle they trot in opposition, one pixel at a time.
+        int[] legs = [3, 5, 10, 12];
+        for (var i = 0; i < legs.Length; i++)
+        {
+            var leg = Pixel(s, legs[i], 6, 1, 2, body);
+            if (pose == ChibiPose.Idle) s.Move(leg, ChibiMove.Wave, i % 2);
+        }
 
         switch (pose)
         {
@@ -65,6 +74,13 @@ internal sealed class ClawdChibi(Color accent) : ChibiFace(accent)
                 s.Move(eyes, ChibiMove.Blink, origin: new Point(OriginX + (8 * Unit), OriginY + (2.5 * Unit)));
                 foreach (var (x, y) in new[] { (17, 1), (18, 0), (17, 5), (18, 6) }) s.Move(Pixel(s, x, y, 1, 1, Accent), ChibiMove.Pulse);
                 break;
+        }
+
+        // Claude Code's own spinner while thinking.
+        if (pose == ChibiPose.Think)
+        {
+            s.Move(s.Text("✻", 50, 20, 20, SpinnerSize, body), ChibiMove.Spin);
+            s.Text("Thinking…", 30, 42, 60, CaptionSize, Rgb(Caption));
         }
     }
 
