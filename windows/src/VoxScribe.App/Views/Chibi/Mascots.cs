@@ -16,6 +16,9 @@ internal static class Mascots
     /// <summary>Every mascot, in picker order.</summary>
     public static IReadOnlyList<Mascot> All { get; } =
     [
+        new("servo-skull", "Servo-skull", a => new ServoSkullChibi(a)),
+        new("netrunner", "Netrunner", a => new NetrunnerChibi(a)),
+        new("wizard", "Wizard", a => new WizardChibi(a)),
         new("slime", "Slime", a => new SlimeChibi(a)),
     ];
 
