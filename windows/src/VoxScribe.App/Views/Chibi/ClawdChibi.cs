@@ -24,6 +24,9 @@ internal sealed class ClawdChibi(Color accent) : ChibiFace(accent)
     private const double OriginY = 50;
 
     /// <inheritdoc />
+    protected override bool Shaded => false;
+
+    /// <inheritdoc />
     protected override void Draw(Sketch s, ChibiPose pose)
     {
         RenderOptions.SetEdgeMode(s.Root, EdgeMode.Aliased);

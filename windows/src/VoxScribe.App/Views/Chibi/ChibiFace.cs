@@ -36,6 +36,17 @@ internal abstract class ChibiFace : PillFace
     private const uint DotsGrey = 0xCFD3DC;
     private const uint SweatBlue = 0x8FD3FF;
     private const uint Glint = 0xFFFFFF;
+    private const double LightX = 0.35;
+    private const double LightY = 0.28;
+    private const double ShadeRadius = 0.8;
+    private const double ShadeMid = 0.55;
+    private const double Highlight = 0.28;
+    private const double Shadow = 0.22;
+    private const double GroundX = 60;
+    private const double GroundY = 134;
+    private const double GroundRx = 30;
+    private const double GroundRy = 4.5;
+    private const double GroundOpacity = 0.28;
 
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private readonly Ellipse _dot = Dot(DotSize);
@@ -92,7 +103,7 @@ internal abstract class ChibiFace : PillFace
             Width = Tokens.Size.MascotWidth,
             Height = Tokens.Size.MascotHeight,
             HorizontalAlignment = HorizontalAlignment.Left,
-            Children = { new Viewbox { Child = _figure }, _dot },
+            Children = { new Viewbox { Child = new Panel { Children = { Ground(), _figure } } }, _dot },
         };
 
         Child = new StackPanel { Spacing = Tokens.Space.Snug, Children = { _bubble, _figureGrid } };
@@ -159,8 +170,53 @@ internal abstract class ChibiFace : PillFace
         Animate(now.TotalSeconds, (now - _poseStart).TotalSeconds, state.Phase == PillPhase.Recording ? state.Level : 0);
     }
 
-    /// <summary>A brush for a character colour <c>0xRRGGBB</c>.</summary>
-    protected static SolidColorBrush Rgb(uint rgb) => new(Tokens.Colors.Rgb(rgb));
+    /// <summary>Whether this character's colours are lit in relief. Pixel art opts out.</summary>
+    protected virtual bool Shaded => true;
+
+    /// <summary>
+    /// A brush for a character colour <c>0xRRGGBB</c>: lit from the top-left as a radial gradient
+    /// (lighter, the colour, darker), or solid when <see cref="Shaded"/> is false.
+    /// </summary>
+    protected IBrush Rgb(uint rgb)
+    {
+        var colour = Tokens.Colors.Rgb(rgb);
+        if (!Shaded) return new SolidColorBrush(colour);
+
+        var light = new RelativePoint(LightX, LightY, RelativeUnit.Relative);
+        return new RadialGradientBrush
+        {
+            Center = light,
+            GradientOrigin = light,
+            RadiusX = new RelativeScalar(ShadeRadius, RelativeUnit.Relative),
+            RadiusY = new RelativeScalar(ShadeRadius, RelativeUnit.Relative),
+            GradientStops =
+            {
+                new GradientStop(Mix(colour, Colors.White, Highlight), 0),
+                new GradientStop(colour, ShadeMid),
+                new GradientStop(Mix(colour, Colors.Black, Shadow), 1),
+            },
+        };
+    }
+
+    private static Color Mix(Color from, Color to, double k) => Color.FromRgb(
+        (byte)Math.Round(from.R + ((to.R - from.R) * k)),
+        (byte)Math.Round(from.G + ((to.G - from.G) * k)),
+        (byte)Math.Round(from.B + ((to.B - from.B) * k)));
+
+    // A fixed shadow under the figure: it stays on the ground while the figure bobs and hops.
+    private static Canvas Ground()
+    {
+        var shadow = new Ellipse
+        {
+            Width = 2 * GroundRx,
+            Height = 2 * GroundRy,
+            Fill = Brushes.Black,
+            Opacity = GroundOpacity,
+        };
+        Canvas.SetLeft(shadow, GroundX - GroundRx);
+        Canvas.SetTop(shadow, GroundY - GroundRy);
+        return new Canvas { Width = Sketch.Width, Height = Sketch.Height, Children = { shadow } };
+    }
 
     /// <summary>Two closed, downturned arcs centred on <paramref name="x1"/> and <paramref name="x2"/>.</summary>
     protected static void SleepyEyes(Sketch s, double x1, double x2, double y, IBrush ink, double width = 3) =>
@@ -276,6 +332,21 @@ internal abstract class ChibiFace : PillFace
                     break;
                 case ChibiMove.Wave:
                     ((TranslateTransform)target.RenderTransform!).Y = ChibiMotion.Wave(t, index);
+                    break;
+                case ChibiMove.Swivel:
+                    ((RotateTransform)target.RenderTransform!).Angle = ChibiMotion.Swivel(t);
+                    break;
+                case ChibiMove.Ring:
+                    var (spread, fade) = ChibiMotion.Ring(t, index);
+                    var ring = (ScaleTransform)target.RenderTransform!;
+                    ring.ScaleX = spread;
+                    ring.ScaleY = spread;
+                    target.Opacity = fade;
+                    break;
+                case ChibiMove.Fall:
+                    var (drop, gone) = ChibiMotion.Fall(t, index);
+                    ((TranslateTransform)target.RenderTransform!).Y = drop;
+                    target.Opacity = gone;
                     break;
             }
         }

@@ -39,11 +39,19 @@ public sealed class ChibiTests
         }
     }
 
-    private static IEnumerable<Color> Colours(Control c) => c switch
+    private static IEnumerable<Color> Colours(Control c) => (c switch
     {
-        Shape s => new[] { s.Fill, s.Stroke }.OfType<ISolidColorBrush>().Select(b => b.Color),
-        TextBlock t => new[] { t.Foreground }.OfType<ISolidColorBrush>().Select(b => b.Color),
-        Border b => new[] { b.Background, b.BorderBrush }.OfType<ISolidColorBrush>().Select(x => x.Color),
+        Shape s => new[] { s.Fill, s.Stroke },
+        TextBlock t => new[] { t.Foreground },
+        Border b => new[] { b.Background, b.BorderBrush },
+        _ => [],
+    }).SelectMany(BrushColours);
+
+    // Every colour a brush can paint: a solid colour, or each stop of a gradient.
+    private static IEnumerable<Color> BrushColours(IBrush? brush) => brush switch
+    {
+        ISolidColorBrush s => [s.Color],
+        IGradientBrush g => g.GradientStops.Select(stop => stop.Color),
         _ => [],
     };
 
@@ -79,6 +87,16 @@ public sealed class ChibiTests
                 .Select(c => c.GetType().Name);
             red.ShouldBeEmpty($"{mascot.Id} {phase}");
         }
+    });
+
+    [AvaloniaFact]
+    public void Characters_are_lit_in_relief_except_pixel_art_Clawd() => EachMascot((mascot, face) =>
+    {
+        face.Update(new PillState(PillPhase.Idle, 0, TimeSpan.Zero, "RAW", string.Empty), TimeSpan.Zero);
+        var fills = face.GetVisualDescendants().OfType<Shape>().Select(s => s.Fill).ToList();
+
+        if (mascot.Id == "clawd") fills.OfType<IGradientBrush>().ShouldBeEmpty("pixel art stays flat");
+        else fills.OfType<IRadialGradientBrush>().ShouldNotBeEmpty(mascot.Id);
     });
 
     [AvaloniaFact]

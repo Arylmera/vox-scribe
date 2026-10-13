@@ -62,6 +62,15 @@ internal enum ChibiMove
 
     /// <summary>Bobs up and down in whole pixels (pixel arms).</summary>
     Wave,
+
+    /// <summary>Swings ±40° (a swivelling head).</summary>
+    Swivel,
+
+    /// <summary>Spreads and fades (sound rings).</summary>
+    Ring,
+
+    /// <summary>Drops and fades (letters falling in).</summary>
+    Fall,
 }
 
 /// <summary>A moving part: the control, how it moves, and its stagger index.</summary>
@@ -163,8 +172,8 @@ internal sealed class Sketch
     {
         target.RenderTransform = move switch
         {
-            ChibiMove.Spin or ChibiMove.Wag or ChibiMove.Tilt => new RotateTransform(),
-            ChibiMove.Rise or ChibiMove.Wave => new TranslateTransform(),
+            ChibiMove.Spin or ChibiMove.Wag or ChibiMove.Tilt or ChibiMove.Swivel => new RotateTransform(),
+            ChibiMove.Rise or ChibiMove.Wave or ChibiMove.Fall => new TranslateTransform(),
             ChibiMove.Pulse => null,
             _ => new ScaleTransform(),
         };

@@ -96,4 +96,46 @@ public sealed class ChibiMotionTests
         x.ShouldBeGreaterThan(1);
         y.ShouldBeLessThan(1);
     }
+
+    [Fact]
+    public void Swivel_swings_forty_degrees_in_whole_degrees()
+    {
+        foreach (var t in Seconds(5))
+        {
+            var a = ChibiMotion.Swivel(t);
+            a.ShouldBeInRange(-40, 40);
+            a.ShouldBe(Math.Round(a));
+        }
+
+        Seconds(2.4).Max(ChibiMotion.Swivel).ShouldBeGreaterThan(35);
+    }
+
+    [Fact]
+    public void Rings_grow_and_fade()
+    {
+        foreach (var t in Seconds(3))
+            for (var i = 0; i < 3; i++)
+            {
+                var (scale, opacity) = ChibiMotion.Ring(t, i);
+                scale.ShouldBeInRange(0.9 - 1e-9, 1.5 + 1e-9);
+                opacity.ShouldBeInRange(-1e-9, 0.8 + 1e-9);
+            }
+
+        ChibiMotion.Ring(0, 0).Scale.ShouldBeLessThan(ChibiMotion.Ring(0.9, 0).Scale);
+        ChibiMotion.Ring(0, 0).Opacity.ShouldBeGreaterThan(ChibiMotion.Ring(0.9, 0).Opacity);
+    }
+
+    [Fact]
+    public void Letters_fall_and_fade()
+    {
+        foreach (var t in Seconds(3))
+            for (var i = 0; i < 4; i++)
+            {
+                var (y, opacity) = ChibiMotion.Fall(t, i);
+                y.ShouldBeInRange(-1e-9, 52 + 1e-9);
+                opacity.ShouldBeInRange(-1e-9, 1 + 1e-9);
+            }
+
+        ChibiMotion.Fall(1.0, 0).Y.ShouldBeGreaterThan(ChibiMotion.Fall(0.2, 0).Y);
+    }
 }

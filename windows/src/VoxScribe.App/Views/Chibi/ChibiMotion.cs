@@ -40,6 +40,16 @@ internal static class ChibiMotion
     private const double RiseHeight = 14;
     private const double RiseStart = 0.9;
     private const double RiseStagger = 0.8;
+    private const double SwivelPeriod = 2.4;
+    private const double SwivelDegrees = 40;
+    private const double RingPeriod = 1.2;
+    private const double RingFrom = 0.9;
+    private const double RingTo = 1.5;
+    private const double RingStart = 0.8;
+    private const double RingStagger = 0.4;
+    private const double FallPeriod = 1.4;
+    private const double FallDepth = 52;
+    private const double FallStagger = 0.35;
 
     /// <summary><paramref name="value"/> on a grid of <paramref name="step"/>.</summary>
     public static double Quantize(double value, double step) => Math.Round(value / step) * step;
@@ -96,5 +106,22 @@ internal static class ChibiMotion
     {
         var p = (t + (index * RiseStagger)) % RisePeriod / RisePeriod;
         return (Quantize(-RiseHeight * p, HalfPixel), Quantize(RiseStart * (1 - p), ScaleStep));
+    }
+
+    /// <summary>A head swivel of ±40° over 2.4 s, whole degrees.</summary>
+    public static double Swivel(double t) => Swing(t, SwivelPeriod, SwivelDegrees);
+
+    /// <summary>A ring spreading from 0.9× to 1.5× and fading, staggered by <paramref name="index"/>.</summary>
+    public static (double Scale, double Opacity) Ring(double t, int index)
+    {
+        var p = (t + (index * RingStagger)) % RingPeriod / RingPeriod;
+        return (Quantize(RingFrom + ((RingTo - RingFrom) * p), ScaleStep), Quantize(RingStart * (1 - p), ScaleStep));
+    }
+
+    /// <summary>A letter falling 52 px and fading, staggered by <paramref name="index"/>.</summary>
+    public static (double Y, double Opacity) Fall(double t, int index)
+    {
+        var p = (t + (index * FallStagger)) % FallPeriod / FallPeriod;
+        return (Quantize(FallDepth * p, HalfPixel), Quantize(1 - p, ScaleStep));
     }
 }

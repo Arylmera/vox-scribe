@@ -13,8 +13,6 @@ internal sealed class SlimeChibi(Color accent) : ChibiFace(accent)
     private const uint Edge = 0x4FA8DC;
     private const uint Shine = 0xFFFFFF;
     private const uint Ink = 0x1F4E6E;
-    private const uint Shadow = 0x000000;
-    private const double ShadowOpacity = 0.2;
     private const double UnderOpacity = 0.25;
     private const double ShineOpacity = 0.85;
     private const double ShineTilt = -30;
@@ -23,7 +21,6 @@ internal sealed class SlimeChibi(Color accent) : ChibiFace(accent)
     protected override void Draw(Sketch s, ChibiPose pose)
     {
         var ink = Rgb(Ink);
-        s.Ellipse(60, 132, 38, 4, Rgb(Shadow)).Opacity = ShadowOpacity;
 
         var body = s.Begin();
         if (pose == ChibiPose.Listen) s.Move(body, ChibiMove.Squish, origin: new Point(60, 130));
