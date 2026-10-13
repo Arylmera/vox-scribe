@@ -333,6 +333,9 @@ internal abstract class ChibiFace : PillFace
                 case ChibiMove.Wave:
                     ((TranslateTransform)target.RenderTransform!).Y = ChibiMotion.Wave(t, index);
                     break;
+                case ChibiMove.Trot:
+                    ((TranslateTransform)target.RenderTransform!).Y = ChibiMotion.Trot(t, index);
+                    break;
                 case ChibiMove.Swivel:
                     ((RotateTransform)target.RenderTransform!).Angle = ChibiMotion.Swivel(t);
                     break;

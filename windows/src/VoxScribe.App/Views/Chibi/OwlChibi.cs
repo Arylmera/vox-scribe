@@ -26,12 +26,14 @@ internal sealed class OwlChibi(Color accent) : ChibiFace(accent)
         var ink = Rgb(Ink);
         var listen = pose == ChibiPose.Listen;
 
-        var head = s.Begin();
-        if (pose == ChibiPose.Think) s.Move(head, ChibiMove.Swivel, origin: new Point(60, 100));
-
         s.Ellipse(60, 88, 34, 40, Rgb(Feather));
         s.Ellipse(60, 100, 22, 24, Rgb(Belly));
         s.Path("M50 96 q4 4 8 0 M62 96 q4 4 8 0 M54 106 q4 4 8 0 M60 114 q4 4 8 0", null, Rgb(BellyLine), 2);
+
+        // Only the face swivels while thinking; the body, quill and feet stay put.
+        var head = s.Begin();
+        if (pose == ChibiPose.Think) s.Move(head, ChibiMove.Swivel, origin: new Point(60, 90));
+
         var tufts = s.Path("M30 52 l-4 -20 16 12z M90 52 l4 -20 -16 12z", Rgb(Tuft));
         if (listen) s.Move(tufts, ChibiMove.Pulse);
 
@@ -69,10 +71,10 @@ internal sealed class OwlChibi(Color accent) : ChibiFace(accent)
 
         var beak = s.Path(listen ? "M56 78 l4 10 4 -10z" : "M56 78 l4 7 4 -7z", Rgb(Beak));
         if (listen) s.Move(beak, ChibiMove.Talk, origin: new Point(60, 78));
+        s.End();
 
         s.Path("M90 92 q14 -2 18 -22 q-12 6 -16 16z", Rgb(Quill));
         s.Path("M90 94 l16 -22", null, Rgb(Tuft), 1.5);
         s.Path("M48 126 l-3 6 M52 126 v6 M68 126 v6 M72 126 l3 6", null, Rgb(Beak), 3);
-        s.End();
     }
 }

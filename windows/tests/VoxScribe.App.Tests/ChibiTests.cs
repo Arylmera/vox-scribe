@@ -203,7 +203,7 @@ public sealed class ChibiTests
     [InlineData("wizard", PillPhase.Recording, 22)]
     [InlineData("owl", PillPhase.Latency, 19)]
     [InlineData("cat", PillPhase.Working, 32)]
-    [InlineData("cat", PillPhase.Latency, 20)]
+    [InlineData("cat", PillPhase.Latency, 21)]
     internal void Each_signature_draws_in_its_pose(string id, PillPhase phase, int atLeast)
     {
         var face = Mascots.Find(id)!.Create(Tokens.Colors.Accent);
@@ -222,8 +222,8 @@ public sealed class ChibiTests
     [AvaloniaTheory]
     [InlineData("clawd", PillPhase.Working, "Thinking…")]
     [InlineData("mic", PillPhase.Recording, "ON AIR")]
-    [InlineData("slime", PillPhase.Recording, "b")]
-    [InlineData("dragon", PillPhase.Idle, "Z")]
+    [InlineData("slime", PillPhase.Recording, "b o n j")]
+    [InlineData("dragon", PillPhase.Idle, "z z Z")]
     internal void A_signature_says_its_word(string id, PillPhase phase, string word)
     {
         var face = Mascots.Find(id)!.Create(Tokens.Colors.Accent);
@@ -231,7 +231,7 @@ public sealed class ChibiTests
         try
         {
             window.Show();
-            TextIn(face, phase).ShouldContain(word, customMessage: id);
+            TextIn(face, phase).ShouldContain(word, Case.Sensitive, customMessage: id);
         }
         finally
         {

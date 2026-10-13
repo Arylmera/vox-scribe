@@ -86,8 +86,10 @@ internal sealed class CatChibi(Color accent) : ChibiFace(accent)
 
         if (pose == ChibiPose.Done)
         {
-            s.Ellipse(88, 70, 7, 9, fur);
-            s.Ellipse(88, 66, 5, 4, Rgb(Cream));
+            // Maneki-neko paw, out to the side on its own arm, clear of the whiskers.
+            s.Path("M82 98 q14 -6 18 -26", null, fur, 7);
+            s.Ellipse(100, 66, 7, 8, fur);
+            s.Ellipse(100, 63, 4.5, 3.5, Rgb(Cream));
         }
     }
 }

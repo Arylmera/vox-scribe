@@ -33,13 +33,15 @@ internal static class ChibiMotion
     private const double FlapPeriod = 0.5;
     private const double FlapNarrowest = 0.6;
     private const double WavePeriod = 0.6;
+
+    /// <summary>One Clawd pixel (its <c>Unit</c> is 6 canvas units), so a trot stays on the grid.</summary>
     private const double WaveHeight = 6;
     private const double SquishWiden = 0.06;
     private const double SquishFlatten = 0.1;
     private const double RisePeriod = 1.6;
     private const double RiseHeight = 14;
     private const double RiseStart = 0.9;
-    private const double RiseStagger = 0.8;
+    private const double RiseStagger = RisePeriod / 3;
     private const double SwivelPeriod = 2.4;
     private const double SwivelDegrees = 40;
     private const double RingPeriod = 1.2;
@@ -93,6 +95,9 @@ internal static class ChibiMotion
     /// <summary>Waving arm, 0 to −6 px, odd arms in opposition. Whole pixels (pixel art).</summary>
     public static double Wave(double t, int index) =>
         Math.Round(-(WaveHeight / 2) * (1 - Math.Cos((2 * Math.PI * t / WavePeriod) + (index * Math.PI))));
+
+    /// <summary>Hops a whole pixel (<see cref="WaveHeight"/>) at a time: on the Clawd pixel grid, unlike <see cref="Wave"/>.</summary>
+    public static double Trot(double t, int index) => Wave(t, index) <= -(WaveHeight / 2) ? -WaveHeight : 0;
 
     /// <summary>A jelly squash with the voice: wider and flatter.</summary>
     public static (double X, double Y) Squish(double level)

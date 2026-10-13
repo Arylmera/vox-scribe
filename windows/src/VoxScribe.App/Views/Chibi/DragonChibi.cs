@@ -18,8 +18,8 @@ internal sealed class DragonChibi(Color accent) : ChibiFace(accent)
     private const uint Flame = 0xFFC857;
     private const uint FlameCore = 0xFFF0B3;
     private const uint Glint = 0xFFFFFF;
-    private const uint Snore = 0xCFD3DC;
-    private const double SnoreSize = 8;
+    private const uint Snore = 0x8A909C;
+    private const double SnoreSize = 10;
     private const double SnoreGrowth = 3;
 
     /// <inheritdoc />

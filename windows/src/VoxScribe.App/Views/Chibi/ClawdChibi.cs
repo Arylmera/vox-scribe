@@ -19,12 +19,12 @@ internal sealed class ClawdChibi(Color accent) : ChibiFace(accent)
     internal const uint Body = 0xD97757;
 
     private const uint Eye = 0x1A1A1A;
-    private const uint Caption = 0xCFD3DC;
+    private const uint Caption = 0x8A909C;
     private const double Unit = 6;
     private const double OriginX = 12;
     private const double OriginY = 50;
     private const double SpinnerSize = 18;
-    private const double CaptionSize = 7;
+    private const double CaptionSize = 9;
 
     /// <inheritdoc />
     protected override bool Shaded => false;
@@ -50,7 +50,7 @@ internal sealed class ClawdChibi(Color accent) : ChibiFace(accent)
         for (var i = 0; i < legs.Length; i++)
         {
             var leg = Pixel(s, legs[i], 6, 1, 2, body);
-            if (pose == ChibiPose.Idle) s.Move(leg, ChibiMove.Wave, i % 2);
+            if (pose == ChibiPose.Idle) s.Move(leg, ChibiMove.Trot, i % 2);
         }
 
         switch (pose)

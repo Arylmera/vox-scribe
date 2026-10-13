@@ -18,7 +18,7 @@ internal sealed class MicChibi(Color accent) : ChibiFace(accent)
     private const uint Amber = 0xFFC857;
     private const double ShineOpacity = 0.8;
     private const double BlushOpacity = 0.6;
-    private const double OnAirSize = 8;
+    private const double OnAirSize = 9;
     private const double RingWidth = 1.2;
 
     /// <inheritdoc />

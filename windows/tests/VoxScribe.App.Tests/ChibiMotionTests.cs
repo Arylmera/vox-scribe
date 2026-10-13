@@ -126,6 +126,20 @@ public sealed class ChibiMotionTests
     }
 
     [Fact]
+    public void Trot_hops_a_whole_pixel_at_a_time()
+    {
+        var seen = new HashSet<double>();
+        foreach (var t in Seconds(2))
+        {
+            var y = ChibiMotion.Trot(t, 0);
+            (y == 0 || y == -6).ShouldBeTrue($"t={t} y={y}");
+            seen.Add(y);
+        }
+
+        seen.ShouldBe(new[] { 0.0, -6.0 }, ignoreOrder: true);
+    }
+
+    [Fact]
     public void Letters_fall_and_fade()
     {
         foreach (var t in Seconds(3))
