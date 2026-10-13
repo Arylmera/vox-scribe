@@ -22,7 +22,9 @@ internal static class Mascots
         new("clawd", "Clawd", a => new ClawdChibi(a)),
         new("owl", "Owl scribe", a => new OwlChibi(a)),
         new("mic", "Vintage mic", a => new MicChibi(a)),
+        new("cat", "Cat", a => new CatChibi(a)),
         new("slime", "Slime", a => new SlimeChibi(a)),
+        new("dragon", "Little dragon", a => new DragonChibi(a)),
     ];
 
     /// <summary>Every theme's accent variants: the mascot accent override's choices.</summary>

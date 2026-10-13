@@ -78,4 +78,9 @@ public sealed class MascotTests
             Themes.Apply(Themes.DefaultId, null, false);
         }
     }
+
+    [Fact]
+    public void Nine_mascots_with_the_ids_settings_document() =>
+        Mascots.All.Select(m => m.Id).ShouldBe(
+            ["servo-skull", "netrunner", "wizard", "clawd", "owl", "mic", "cat", "slime", "dragon"]);
 }
