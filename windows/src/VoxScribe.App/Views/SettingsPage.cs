@@ -46,6 +46,7 @@ internal sealed class SettingsPage : UserControl
     private const int VkRightAlt = 0xA5;
 
     private readonly AppSettings _settings;
+    private readonly DictationEngine? _engine;
     private readonly Dictionary<ShortcutSlot, TransportKey> _keys = [];
     private readonly TextBlock _keyWarning;
     private readonly Dictionary<SettingsTab, Control> _sections = [];
@@ -61,6 +62,7 @@ internal sealed class SettingsPage : UserControl
     public SettingsPage(AppSettings settings, DictationEngine? engine, SettingsTab tab)
     {
         _settings = settings;
+        _engine = engine;
 
         foreach (var slot in Enum.GetValues<ShortcutSlot>())
         {
@@ -264,5 +266,17 @@ internal sealed class SettingsPage : UserControl
     private static string ChordLabel(IReadOnlyList<int> chord) =>
         string.Join(" + ", chord.Select(PlatformFactory.KeyDisplayName));
 
-    private void Save(SettingsData data) => _settings.Update(data);
+    private void Save(SettingsData data)
+    {
+        var before = _settings.Data;
+        _settings.Update(data);
+
+        // A theme pick rebuilds the whole window (Themes.Changed); a mascot pick changes no
+        // theme, so Appearance rebuilds itself to move its selection marks and show or hide
+        // the mascot-accent row.
+        if ((before.Mascot, before.MascotAccent) == (data.Mascot, data.MascotAccent)) return;
+
+        _sections[SettingsTab.Appearance] = AppearanceSection.Build(_settings, Save, _engine);
+        if (Tab == SettingsTab.Appearance) _host.Content = _sections[SettingsTab.Appearance];
+    }
 }

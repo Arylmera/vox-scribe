@@ -4,6 +4,8 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using VoxScribe.App.Design;
+using VoxScribe.App.Views.Chibi;
+using VoxScribe.App.Views.Pill;
 using VoxScribe.Core;
 
 namespace VoxScribe.App.Views.Settings;
@@ -41,17 +43,54 @@ internal static class AppearanceSection
             }));
         }
 
-        return Panels.Section("APPEARANCE", new StackPanel
+        var mascots = new WrapPanel { ItemSpacing = Tokens.Space.Base, LineSpacing = Tokens.Space.Base };
+        mascots.Children.Add(MascotCard(null, "Pill", settings.Data.Mascot is null, () =>
+        {
+            if (IsBusy(engine)) return;
+            save(settings.Data with { Mascot = null });
+        }));
+        foreach (var mascot in Mascots.All)
+        {
+            var selected = string.Equals(mascot.Id, settings.Data.Mascot, StringComparison.OrdinalIgnoreCase);
+            mascots.Children.Add(MascotCard(mascot, mascot.Label, selected, () =>
+            {
+                if (IsBusy(engine)) return;
+                save(settings.Data with { Mascot = mascot.Id, MascotHidden = false });
+            }));
+        }
+
+        var mascotAccents = new WrapPanel { ItemSpacing = Tokens.Space.Base, LineSpacing = Tokens.Space.Base };
+        mascotAccents.Children.Add(ThemeAccentChoice(settings.Data.MascotAccent is null, () =>
+        {
+            if (IsBusy(engine)) return;
+            save(settings.Data with { MascotAccent = null });
+        }));
+        foreach (var variant in Mascots.Accents)
+        {
+            var selected = string.Equals(variant.Id, settings.Data.MascotAccent, StringComparison.OrdinalIgnoreCase);
+            mascotAccents.Children.Add(Swatch(variant, selected, () =>
+            {
+                if (IsBusy(engine)) return;
+                save(settings.Data with { MascotAccent = variant.Id });
+            }, "Mascot accent"));
+        }
+
+        var panel = new StackPanel
         {
             Spacing = Tokens.Space.Base,
             Children =
             {
                 Panels.Labelled("THEME", cards),
                 Panels.Labelled("ACCENT", swatches),
+                Panels.Labelled("DICTATION INDICATOR", mascots),
                 Panels.Note("Applies immediately. Light or dark follows Windows "
-                    + "(Settings → Personalisation → Colours)."),
+                    + "(Settings → Personalisation → Colours). Drag the mascot anywhere; "
+                    + "right-click it for its menu, double-click to open Vox-Scribe."),
             },
-        });
+        };
+        if (settings.Data.Mascot is not null) panel.Children.Insert(3, Panels.Labelled("MASCOT ACCENT", mascotAccents));
+
+        return Panels.Section("APPEARANCE", panel);
     }
 
     // A rebuild mid-dictation would be harmless, but a pick then would surprise; wait for idle.
@@ -140,7 +179,7 @@ internal static class AppearanceSection
         return card;
     }
 
-    private static Button Swatch(AccentVariant variant, bool selected, Action pick)
+    private static Button Swatch(AccentVariant variant, bool selected, Action pick, string prefix = "Accent")
     {
         var half = Tokens.Material.SwatchSize / 2;
         var dot = new StackPanel
@@ -189,7 +228,7 @@ internal static class AppearanceSection
                 },
             },
         };
-        AutomationProperties.SetName(swatch, $"Accent: {variant.Label}");
+        AutomationProperties.SetName(swatch, $"{prefix}: {variant.Label}");
         ToolTip.SetTip(swatch, $"{variant.Label} — left half light mode, right half dark mode");
 
         // Same reasoning as the theme card: pin the flat hover fill so Fluent's default grey
@@ -197,5 +236,86 @@ internal static class AppearanceSection
         Shell.PinHoverStates(swatch, Tokens.Brushes.Hover, Tokens.Brushes.InkSecondary, borderBrush);
         swatch.Click += (_, _) => pick();
         return swatch;
+    }
+
+    private static Button MascotCard(Mascot? mascot, string label, bool selected, Action pick)
+    {
+        Control preview;
+        if (mascot is null)
+        {
+            preview = new Border
+            {
+                Width = Tokens.Material.MascotPreviewSize,
+                Height = Tokens.Material.SwatchSize,
+                VerticalAlignment = VerticalAlignment.Center,
+                CornerRadius = new CornerRadius(Tokens.Radius.Pill),
+                Background = new SolidColorBrush(Tokens.Colors.PillFill),
+                BorderBrush = new SolidColorBrush(Tokens.Colors.PillEdge),
+                BorderThickness = new Thickness(Tokens.Border.Hairline),
+            };
+        }
+        else
+        {
+            var face = mascot.Create(Mascots.Accent(new SettingsData()));
+            face.IsHitTestVisible = false;
+            face.Update(new PillState(PillPhase.Idle, 0, TimeSpan.Zero, "RAW", string.Empty), TimeSpan.Zero);
+            preview = new Viewbox { Width = Tokens.Material.MascotPreviewSize, Height = Tokens.Material.MascotPreviewSize, Child = face };
+        }
+
+        var borderBrush = selected ? Tokens.Brushes.Accent : Brushes.Transparent;
+        var card = new Button
+        {
+            Padding = new Thickness(Tokens.Space.Snug),
+            Background = Brushes.Transparent,
+            BorderThickness = new Thickness(Tokens.Border.Ring),
+            BorderBrush = borderBrush,
+            CornerRadius = new CornerRadius(Tokens.Radius.Panel),
+            Content = new StackPanel
+            {
+                Spacing = Tokens.Space.Tight,
+                Children =
+                {
+                    new Border { Height = Tokens.Material.MascotPreviewSize, Child = preview, HorizontalAlignment = HorizontalAlignment.Center },
+                    new TextBlock
+                    {
+                        Text = label,
+                        FontFamily = Tokens.Fonts.Grotesque,
+                        FontSize = Tokens.Fonts.Label,
+                        Foreground = Tokens.Brushes.InkSecondary,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                    },
+                },
+            },
+        };
+        AutomationProperties.SetName(card, $"Mascot: {label}");
+        Shell.PinHoverStates(card, Tokens.Brushes.Hover, Tokens.Brushes.InkSecondary, borderBrush);
+        card.Click += (_, _) => pick();
+        return card;
+    }
+
+    private static Button ThemeAccentChoice(bool selected, Action pick)
+    {
+        var borderBrush = selected ? Tokens.Brushes.Ink : Brushes.Transparent;
+        var choice = new Button
+        {
+            Padding = new Thickness(Tokens.Space.Snug, Tokens.Space.Tight),
+            Background = Brushes.Transparent,
+            BorderThickness = new Thickness(Tokens.Border.Ring),
+            BorderBrush = borderBrush,
+            CornerRadius = new CornerRadius(Tokens.Radius.Chip),
+            VerticalAlignment = VerticalAlignment.Center,
+            Content = new TextBlock
+            {
+                Text = "Theme",
+                FontFamily = Tokens.Fonts.Grotesque,
+                FontSize = Tokens.Fonts.Label,
+                Foreground = Tokens.Brushes.InkSecondary,
+            },
+        };
+        AutomationProperties.SetName(choice, "Mascot accent: Theme");
+        ToolTip.SetTip(choice, "Follow the theme's accent");
+        Shell.PinHoverStates(choice, Tokens.Brushes.Hover, Tokens.Brushes.InkSecondary, borderBrush);
+        choice.Click += (_, _) => pick();
+        return choice;
     }
 }
