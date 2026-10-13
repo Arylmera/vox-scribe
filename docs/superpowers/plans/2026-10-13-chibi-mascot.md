@@ -1449,6 +1449,14 @@ public sealed class HudWindow : Window
         Themes.Changed += OnThemeChanged;
         settings.Changed += OnSettingsChanged;
 
+        // The anchor (bottom-left corner) follows wherever the window actually is, however it
+        // got there, so a drag can never be undone by the next resize.
+        PositionChanged += (_, e) =>
+        {
+            if (_mascot is null || !IsVisible) return;
+            _anchor = new PixelPoint(e.Point.X, e.Point.Y + (int)Math.Ceiling(Bounds.Height * RenderScaling));
+        };
+
         // The bubble grows and shrinks the mascot window; keep its bottom-left corner put.
         SizeChanged += (_, e) =>
         {
@@ -1662,14 +1670,12 @@ public sealed class HudWindow : Window
             return;
         }
 
-        // On Windows the move loop is modal: this returns once the button is released.
+        // On Windows the move loop is modal: this returns once the button is released, and
+        // PositionChanged has kept _anchor current throughout.
         BeginMoveDrag(e);
 
-        var anchor = new PixelPoint(Position.X, Position.Y + (int)Math.Ceiling(Bounds.Height * RenderScaling));
-        if (anchor == _anchor) return;
-
-        _anchor = anchor;
-        _settings.Update(_settings.Data with { MascotX = anchor.X, MascotY = anchor.Y });
+        if (_settings.Data is { MascotX: { } x, MascotY: { } y } && new PixelPoint(x, y) == _anchor) return;
+        _settings.Update(_settings.Data with { MascotX = _anchor.X, MascotY = _anchor.Y });
     }
 
     private ContextMenu MascotMenu()
@@ -1775,13 +1781,14 @@ Build and install the app the usual way (`pwsh windows/build-installer.ps1`, run
 
 1. The slime appears bottom-right of the primary screen and floats gently.
 2. Put the caret in a text editor. Drag the slime somewhere else. Dictate. **The text lands in the editor.**
-3. Right-click the slime: the menu opens; close it with Esc; dictate again — the text still lands in the editor.
+3. Right-click the slime: the menu opens; close it with Esc or by clicking elsewhere (Esc may do nothing — the window never activates, that is fine); dictate again — the text still lands in the editor.
 4. Click just above the idle slime (where the bubble appears while dictating): the click reaches the window underneath. If the whole former bubble area blocks clicks, report it.
 5. While dictating: the red dot shows, the bubble shows the live text above the slime, and the slime does not jump (its bottom-left stays put).
 6. Double-click the slime: the main window opens.
-7. Quit and restart: the slime comes back where it was left.
+7. Quit and restart: the slime comes back where it was left. (If not, `BeginMoveDrag` returned before the drag ended: save the position on `PointerReleased`/`PointerCaptureLost` instead, and report.)
 8. Tray → Show/hide mascot: it disappears; dictate → the pill shows as before; tray again → the slime is back.
 9. Open a full-screen video (browser F11): the slime stays on top.
+11. Open a dropdown or menu in another app right next to the slime: the dropdown is drawn above the slime. (The topmost re-claim now runs all day; if it covers dropdowns, re-claim only while dictating and report.)
 10. Second monitor, if any: drag it there, restart, it is still there. Unplug (or change the saved X to 99999): it comes back bottom-right.
 
 If 2 or 3 fail (focus stolen): replace `BeginMoveDrag` with pointer capture + moving `Position` on `PointerMoved`, and report back before continuing. If 4 fails, the window keeps an invisible rectangle: report back; the fallback is to put the bubble in its own click-through child window. **Do not start Task 4 until 2, 3 and 4 pass.**
@@ -1792,6 +1799,7 @@ If 2 or 3 fail (focus stolen): replace `BeginMoveDrag` with pointer capture + mo
 
 **Files:**
 - Modify: `windows/src/VoxScribe.App/Views/Settings/AppearanceSection.cs`
+- Modify: `windows/src/VoxScribe.App/Views/SettingsPage.cs` (constructor, `Save` at the end of the class)
 - Test: `windows/tests/VoxScribe.App.Tests/AppearanceSectionTests.cs`
 
 **Interfaces:**
@@ -1863,6 +1871,33 @@ Append to `windows/tests/VoxScribe.App.Tests/AppearanceSectionTests.cs` (inside 
 
         Click(Named(AppearanceSection.Build(settings, settings.Update, engine: null), "Mascot accent: Theme"));
         settings.Data.MascotAccent.ShouldBeNull();
+    }
+```
+
+And one test through the real page, which builds each section **once** — a theme pick
+refreshes it because the whole window rebuilds on `Themes.Changed`, but a mascot pick changes
+no theme (add `using VoxScribe.App.Views;`):
+
+```csharp
+    [AvaloniaFact]
+    public void A_mascot_pick_refreshes_the_open_page()
+    {
+        var settings = Settings();
+        var page = new SettingsPage(settings, null, SettingsTab.Appearance);
+        var window = new Window { Content = page };
+        try
+        {
+            window.Show();
+            Names(page, "Mascot accent: ").ShouldBeEmpty();
+
+            Click(Named(page, $"Mascot: {Mascots.All[0].Label}"));
+
+            Names(page, "Mascot accent: ").ShouldNotBeEmpty("the accent row appears as soon as a mascot is picked");
+        }
+        finally
+        {
+            window.Close();
+        }
     }
 ```
 
@@ -2031,12 +2066,38 @@ Add the two builders at the end of the class:
 
 The preview uses `Mascots.Accent(new SettingsData())` (the theme accent): previews show the character, not the override. The preview's `Update` takes `TimeSpan.Zero`, so every preview is the same still frame.
 
-- [ ] **Step 4: Run, expect PASS; full suite; warnings gate**
+- [ ] **Step 4: Rebuild Appearance on a mascot pick**
+
+In `windows/src/VoxScribe.App/Views/SettingsPage.cs`, add a field next to `_settings`:
+
+```csharp
+    private readonly DictationEngine? _engine;
+```
+
+set it first thing in the constructor (`_engine = engine;`), and replace `Save`:
+
+```csharp
+    private void Save(SettingsData data)
+    {
+        var before = _settings.Data;
+        _settings.Update(data);
+
+        // A theme pick rebuilds the whole window (Themes.Changed); a mascot pick changes no
+        // theme, so Appearance rebuilds itself to move its selection marks and show or hide
+        // the mascot-accent row.
+        if ((before.Mascot, before.MascotAccent) == (data.Mascot, data.MascotAccent)) return;
+
+        _sections[SettingsTab.Appearance] = AppearanceSection.Build(_settings, Save, _engine);
+        if (Tab == SettingsTab.Appearance) _host.Content = _sections[SettingsTab.Appearance];
+    }
+```
+
+- [ ] **Step 5: Run, expect PASS; full suite; warnings gate**
 
 Run: `cd windows && dotnet test VoxScribe.CrossPlatform.slnf && dotnet build VoxScribe.CrossPlatform.slnf --no-incremental -warnaserror`
 Expected: all green. (`ContrastTests` is unaffected: the cards use existing token pairs.)
 
-- [ ] **Step 5: Commit and push**
+- [ ] **Step 6: Commit and push**
 
 ```bash
 git add windows && git commit -m "feat: mascot picker and mascot accent in Appearance" && git push
@@ -2120,7 +2181,7 @@ internal sealed class ServoSkullChibi(Color accent) : ChibiFace(accent)
         s.Rect(46, 94, 28, 7, 3, Rgb(Brass));
         var field = s.Ellipse(60, 104, 12, 3, Accent);
         field.Opacity = FieldOpacity;
-        s.Move(field, ChibiMove.Pulse);
+        if (listen) s.Move(field, ChibiMove.Pulse);
 
         s.Path("M34 60 q0 -34 26 -34 q26 0 26 34 q0 12 -8 18 v12 h-36 v-12 q-8 -6 -8 -18z", Rgb(Bone));
         s.Path("M60 28 v10", null, Rgb(Shade), 1.5);
