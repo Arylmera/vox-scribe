@@ -7,6 +7,7 @@ using Shouldly;
 using VoxScribe.App.Design;
 using VoxScribe.App.Views.Chibi;
 using VoxScribe.App.Views.Pill;
+using Xunit;
 
 namespace VoxScribe.AppTests;
 
@@ -80,7 +81,8 @@ public sealed class ChibiTests
         {
             face.Update(new PillState(phase, 0.8, TimeSpan.FromSeconds(1), "CLEAN", "texte"), TimeSpan.FromSeconds(1));
             var red = face.GetVisualDescendants().OfType<Control>()
-                .Where(c => !ReferenceEquals(c, face.RecordDot) && Colours(c).Any(IsRed))
+                .Where(c => !ReferenceEquals(c, face.RecordDot)
+                    && Colours(c).Any(colour => IsRed(colour) && !IsClawdTerracotta(mascot, colour)))
                 .Select(c => c.GetType().Name);
             red.ShouldBeEmpty($"{mascot.Id} {phase}");
         }
@@ -156,4 +158,19 @@ public sealed class ChibiTests
         face.IsHitTestVisible.ShouldBeTrue(mascot.Id);
         face.Focusable.ShouldBeFalse(mascot.Id);
     });
+
+    [Fact]
+    public void Clawd_wears_the_official_terracotta_and_nothing_else_does()
+    {
+        // The owner chose Anthropic's exact terracotta over a nudged one (2026-10-13), knowing
+        // it sits inside the red window. The exemption is this one colour on Clawd only.
+        ClawdChibi.Body.ShouldBe(0xD97757u);
+        IsRed(Tokens.Colors.Rgb(ClawdChibi.Body)).ShouldBeTrue("if this flips, drop the exemption");
+        Tokens.Colors.Rgb(ClawdChibi.Body).ShouldNotBe(Tokens.Colors.Record);
+    }
+
+    // Owner-approved exemption (2026-10-13): Clawd's body is Anthropic's official terracotta,
+    // which the red detector flags. Only that exact colour, only on Clawd.
+    private static bool IsClawdTerracotta(Mascot mascot, Color colour) =>
+        mascot.Id == "clawd" && colour == Tokens.Colors.Rgb(ClawdChibi.Body);
 }

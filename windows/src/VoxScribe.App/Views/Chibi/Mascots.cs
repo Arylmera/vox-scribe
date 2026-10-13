@@ -19,6 +19,9 @@ internal static class Mascots
         new("servo-skull", "Servo-skull", a => new ServoSkullChibi(a)),
         new("netrunner", "Netrunner", a => new NetrunnerChibi(a)),
         new("wizard", "Wizard", a => new WizardChibi(a)),
+        new("clawd", "Clawd", a => new ClawdChibi(a)),
+        new("owl", "Owl scribe", a => new OwlChibi(a)),
+        new("mic", "Vintage mic", a => new MicChibi(a)),
         new("slime", "Slime", a => new SlimeChibi(a)),
     ];
 
