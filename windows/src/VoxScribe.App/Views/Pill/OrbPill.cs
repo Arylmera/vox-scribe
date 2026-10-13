@@ -10,12 +10,13 @@ using VoxScribe.App.Design;
 namespace VoxScribe.App.Views.Pill;
 
 /// <summary>
-/// Orb: no body, no waveform — the orb is the meter. The red dot rides its rim; the preview
+/// Orb: no body, no waveform — the orb is the meter. The red dot rides just outside its rim; the preview
 /// sits in a small glass capsule beside it.
 /// </summary>
 internal sealed class OrbPill : PillFace
 {
     private const double DotSize = 9;
+    private const double DotGap = 4;
     private const double CompactWidth = 240;
     private const double CapsuleWidth = 270;
     private const double CapsuleRadius = 16;
@@ -89,9 +90,9 @@ internal sealed class OrbPill : PillFace
         var working = state.Phase == PillPhase.Working;
         _orb.Push(recording ? state.Level : 0, working);
 
-        // The dot sits on the rim at 45°, so it rides out as the orb swells.
+        // The dot sits just outside the rim at 45°, clear of the orb, and rides out as it swells.
         _dot.IsVisible = recording;
-        var r = _orb.Diameter / 2;
+        var r = (_orb.Diameter / 2) + DotGap + (DotSize / 2);
         var c = _orb.Width / 2;
         Canvas.SetLeft(_dot, c + (r * RimCos45) - (DotSize / 2));
         Canvas.SetTop(_dot, c - (r * RimCos45) - (DotSize / 2));
