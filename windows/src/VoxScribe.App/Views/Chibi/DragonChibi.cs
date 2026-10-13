@@ -18,6 +18,9 @@ internal sealed class DragonChibi(Color accent) : ChibiFace(accent)
     private const uint Flame = 0xFFC857;
     private const uint FlameCore = 0xFFF0B3;
     private const uint Glint = 0xFFFFFF;
+    private const uint Snore = 0xCFD3DC;
+    private const double SnoreSize = 8;
+    private const double SnoreGrowth = 3;
 
     /// <inheritdoc />
     protected override void Draw(Sketch s, ChibiPose pose)
@@ -75,6 +78,16 @@ internal sealed class DragonChibi(Color accent) : ChibiFace(accent)
         {
             s.Path("M80 82 q16 -6 24 2 q-8 2 -10 8 q-4 -6 -14 -4z", Rgb(Flame));
             s.Path("M82 83 q8 -2 14 2 q-6 1 -7 4 q-3 -4 -7 -3z", Rgb(FlameCore));
+        }
+
+        // Napping: z z Z drift up while it dozes.
+        if (pose == ChibiPose.Idle)
+        {
+            string[] snore = ["z", "z", "Z"];
+            for (var i = 0; i < snore.Length; i++)
+            {
+                s.Move(s.Text(snore[i], 82 + (i * 6), 38 - (i * 6), 14, SnoreSize + (i * SnoreGrowth), Rgb(Snore)), ChibiMove.Rise, i);
+            }
         }
     }
 }

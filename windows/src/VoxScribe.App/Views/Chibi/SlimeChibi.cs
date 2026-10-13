@@ -16,6 +16,7 @@ internal sealed class SlimeChibi(Color accent) : ChibiFace(accent)
     private const double UnderOpacity = 0.25;
     private const double ShineOpacity = 0.85;
     private const double ShineTilt = -30;
+    private const double LetterSize = 10;
 
     /// <inheritdoc />
     protected override void Draw(Sketch s, ChibiPose pose)
@@ -48,6 +49,16 @@ internal sealed class SlimeChibi(Color accent) : ChibiFace(accent)
                 s.Ellipse(72, ey, 3.4, 5.5, ink);
                 if (pose == ChibiPose.Listen) s.Move(s.Ellipse(60, 104, 4, 3, ink), ChibiMove.Talk);
                 break;
+        }
+
+        // It swallows your words: letters fall into the jelly and fade.
+        if (pose == ChibiPose.Listen)
+        {
+            string[] letters = ["b", "o", "n", "j"];
+            for (var i = 0; i < letters.Length; i++)
+            {
+                s.Move(s.Text(letters[i], 44 + (i * 8), 34, 10, LetterSize, ink), ChibiMove.Fall, i);
+            }
         }
 
         s.End();

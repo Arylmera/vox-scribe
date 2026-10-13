@@ -17,6 +17,8 @@ internal sealed class CatChibi(Color accent) : ChibiFace(accent)
     private const uint Nose = 0xE8909C;
     private const uint Bell = 0xFFD27A;
     private const uint Glint = 0xFFFFFF;
+    private const uint Keyboard = 0x3A3F4B;
+    private const uint Keycap = 0x9AA0AD;
     private const double WhiskerOpacity = 0.6;
 
     /// <inheritdoc />
@@ -72,5 +74,20 @@ internal sealed class CatChibi(Color accent) : ChibiFace(accent)
         else s.Path("M54 80 q3 4 6 0 q3 4 6 0", null, ink, 2.2);
 
         s.Path("M30 76 l12 2 M30 82 l12 0 M90 76 l-12 2 M90 82 l-12 0", null, ink, 1.2).Opacity = WhiskerOpacity;
+
+        // Keyboard cat while thinking; a maneki-neko paw when done.
+        if (pose == ChibiPose.Think)
+        {
+            s.Rect(34, 120, 52, 10, 2, Rgb(Keyboard));
+            for (var i = 0; i < 6; i++) s.Rect(37 + (i * 8), 122, 6, 3, 1, Rgb(Keycap));
+            s.Move(s.Ellipse(48, 118, 6, 4, Rgb(Cream)), ChibiMove.Wave, 0);
+            s.Move(s.Ellipse(72, 118, 6, 4, Rgb(Cream)), ChibiMove.Wave, 1);
+        }
+
+        if (pose == ChibiPose.Done)
+        {
+            s.Ellipse(88, 70, 7, 9, fur);
+            s.Ellipse(88, 66, 5, 4, Rgb(Cream));
+        }
     }
 }
