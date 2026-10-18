@@ -20,7 +20,6 @@ const RECORDING_BG = '#3A1517'
 const MUTED_BG = '#2A2A2A'
 // The graphical surfaces (Instrument, as Cogitator's band above): Monokai Pro, hairline segments.
 const MK = { red: '#ff6188', green: '#a9dc76', yellow: '#ffd866', cyan: '#78dce8', purple: '#ab9df2', grey: '#727072' }
-const EDGE = '#403e41'
 const WAVE = '▁▂▃▄▅▆▇'
 const SPIN = '⠁⠂⠄⡀⢀⠠⠐⠈'
 
@@ -239,16 +238,17 @@ export const register: Register = on => {
         </Box>
       )
 
-      // The Instrument pieces: the state as a chip ringed in its colour, related buttons in one segment.
+      // The Instrument pieces, borderless as the rest of the band (its divider is its only rule): the state as a dot and
+      // a word in its colour, related buttons grouped by space alone.
       const chip = (color: string, dot: string, label: string, extra?: JSX.Element) => (
-        <Box key="vox-pill" borderStyle="round" borderColor={color} paddingX={1} flexDirection="row" gap={1}>
-          <Text color={color}>{dot}</Text>
+        <Box key="vox-pill" flexDirection="row" gap={1}>
+          <Text key="vox-dot" color={color}>{dot}</Text>
           <Text color={color}>{label}</Text>
           {extra}
         </Box>
       )
       const segment = (key: string, ...children: JSX.Element[]) => (
-        <Box key={key} borderStyle="round" borderColor={EDGE} paddingX={1} flexDirection="row" gap={1} alignItems="center">
+        <Box key={key} flexDirection="row" gap={1} alignItems="center">
           {children}
         </Box>
       )
@@ -271,7 +271,7 @@ export const register: Register = on => {
         ours = null // Vox-Scribe closed: no band; it comes back with the app's first beat.
       } else if (gfx) {
         const row = (...children: (JSX.Element | null)[]) => (
-          <Box key="vox-band" flexDirection="row" gap={1} alignItems="center">
+          <Box key="vox-band" flexDirection="row" gap={2} alignItems="center">
             {children}
           </Box>
         )
@@ -285,7 +285,7 @@ export const register: Register = on => {
             segment(
               'vox-mic',
               <Button key="vox-send" variant="primary" label="■ envoyer" onPress={send} />,
-              <Button key="vox-cancel" variant="secondary" label="✕ annuler" onPress={cancel} />,
+              <Button key="vox-cancel" plain dimColor label="✕ annuler" onPress={cancel} />,
             ),
           )
         } else if (b.kind === 'transcribing') {
@@ -295,15 +295,19 @@ export const register: Register = on => {
             b.armed ? chip(MK.cyan, '◉', 'Vox · cible') : chip(MK.green, '◎', 'Vox · prêt'),
             segment(
               'vox-dictation',
-              <Button key="vox-arm" variant={b.armed ? 'primary' : 'secondary'} label={b.armed ? 'désarmer' : 'cibler'} onPress={toggleArm} />,
-              <Button key="vox-talk" variant="secondary" label="parler" onPress={talk} />,
+              b.armed ? (
+                <Button key="vox-arm" variant="primary" label="désarmer" onPress={toggleArm} />
+              ) : (
+                <Button key="vox-arm" plain label="cibler" onPress={toggleArm} />
+              ),
+              <Button key="vox-talk" plain label="parler" onPress={talk} />,
             ),
             // Read the last reply aloud: two actions, neither one a standing choice, so neither is lit.
             segment(
               'vox-read',
               <Text key="vox-read-label" color={MK.grey}>lire</Text>,
-              <Button key="vox-fr" variant="secondary" label="fr" onPress={readFr} />,
-              <Button key="vox-en" variant="secondary" label="en" onPress={readEn} />,
+              <Button key="vox-fr" plain dimColor label="fr" onPress={readFr} />,
+              <Button key="vox-en" plain dimColor label="en" onPress={readEn} />,
             ),
           )
         }

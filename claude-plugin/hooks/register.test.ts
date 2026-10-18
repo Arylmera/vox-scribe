@@ -165,26 +165,28 @@ test('cibler arms this session until another one takes the target; parler asks f
   expect(JSON.parse(files.get(`${DIR}/target.json`) ?? '{}').session_id).toBe(SESSION)
 })
 
-test('desktop draws the Instrument band: a ringed status chip, segmented buttons, the target lit', async ($, on) => {
+test('desktop draws the Instrument band borderless: a coloured dot and word, plain buttons, the target lit', async ($, on) => {
   const files = new Map([[`${DIR}/status.json`, JSON.stringify({ state: 'idle', session_id: null, since: T0, beat: T0 })]])
   const clock = world(on, files)
   const ui = await $.ui.mount({ plugin: 'voxscribe', surface: 'desktop', component: 'AbovePrompt', props: PROPS })
   await clock.advance(600)
 
-  expect((await ui.find({ key: 'vox-pill' }))?.props).toMatchObject({ borderStyle: 'round', borderColor: '#a9dc76' })
-  for (const key of ['vox-dictation', 'vox-read']) {
-    expect((await ui.find({ key }))?.props).toMatchObject({ borderStyle: 'round', borderColor: '#403e41' })
+  // The band's divider is its only rule: no box of Vox draws a border.
+  for (const key of ['vox-pill', 'vox-dictation', 'vox-read']) {
+    expect((await ui.find({ key }))?.props?.borderStyle).toBeUndefined()
   }
-  expect((await ui.find({ key: 'vox-arm' }))?.props?.variant).toBe('secondary')
+  const dot = async () => JSON.stringify(await ui.drawn()).match(/"color":"(#[0-9a-f]{6})"\},"children":\["[◎◉●]"\]/)?.[1]
+  expect(await dot()).toBe('#a9dc76')
+  expect((await ui.find({ key: 'vox-arm' }))?.props?.plain).toBe(true)
 
   await ui.press({ key: 'vox-arm' })
-  expect((await ui.find({ key: 'vox-pill' }))?.props?.borderColor).toBe('#78dce8')
+  expect(await dot()).toBe('#78dce8')
   expect((await ui.find({ key: 'vox-arm' }))?.props?.variant).toBe('primary')
 
   files.set(`${DIR}/status.json`, JSON.stringify({ state: 'listening', session_id: SESSION, since: clock.now(), beat: clock.now() }))
   await clock.advance(600)
-  expect((await ui.find({ key: 'vox-pill' }))?.props?.borderColor).toBe('#ff6188')
-  expect((await ui.find({ key: 'vox-mic' }))?.props?.borderColor).toBe('#403e41')
+  expect(await dot()).toBe('#ff6188')
+  expect((await ui.find({ key: 'vox-mic' }))?.props?.borderStyle).toBeUndefined()
   expect((await ui.find({ key: 'vox-send' }))?.props?.variant).toBe('primary')
 })
 
