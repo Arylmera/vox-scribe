@@ -181,6 +181,28 @@ function wave(t: number) {
   return s
 }
 
+type Node = { props?: { key?: unknown }; children?: unknown[] }
+
+/** The tree with `row` added at the foot of the Box keyed `cg-beside` (Cogitator's side column); null when none is. */
+function intoSlot(tree: unknown, row: unknown): unknown {
+  if (!tree || typeof tree !== 'object') return null
+  if (Array.isArray(tree)) {
+    for (let i = 0; i < tree.length; i++) {
+      const hit = intoSlot(tree[i], row)
+      if (hit) return tree.map((c, j) => (j === i ? hit : c))
+    }
+    return null
+  }
+  const node = tree as Node
+  const kids = node.children ?? []
+  if (node.props?.key === 'cg-beside') return { ...node, children: [...kids, row] }
+  for (let i = 0; i < kids.length; i++) {
+    const hit = intoSlot(kids[i], row)
+    if (hit) return { ...node, children: kids.map((c, j) => (j === i ? hit : c)) }
+  }
+  return null
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     // A timer started inside a request may end with it; the session start owns it.
@@ -334,7 +356,11 @@ export const register: Register = on => {
     }
     const rest = await next(e)
     if (!ours) return rest
-    // Other plugins' bands (Cogitator) go first: Vox sits below them, one blank line apart.
+    // Cogitator's band keeps a column beside its own (keyed `cg-beside`): Vox goes at its foot, under the gauges, so
+    // the band stays two rows high. Should Cogitator draw above Vox instead, Vox is already in that column.
+    const slotted = intoSlot(rest, ours)
+    if (slotted) return slotted as JSX.Element
+    // Elsewhere the other plugins' bands go first: Vox sits below them, one blank line apart.
     return (
       <Box key="vox-col" flexDirection="column" gap={1}>
         {rest}

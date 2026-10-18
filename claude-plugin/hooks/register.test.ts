@@ -19,11 +19,19 @@ const PROPS = {
 /** The engine hands $.fs a Windows path; the test keys its files with forward slashes. */
 const slash = (path: string) => path.replace(/\\/g, '/')
 
-function world(on: On, files: Map<string, string>) {
+function world(on: On, files: Map<string, string>, cogitator = false) {
   mock.env(on, { LOCALAPPDATA: LOCAL })
   on('session.id', () => ({ value: SESSION }))
-  // Claude Code's own band beneath ours: an empty box.
-  on('ui.render', { component: 'AbovePrompt' }, ($, e) => $.ui.resolve(e).Box({ key: 'engine' }))
+  // Beneath ours: Claude Code's own band, an empty box; or Cogitator's, its column beside a side column for the others.
+  on('ui.render', { component: 'AbovePrompt' }, ($, e) => {
+    const { Box, Text } = $.ui.resolve(e)
+    if (!cogitator) return Box({ key: 'engine' })
+    return Box({
+      key: 'cogitator',
+      flexDirection: 'row',
+      children: [Box({ key: 'cogitator-row', children: [Text({ children: 'kev prêt' })] }), Box({ key: 'cg-beside', flexDirection: 'column', children: [Box({ key: 'gauges' })] })],
+    } as never)
+  })
   on('fs.read', ($, e) => {
     const text = files.get(slash(e.path))
     return text === undefined ? { deny: `ENOENT ${e.path}` } : { value: text }
@@ -192,3 +200,19 @@ test('terminal keeps its tinted pill and loose plain buttons', async ($, on) => 
   expect(await ui.find({ key: 'vox-dictation' })).toBeFalsy()
   expect((await ui.find({ key: 'vox-arm' }))?.props?.plain).toBe(true)
 })
+
+for (const surface of SURFACES) {
+  test(`${surface}: under Cogitator the Vox row sits at the foot of its side column, under the gauges`, async ($, on) => {
+    const files = new Map([[`${DIR}/status.json`, JSON.stringify({ state: 'idle', session_id: null, since: T0, beat: T0 })]])
+    const clock = world(on, files, true)
+    const ui = await $.ui.mount({ plugin: 'voxscribe', surface, component: 'AbovePrompt', props: PROPS })
+    await clock.advance(600)
+    type N = { props?: { key?: string }; children?: unknown[] }
+    const tree = (await ui.drawn()) as N
+    // No column of Vox's own around the band: Cogitator's row is the root, Vox inside its side column, last.
+    expect(tree.props?.key).toBe('cogitator')
+    const beside = (tree.children as N[]).find(c => c?.props?.key === 'cg-beside')
+    expect((beside?.children as N[]).map(c => c?.props?.key)).toEqual(['gauges', 'vox-band'])
+    expect(await ui.find({ key: 'vox-arm' })).toBeTruthy()
+  })
+}
