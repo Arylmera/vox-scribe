@@ -8,6 +8,10 @@ Companion to the Vox-Scribe app (Windows). The app does the work; this plugin on
     sends its dictation here. One session is armed at a time; the last one armed wins.
   - **🎙 parler** dictates to this session with a click; **■ envoyer** sends, **✕ annuler** drops it.
   - **🔊 fr / 🔊 en** — the same as typing `/parle` and `/say`.
+  - In the desktop app the band takes the Instrument look of the Cogitator band above it: the state
+    as a chip ringed in Monokai Pro (green ready, cyan targeted, red listening, purple transcribing),
+    `cibler · parler` and `lire fr · en` each grouped in one rounded segment, emoji dropped.
+    A terminal keeps the pill and the plain buttons.
   - No band means the app is not running (gone at once when it closes, within 6 s if it stops answering); it comes back when the app starts.
 
 ## The band in a terminal

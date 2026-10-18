@@ -156,3 +156,39 @@ test('cibler arms this session until another one takes the target; parler asks f
   expect(JSON.parse(files.get(`${DIR}/mic.json`) ?? '{}')).toMatchObject({ session_id: SESSION, action: 'start' })
   expect(JSON.parse(files.get(`${DIR}/target.json`) ?? '{}').session_id).toBe(SESSION)
 })
+
+test('desktop draws the Instrument band: a ringed status chip, segmented buttons, the target lit', async ($, on) => {
+  const files = new Map([[`${DIR}/status.json`, JSON.stringify({ state: 'idle', session_id: null, since: T0, beat: T0 })]])
+  const clock = world(on, files)
+  const ui = await $.ui.mount({ plugin: 'voxscribe', surface: 'desktop', component: 'AbovePrompt', props: PROPS })
+  await clock.advance(600)
+
+  expect((await ui.find({ key: 'vox-pill' }))?.props).toMatchObject({ borderStyle: 'round', borderColor: '#a9dc76' })
+  for (const key of ['vox-dictation', 'vox-read']) {
+    expect((await ui.find({ key }))?.props).toMatchObject({ borderStyle: 'round', borderColor: '#403e41' })
+  }
+  expect((await ui.find({ key: 'vox-arm' }))?.props?.variant).toBe('secondary')
+
+  await ui.press({ key: 'vox-arm' })
+  expect((await ui.find({ key: 'vox-pill' }))?.props?.borderColor).toBe('#78dce8')
+  expect((await ui.find({ key: 'vox-arm' }))?.props?.variant).toBe('primary')
+
+  files.set(`${DIR}/status.json`, JSON.stringify({ state: 'listening', session_id: SESSION, since: clock.now(), beat: clock.now() }))
+  await clock.advance(600)
+  expect((await ui.find({ key: 'vox-pill' }))?.props?.borderColor).toBe('#ff6188')
+  expect((await ui.find({ key: 'vox-mic' }))?.props?.borderColor).toBe('#403e41')
+  expect((await ui.find({ key: 'vox-send' }))?.props?.variant).toBe('primary')
+})
+
+test('terminal keeps its tinted pill and loose plain buttons', async ($, on) => {
+  const files = new Map([[`${DIR}/status.json`, JSON.stringify({ state: 'idle', session_id: null, since: T0, beat: T0 })]])
+  const clock = world(on, files)
+  const ui = await $.ui.mount({ plugin: 'voxscribe', surface: 'terminal', component: 'AbovePrompt', props: PROPS })
+  await clock.advance(600)
+
+  const pill = (await ui.find({ key: 'vox-pill' }))?.props
+  expect(pill?.backgroundColor).toBe('#2A2A2A')
+  expect(pill?.borderStyle).toBeUndefined()
+  expect(await ui.find({ key: 'vox-dictation' })).toBeFalsy()
+  expect((await ui.find({ key: 'vox-arm' }))?.props?.plain).toBe(true)
+})

@@ -18,6 +18,9 @@ const DEFAULT_ACCENT = '#3DDC84'
 const RECORDING = '#E5484D' // red means recording, and nothing else
 const RECORDING_BG = '#3A1517'
 const MUTED_BG = '#2A2A2A'
+// The graphical surfaces (Instrument, as Cogitator's band above): Monokai Pro, hairline segments.
+const MK = { red: '#ff6188', green: '#a9dc76', yellow: '#ffd866', cyan: '#78dce8', purple: '#ab9df2', grey: '#727072' }
+const EDGE = '#403e41'
 const WAVE = '▁▂▃▄▅▆▇'
 const SPIN = '⠁⠂⠄⡀⢀⠠⠐⠈'
 
@@ -194,7 +197,10 @@ export const register: Register = on => {
     // `next(e)` runs exactly once, however the try below ends: computing `ours` throwing must
     // never cause it to run a second time.
     let ours: JSX.Element | null = null
-    const { Box, Text, Button } = $.ui.resolve(e)
+    const elements = $.ui.resolve(e)
+    const { Box, Text, Button } = elements
+    // The terminal keeps its look; the graphical surfaces (an element table with Svg) draw the Instrument band.
+    const gfx = e.surface !== 'terminal' && 'Svg' in elements
     try {
       startTimer($) // a plugin reload may draw before any session start
       const b = await read($, band)
@@ -211,8 +217,74 @@ export const register: Register = on => {
         </Box>
       )
 
+      // The Instrument pieces: the state as a chip ringed in its colour, related buttons in one segment.
+      const chip = (color: string, dot: string, label: string, extra?: JSX.Element) => (
+        <Box key="vox-pill" borderStyle="round" borderColor={color} paddingX={1} flexDirection="row" gap={1}>
+          <Text color={color}>{dot}</Text>
+          <Text color={color}>{label}</Text>
+          {extra}
+        </Box>
+      )
+      const segment = (key: string, ...children: JSX.Element[]) => (
+        <Box key={key} borderStyle="round" borderColor={EDGE} paddingX={1} flexDirection="row" gap={1} alignItems="center">
+          {children}
+        </Box>
+      )
+      const toggleArm = press($, async () => {
+        const v = await update($, band, x => ({ ...x, armed: !x.armed }))
+        await writeTarget($, v.armed ? await me($) : null)
+      })
+      const talk = press($, async () => {
+        await update($, band, x => ({ ...x, armed: true }))
+        await writeTarget($, await me($))
+        await writeMic($, 'start')
+      })
+      const readFr = press($, () => $.command.run({ command: 'voxscribe:parle', args: '' }))
+      const readEn = press($, () => $.command.run({ command: 'voxscribe:say', args: '' }))
+      const send = press($, () => writeMic($, 'stop'))
+      const cancel = press($, () => writeMic($, 'cancel'))
+      const spinner = () => SPIN.charAt(Math.floor(t / TICK_MS) % SPIN.length)
+
       if (b.kind === 'offline') {
         ours = null // Vox-Scribe closed: no band; it comes back with the app's first beat.
+      } else if (gfx) {
+        const row = (...children: (JSX.Element | null)[]) => (
+          <Box key="vox-band" flexDirection="row" gap={1} alignItems="center">
+            {children}
+          </Box>
+        )
+        if (b.kind === 'broken') {
+          ours = row(chip(MK.grey, '○', 'Vox · désactivé (erreur)'))
+        } else if (b.kind === 'listening') {
+          const secs = Math.max(0, Math.floor((t - b.since) / 1000))
+          const clock = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
+          ours = row(
+            chip(MK.red, '●', clock, <Text color={MK.yellow}>{wave(t)}</Text>),
+            segment(
+              'vox-mic',
+              <Button key="vox-send" variant="primary" label="■ envoyer" onPress={send} />,
+              <Button key="vox-cancel" variant="secondary" label="✕ annuler" onPress={cancel} />,
+            ),
+          )
+        } else if (b.kind === 'transcribing') {
+          ours = row(chip(MK.purple, spinner(), 'Vox · transcription…'))
+        } else {
+          ours = row(
+            b.armed ? chip(MK.cyan, '◉', 'Vox · cible') : chip(MK.green, '◎', 'Vox · prêt'),
+            segment(
+              'vox-dictation',
+              <Button key="vox-arm" variant={b.armed ? 'primary' : 'secondary'} label={b.armed ? 'désarmer' : 'cibler'} onPress={toggleArm} />,
+              <Button key="vox-talk" variant="secondary" label="parler" onPress={talk} />,
+            ),
+            // Read the last reply aloud: two actions, neither one a standing choice, so neither is lit.
+            segment(
+              'vox-read',
+              <Text key="vox-read-label" color={MK.grey}>lire</Text>,
+              <Button key="vox-fr" variant="secondary" label="fr" onPress={readFr} />,
+              <Button key="vox-en" variant="secondary" label="en" onPress={readEn} />,
+            ),
+          )
+        }
       } else if (b.kind === 'broken') {
         ours = (
           <Box key="vox-band" flexDirection="row" gap={1} alignItems="center">
@@ -225,14 +297,14 @@ export const register: Register = on => {
         ours = (
           <Box key="vox-band" flexDirection="row" gap={1} alignItems="center">
             {pill('●', RECORDING, clock, RECORDING_BG, <Text color={b.accent}>{wave(t)}</Text>)}
-            <Button key="vox-send" variant="primary" label="■ envoyer" onPress={press($, () => writeMic($, 'stop'))} />
-            <Button key="vox-cancel" plain dimColor label="✕ annuler" onPress={press($, () => writeMic($, 'cancel'))} />
+            <Button key="vox-send" variant="primary" label="■ envoyer" onPress={send} />
+            <Button key="vox-cancel" plain dimColor label="✕ annuler" onPress={cancel} />
           </Box>
         )
       } else if (b.kind === 'transcribing') {
         ours = (
           <Box key="vox-band" flexDirection="row" gap={1} alignItems="center">
-            {pill(SPIN.charAt(Math.floor(t / TICK_MS) % SPIN.length), b.accent, 'Vox · transcription…', ground)}
+            {pill(spinner(), b.accent, 'Vox · transcription…', ground)}
           </Box>
         )
       } else {
@@ -244,23 +316,16 @@ export const register: Register = on => {
               plain
               dimColor={!b.armed}
               label={b.armed ? '🎯 désarmer' : '🎯 cibler'}
-              onPress={press($, async () => {
-                const v = await update($, band, x => ({ ...x, armed: !x.armed }))
-                await writeTarget($, v.armed ? await me($) : null)
-              })}
+              onPress={toggleArm}
             />
             <Button
               key="vox-talk"
               plain
               label="🎙 parler"
-              onPress={press($, async () => {
-                await update($, band, x => ({ ...x, armed: true }))
-                await writeTarget($, await me($))
-                await writeMic($, 'start')
-              })}
+              onPress={talk}
             />
-            <Button key="vox-fr" plain dimColor label="🔊 fr" onPress={press($, () => $.command.run({ command: 'voxscribe:parle', args: '' }))} />
-            <Button key="vox-en" plain dimColor label="🔊 en" onPress={press($, () => $.command.run({ command: 'voxscribe:say', args: '' }))} />
+            <Button key="vox-fr" plain dimColor label="🔊 fr" onPress={readFr} />
+            <Button key="vox-en" plain dimColor label="🔊 en" onPress={readEn} />
           </Box>
         )
       }
