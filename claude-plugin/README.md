@@ -2,7 +2,8 @@
 
 Companion to the Vox-Scribe app (Windows). The app does the work; this plugin only hands it requests.
 
-- `/parle`, `/say` — read the previous reply aloud (French, English).
+- `/parle`, `/say` — read the previous reply aloud (French, English). Silent: no model turn, no
+  card. Where the app is not running, or the session has no transcript yet, a toast says so.
 - A band above the prompt, a pill in your Vox-Scribe theme's accent followed by buttons:
   - **🎯 cibler** arms this session: Vox-Scribe's command shortcut, pressed from any window,
     sends its dictation here. One session is armed at a time; the last one armed wins.
@@ -22,7 +23,9 @@ then a restart:
     "env": { "CLAUDE_CODE_ENABLE_FUNCTION_HOOKS": "1" }
 
 This turns on module code for every installed plugin, not just this one. Vox-Scribe never edits the
-file; Settings → CLAUDE copies the line for you. Without it, `/parle` and `/say` still work.
+file; Settings → CLAUDE copies the line for you. Without it, `/parle` and `/say` still work through
+the PowerShell hook (`hooks/speak.ps1`), which shows its note as a "hook blocked your prompt" card.
+Where the module loads, it answers both commands itself and the hook never runs.
 
 ## Experimental
 

@@ -156,7 +156,9 @@ In Claude Code, type **`/parle`** and Vox-Scribe reads the previous reply aloud 
 **`/say`** does the same in English, translating if needed. The reply is rewritten for the ear
 first — no paths, no tables, under 30 seconds spoken — then spoken while the rest renders.
 Push-to-talk or Escape stops it; a new `/parle` replaces it. The command itself never reaches
-the model, so it costs nothing.
+the model, so it costs nothing, and it leaves no trace in the conversation; if Vox-Scribe is not
+running, a toast says so. (A terminal without the band's setting below still reads, but shows a
+"hook blocked your prompt" note.)
 
 **Install it** once, in Claude Code (Vox-Scribe must be installed and running):
 

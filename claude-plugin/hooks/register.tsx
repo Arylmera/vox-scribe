@@ -49,6 +49,11 @@ async function base($: EngineInterface): Promise<string> {
   return (dir = `${local}/VoxScribe/claude`)
 }
 
+/** The app's status file says it is running and beating. */
+function alive(s: any, t: number): boolean {
+  return !!s && typeof s.beat === 'number' && typeof s.state === 'string' && t - s.beat <= STALE_MS
+}
+
 async function me($: EngineInterface): Promise<string> {
   return (sid ??= await $.session.id())
 }
@@ -72,6 +77,54 @@ async function writeMic($: EngineInterface, action: 'start' | 'stop' | 'cancel')
   const ts = await $.clock.now()
   await $.fs.write(`${await base($)}/mic.json`, JSON.stringify({ session_id: await me($), action, ts }))
 }
+
+/**
+ * /parle and /say: hand Vox-Scribe this session's transcript, from which it reads the last reply.
+ * Null once handed over, else what to tell the person.
+ */
+async function speak($: EngineInterface, command: 'parle' | 'say'): Promise<string | null> {
+  const fr = command === 'parle'
+  const d = await base($)
+  const t = await $.clock.now()
+  if (!alive(await readJson($, `${d}/status.json`), t))
+    return fr ? "Vox-Scribe n'est pas lancé : rien ne sera lu." : 'Vox-Scribe is not running: nothing will be read.'
+  const session = await me($)
+  const home = (await $.env.get('CLAUDE_CONFIG_DIR')) || `${(await $.env.get('USERPROFILE')) || (await $.env.get('HOME'))}/.claude`
+  // Claude Code files the transcript under the directory the session started in, its root; cwd covers an older layout.
+  let transcript: string | null = null
+  for (const where of [await $.session.root(), await $.session.cwd()]) {
+    const path = `${home}/projects/${where.replace(/[^A-Za-z0-9]/g, '-')}/${session}.jsonl`
+    if (await $.fs.exists(path)) {
+      transcript = path
+      break
+    }
+  }
+  if (!transcript) return fr ? 'Transcription de la session introuvable : rien ne sera lu.' : "This session's transcript was not found: nothing will be read."
+  // shortcut: $.fs has no rename, so the write is not atomic; the app waits 150 ms after the last change before reading.
+  await $.fs.write(
+    `${d.replace(/claude$/, 'speak')}/request.json`,
+    JSON.stringify({ command, transcript_path: transcript, session_id: session, ts: t }),
+  )
+  return null
+}
+
+/** `speak`, with what went wrong shown as a toast: the whole of /parle, /say and the fr and en buttons. */
+async function readAloud($: EngineInterface, command: 'parle' | 'say') {
+  try {
+    const note = await speak($, command)
+    if (note) $.ui.toast(note)
+  } catch (err) {
+    $.ui.toast(`/${command}: ${err instanceof Error ? err.message : String(err)}`)
+  }
+}
+
+/** The commands `speak` answers, typed bare or with the plugin's prefix. */
+const READS = new Map<string, 'parle' | 'say'>([
+  ['parle', 'parle'],
+  ['say', 'say'],
+  ['voxscribe:parle', 'parle'],
+  ['voxscribe:say', 'say'],
+])
 
 /** The one place the prompt is touched: a fresh, sane outbox for this session, at most once. */
 async function drainOutbox($: EngineInterface, d: string, session: string, t: number) {
@@ -121,10 +174,10 @@ async function poll($: EngineInterface, t: number) {
   if (armed && t - lastBeat >= BEAT_MS) await writeTarget($, session)
 
   const s = await readJson($, `${d}/status.json`)
-  const alive = !!s && typeof s.beat === 'number' && typeof s.state === 'string' && t - s.beat <= STALE_MS
-  const mine = alive && s.session_id === session
-  const accent = alive && /^#[0-9A-Fa-f]{6}$/.test(s.accent_dark) ? s.accent_dark : was.accent
-  const kind: VoxBand['kind'] = !alive
+  const up = alive(s, t)
+  const mine = up && s.session_id === session
+  const accent = up && /^#[0-9A-Fa-f]{6}$/.test(s.accent_dark) ? s.accent_dark : was.accent
+  const kind: VoxBand['kind'] = !up
     ? 'offline'
     : mine && (s.state === 'listening' || s.state === 'transcribing')
       ? s.state
@@ -214,6 +267,14 @@ export const register: Register = on => {
     return next(e)
   })
 
+  // Answered here, without `next`: no prompt reaches the model, so no turn and no hook card.
+  on('command.run', async ($, e, next) => {
+    const command = READS.get(e.command)
+    if (!command) return next(e)
+    await readAloud($, command)
+    return {}
+  })
+
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     // `next(e)` runs exactly once, however the try below ends: computing `ours` throwing must
     // never cause it to run a second time.
@@ -261,8 +322,9 @@ export const register: Register = on => {
         await writeTarget($, await me($))
         await writeMic($, 'start')
       })
-      const readFr = press($, () => $.command.run({ command: 'voxscribe:parle', args: '' }))
-      const readEn = press($, () => $.command.run({ command: 'voxscribe:say', args: '' }))
+      // Not `$.command.run`: a plugin's own call skips its own `command.run` hook and would reach the model.
+      const readFr = press($, () => readAloud($, 'parle'))
+      const readEn = press($, () => readAloud($, 'say'))
       const send = press($, () => writeMic($, 'stop'))
       const cancel = press($, () => writeMic($, 'cancel'))
       const spinner = () => SPIN.charAt(Math.floor(t / TICK_MS) % SPIN.length)

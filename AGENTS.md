@@ -86,7 +86,11 @@ command name into `%LOCALAPPDATA%\VoxScribe\speak\request.json`. Finding the rep
 (`ReadAloud.LastReply`), rewriting and speaking it all live in the app, where they are tested.
 The hook must stay Windows PowerShell 5.1 compatible and saved with a BOM.
 `claude-plugin/hooks/register.tsx` draws a band above the prompt (experimental: Claude Code's
-undocumented plugin-module API, tested with `claude plugin test`). It only writes `target.json`
+undocumented plugin-module API, tested with `claude plugin test`). It also answers `/parle` and
+`/say` itself (`command.run`, never `next`), writing the same `request.json`, so no prompt
+reaches the model and no hook card shows; the hook is the fallback where modules are off. A
+plugin's own `$.command.run` skips its own `command.run` hook, so the band's fr/en buttons call
+that code directly. Otherwise it only writes `target.json`
 and `mic.json`, submits `outbox/<session>.json`, and writes `outbox/<id>.ack`, all in
 `%LOCALAPPDATA%\VoxScribe\claude`;
 every rule (which session is live, acknowledgement, staleness) is in `ClaudeBridge`. An armed

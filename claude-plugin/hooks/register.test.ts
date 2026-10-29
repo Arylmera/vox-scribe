@@ -20,8 +20,11 @@ const PROPS = {
 const slash = (path: string) => path.replace(/\\/g, '/')
 
 function world(on: On, files: Map<string, string>, cogitator = false) {
-  mock.env(on, { LOCALAPPDATA: LOCAL })
+  mock.env(on, { LOCALAPPDATA: LOCAL, USERPROFILE: 'C:/Users/test' })
   on('session.id', () => ({ value: SESSION }))
+  on('session.root', () => ({ value: 'C:\\work\\repo' }))
+  on('session.cwd', () => ({ value: 'C:\\work\\repo\\sub' }))
+  on('fs.exists', ($, e) => ({ value: files.has(slash(e.path)) }))
   // Beneath ours: Claude Code's own band, an empty box; or Cogitator's, its column beside a side column for the others.
   on('ui.render', { component: 'AbovePrompt' }, ($, e) => {
     const { Box, Text } = $.ui.resolve(e)
@@ -202,6 +205,86 @@ test('terminal keeps its tinted pill and loose plain buttons', async ($, on) => 
   expect(await ui.find({ key: 'vox-dictation' })).toBeFalsy()
   expect((await ui.find({ key: 'vox-arm' }))?.props?.plain).toBe(true)
 })
+
+// /parle and /say are answered by the mod: nothing beneath it runs, so no prompt reaches the model.
+const TRANSCRIPT = `C:/Users/test/.claude/projects/C--work-repo/${SESSION}.jsonl`
+const REQUEST = `${LOCAL}/VoxScribe/speak/request.json`
+
+function reader(on: On, files: Map<string, string>) {
+  const clock = world(on, files)
+  const beneath: string[] = []
+  const toasts: string[] = []
+  on('command.run', ($, e) => {
+    beneath.push(e.command)
+    return { text: 'the prompt the model would read' }
+  })
+  on('ui.toast', ($, e) => {
+    toasts.push(e.text)
+    return { value: undefined }
+  })
+  return { clock, beneath, toasts }
+}
+
+for (const command of ['parle', 'say', 'voxscribe:parle', 'voxscribe:say']) {
+  test(`/${command} hands Vox-Scribe the transcript and runs nothing beneath`, async ($, on) => {
+    const files = new Map([
+      [`${DIR}/status.json`, JSON.stringify({ state: 'idle', session_id: null, since: T0, beat: T0 })],
+      [TRANSCRIPT, '{}'],
+    ])
+    const { beneath, toasts } = reader(on, files)
+    const got = await $.command.run({ command })
+    expect(got.text).toBeUndefined()
+    expect(beneath).toEqual([])
+    expect(toasts).toEqual([])
+    expect(JSON.parse(files.get(REQUEST) ?? '{}')).toEqual({
+      command: command.endsWith('say') ? 'say' : 'parle',
+      transcript_path: TRANSCRIPT,
+      session_id: SESSION,
+      ts: T0,
+    })
+  })
+}
+
+test('another command passes through untouched', async ($, on) => {
+  const { beneath } = reader(on, new Map())
+  expect((await $.command.run({ command: 'compact' })).text).toBe('the prompt the model would read')
+  expect(beneath).toEqual(['compact'])
+})
+
+test('with Vox-Scribe closed, /parle says so in a toast and writes nothing', async ($, on) => {
+  const files = new Map([[TRANSCRIPT, '{}']])
+  const { beneath, toasts } = reader(on, files)
+  await $.command.run({ command: 'voxscribe:parle' })
+  expect(beneath).toEqual([])
+  expect(toasts).toEqual(["Vox-Scribe n'est pas lancé : rien ne sera lu."])
+  expect(files.has(REQUEST)).toBe(false)
+})
+
+test('with no transcript on disk, /say says so in a toast and writes nothing', async ($, on) => {
+  const files = new Map([[`${DIR}/status.json`, JSON.stringify({ state: 'idle', session_id: null, since: T0, beat: T0 })]])
+  const { beneath, toasts } = reader(on, files)
+  await $.command.run({ command: 'voxscribe:say' })
+  expect(beneath).toEqual([])
+  expect(toasts).toEqual(["This session's transcript was not found: nothing will be read."])
+  expect(files.has(REQUEST)).toBe(false)
+})
+
+for (const surface of SURFACES) {
+  test(`${surface}: the fr and en buttons read aloud as /parle and /say do`, async ($, on) => {
+    const files = new Map([
+      [`${DIR}/status.json`, JSON.stringify({ state: 'idle', session_id: null, since: T0, beat: T0 })],
+      [TRANSCRIPT, '{}'],
+    ])
+    const { clock, beneath } = reader(on, files)
+    const ui = await $.ui.mount({ plugin: 'voxscribe', surface, component: 'AbovePrompt', props: PROPS })
+    await clock.advance(600)
+    await ui.press({ key: 'vox-fr' })
+    expect(JSON.parse(files.get(REQUEST) ?? '{}').command).toBe('parle')
+    await ui.press({ key: 'vox-en' })
+    expect(JSON.parse(files.get(REQUEST) ?? '{}').command).toBe('say')
+    expect(beneath).toEqual([])
+  })
+}
 
 for (const surface of SURFACES) {
   test(`${surface}: under Cogitator the Vox row sits at the foot of its side column, under the gauges`, async ($, on) => {

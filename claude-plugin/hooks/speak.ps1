@@ -3,6 +3,7 @@
 # UserPromptExpansion hook. Vox-Scribe watches %LOCALAPPDATA%\VoxScribe\speak and does all
 # the work (finding the reply, rewriting it for speech, speaking it); this only hands over the
 # transcript path. The command is blocked, so it never costs a model turn.
+# The fallback: where the plugin's module loads, register.tsx answers the command first and this never runs.
 # Windows PowerShell 5.1 compatible: it is the one shell every Windows machine has.
 
 $ErrorActionPreference = 'Stop'
