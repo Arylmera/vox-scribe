@@ -233,7 +233,9 @@ public sealed class ClaudeBridgeTests : IDisposable
         {
             try
             {
-                using var json = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(_dir, "status.json")));
+                // Shared as the module's reads are: a plain read would block the replace it waits for.
+                await using var file = new FileStream(Path.Combine(_dir, "status.json"), FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var json = await JsonDocument.ParseAsync(file);
                 var root = json.RootElement;
                 if (root.GetProperty("state").GetString() == state)
                 {
