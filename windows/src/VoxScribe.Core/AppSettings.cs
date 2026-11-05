@@ -179,7 +179,7 @@ public sealed record SettingsData
 
     /// <summary>A touch faster by default: the resident voice is gentle but slow.</summary>
     [JsonIgnore]
-    public double ReadingRate => ReadingSpeed ?? 1.1;
+    public double ReadingRate => ReadingSpeed ?? 1.05;
 
     /// <summary>Alias that rewrites a reply for speech, streamed.</summary>
     public string OralModel { get => Or(_oralModel, "oral"); init => _oralModel = value; }
