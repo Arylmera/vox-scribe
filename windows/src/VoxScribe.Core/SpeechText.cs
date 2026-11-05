@@ -54,6 +54,14 @@ public static partial class SpeechText
         return BlankRuns().Replace(text, "\n\n").Trim();
     }
 
+    /// <summary>The first sentence of pre-cleaned text, and what follows it; both empty for no text.</summary>
+    public static (string First, string Others) SplitFirst(string clean)
+    {
+        var splitter = new SpeechSplitter();
+        List<string> chunks = [.. splitter.Push(clean), .. splitter.Flush()];
+        return chunks.Count == 0 ? ("", "") : (chunks[0], string.Join(' ', chunks.Skip(1)));
+    }
+
     /// <summary>The last segment of a path, or the text itself when it holds no separator.</summary>
     private static string LastSegment(string code)
     {

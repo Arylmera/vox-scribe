@@ -161,6 +161,14 @@ public sealed class ConversationTests : IDisposable
     }
 
     [Fact]
+    public void Quick_start_takes_the_first_sentence_and_keeps_the_rest()
+    {
+        SpeechText.SplitFirst("C'est fait. Le test passe. Rien d'autre.").ShouldBe(("C'est fait.", "Le test passe. Rien d'autre."));
+        SpeechText.SplitFirst("Une seule phrase.").ShouldBe(("Une seule phrase.", ""));
+        SpeechText.SplitFirst("").ShouldBe(("", ""));
+    }
+
+    [Fact]
     public void Any_shortcut_clears_the_panel()
     {
         var (reader, shown, _) = Reader(_ => true);

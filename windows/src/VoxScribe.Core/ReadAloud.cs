@@ -137,7 +137,7 @@ public sealed class ReadAloud : IDisposable
 
             var reading = new CancellationTokenSource();
             Interlocked.Exchange(ref _reading, reading)?.Cancel();
-            await SpeakAsync(text, english, reading.Token).ConfigureAwait(false);
+            await SpeakAsync(text, english, reading.Token, quickStart: session is not null).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -259,8 +259,12 @@ public sealed class ReadAloud : IDisposable
     /// <param name="markdown">The reply as Claude Code wrote it.</param>
     /// <param name="english">Spoken in English (<c>/say</c>) rather than French (<c>/parle</c>).</param>
     /// <param name="cancellationToken">Stops the reading.</param>
+    /// <param name="quickStart">
+    /// Conversation mode: the first sentence is spoken as written while the rewrite works on the
+    /// rest, so the voice does not wait for the rewrite's first token.
+    /// </param>
     /// <remarks>Public for the live harness; the watcher is the normal caller.</remarks>
-    public async Task SpeakAsync(string markdown, bool english, CancellationToken cancellationToken)
+    public async Task SpeakAsync(string markdown, bool english, CancellationToken cancellationToken, bool quickStart = false)
     {
         var settings = _settings();
         var prompt = english ? settings.EnglishOralPrompt : settings.OralPrompt;
@@ -279,6 +283,7 @@ public sealed class ReadAloud : IDisposable
         var baseUrl = endpoint.TrimEnd('/');
         var clean = SpeechText.PreClean(markdown);
         if (clean.Length == 0) return;
+        var (first, rest) = quickStart ? SpeechText.SplitFirst(clean) : ("", clean);
 
         using var run = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var token = run.Token;
@@ -296,9 +301,12 @@ public sealed class ReadAloud : IDisposable
             var splitter = new SpeechSplitter();
             var spoken = false;
             var failed = false;
+            if (first.Length > 0) await sentences.Writer.WriteAsync(first, token).ConfigureAwait(false);
+            if (rest.Length == 0) return;
+
             try
             {
-                await foreach (var delta in StreamOralAsync(baseUrl, key, settings.OralModel, prompt, clean, token).ConfigureAwait(false))
+                await foreach (var delta in StreamOralAsync(baseUrl, key, settings.OralModel, prompt, rest, token).ConfigureAwait(false))
                 {
                     firstToken ??= clock.Elapsed.TotalSeconds;
                     spoken |= !string.IsNullOrWhiteSpace(delta);
@@ -317,7 +325,7 @@ public sealed class ReadAloud : IDisposable
             {
                 if (!failed) Fail("Read-aloud rewrite came back empty, reading the reply as written");
                 splitter = new SpeechSplitter();
-                foreach (var chunk in splitter.Push(clean)) await sentences.Writer.WriteAsync(chunk, token).ConfigureAwait(false);
+                foreach (var chunk in splitter.Push(rest)) await sentences.Writer.WriteAsync(chunk, token).ConfigureAwait(false);
             }
 
             foreach (var chunk in splitter.Flush()) await sentences.Writer.WriteAsync(chunk, token).ConfigureAwait(false);
