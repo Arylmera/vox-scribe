@@ -287,14 +287,6 @@ export const register: Register = on => {
     return next(e)
   })
 
-  // A dictation is the person's own words: with no origin the prompt is theirs, so no "plugin sent a message" framing.
-  on('prompt.submit', async ($, e, next) => {
-    const entered = await next(e)
-    if (e.origin?.kind !== 'plugin' || e.origin.name !== 'voxscribe' || entered.drop !== undefined) return entered
-    const { origin: _, ...theirs } = entered
-    return theirs
-  })
-
   // Never a subagent's turn, an interrupted one or an empty one. Whatever happens here, the turn ends as it would have.
   on('turn.complete', async ($, e, next) => {
     try {

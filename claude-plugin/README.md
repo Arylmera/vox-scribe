@@ -13,6 +13,8 @@ Companion to the Vox-Scribe app (Windows). The app does the work; this plugin on
     code and edits appear in a panel on screen. While armed, every dictation goes to the session, whichever
     window has focus; any shortcut stops the voice. One session at a time: it follows the target. Also in the tray menu and Settings → CLAUDE.
     A file changed through Bash is not in the panel, only Edit and Write calls are. Needs the module.
+    Claude Code frames a dictation with "The voxscribe plugin sent a message": it wraps every prompt a
+    plugin submits, before any hook answers, so a hook cannot remove it (tested on 2.1.309).
   - In the desktop app the band takes the Instrument look of the Cogitator band above it: the state
     as a chip ringed in Monokai Pro (green ready, cyan targeted, red listening, purple transcribing),
     `cibler · parler` and `lire fr · en` each grouped in one rounded segment, emoji dropped.
