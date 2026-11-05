@@ -536,7 +536,7 @@ public sealed class DictationEngine : IAsyncDisposable
     /// effect on every raw dictation.
     /// </remarks>
     private bool InjectIncrementally =>
-        IncrementalInjection && !_cleanThisUtterance && !EditThisUtterance && !_anchoredThisUtterance;
+        IncrementalInjection && !_cleanThisUtterance && !EditThisUtterance && !_anchoredThisUtterance && !CommandThisUtterance;
 
     /// <summary>
     /// Optional repair pass applied to the finished utterance before it is reported and

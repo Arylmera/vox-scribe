@@ -48,6 +48,7 @@ public sealed class CommandModeTests
         var (engine, raw, _, _, injector, _) = Build();
         await using var _ = engine;
         var sent = new List<string>();
+        engine.IncrementalInjection = true; // the user's setting: phrases must not land in the focused window
         engine.SendEverything = () => true;
         engine.DeliverToClaude = (text, _) =>
         {
