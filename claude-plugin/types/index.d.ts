@@ -3,6 +3,8 @@ export type VoxBand = {
   kind: 'offline' | 'ready' | 'listening' | 'transcribing' | 'broken'
   /** This session holds the target: the command chord's dictation comes here. */
   armed: boolean
+  /** Conversation mode is on in the app: this session's replies are read aloud when it is armed. */
+  conversation: boolean
   /** When the current state began (app clock, ms): the listening timer counts from it. */
   since: number
   /** The app theme's accent, "#RRGGBB" (its dark variant). */

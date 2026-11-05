@@ -31,6 +31,9 @@ public enum MicAction
 
     /// <summary>Annuler: throw it away.</summary>
     Cancel,
+
+    /// <summary>Conversation: flip conversation mode.</summary>
+    Conversation,
 }
 
 /// <summary>
@@ -138,6 +141,7 @@ public sealed partial class ClaudeBridge : IDisposable
                 "start" => MicAction.Start,
                 "stop" => MicAction.Stop,
                 "cancel" => MicAction.Cancel,
+                "conversation" => MicAction.Conversation,
                 _ => null,
             } : null;
 
@@ -307,6 +311,12 @@ public sealed partial class ClaudeBridge : IDisposable
     /// </summary>
     public Func<(string Dark, string Light)>? Accent { get; set; }
 
+    /// <summary>Whether conversation mode is on. Read on every status write; null means off.</summary>
+    public Func<bool>? Conversation { get; set; }
+
+    /// <summary>Writes the status now rather than at the next beat: a setting just changed.</summary>
+    public void Refresh() => ThreadPool.QueueUserWorkItem(_ => WriteStatus());
+
     /// <summary>The session whose band started the dictation in progress, if one did.</summary>
     private string? MicSession { get; set; }
 
@@ -333,6 +343,7 @@ public sealed partial class ClaudeBridge : IDisposable
                 else w.WriteString("session_id", session);
                 w.WriteNumber("since", since);
                 w.WriteNumber("beat", Now);
+                w.WriteBoolean("conversation", Conversation?.Invoke() == true);
                 if (accent is { } a)
                 {
                     w.WriteString("accent_dark", a.Dark);

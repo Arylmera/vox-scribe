@@ -19,6 +19,7 @@
             <NativeMenuItem Header="Show Vox-Scribe" Click="OnTrayShow" />
             <NativeMenuItem Header="Settings…" Click="OnTraySettings" />
             <NativeMenuItem Header="Show/hide mascot" Click="OnTrayMascot" />
+            <NativeMenuItem Header="Conversation mode" ToggleType="CheckBox" Click="OnTrayConversation" />
             <NativeMenuItemSeparator />
             <NativeMenuItem Header="Quit" Click="OnTrayQuit" />
           </NativeMenu>

@@ -262,6 +262,12 @@ public sealed class Composition : IAsyncDisposable
             var bridge = claude;
             engine.DeliverToClaude = bridge.TryDeliverAsync;
             bridge.Accent = () => ($"#{Design.Themes.ActiveVariant.Dark:X6}", $"#{Design.Themes.ActiveVariant.Light:X6}");
+            bridge.Conversation = () => settings.Data.Conversation;
+            settings.Changed += (_, _) => bridge.Refresh();
+
+            // Conversation mode: only the armed session is read, and never over a dictation.
+            if (readAloud is { } turns)
+                turns.AcceptTurn = session => settings.Data.Conversation && live.State == DictationState.Idle && bridge.LiveTarget() == session;
             var shown = engine.State;
             engine.Changed += (_, _) =>
             {
@@ -280,6 +286,7 @@ public sealed class Composition : IAsyncDisposable
                     case MicAction.Start: live.BeginCommand(); break;
                     case MicAction.Stop: live.EndUtterance(); break;
                     case MicAction.Cancel: _ = live.CancelAsync(); break;
+                    case MicAction.Conversation: settings.Update(settings.Data with { Conversation = !settings.Data.Conversation }); break;
                 }
             };
             bridge.Start();

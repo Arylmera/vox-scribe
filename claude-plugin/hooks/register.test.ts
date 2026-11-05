@@ -43,6 +43,7 @@ function world(on: On, files: Map<string, string>, cogitator = false) {
     files.set(slash(e.path), e.text)
     return { value: undefined }
   })
+  on('turn.complete', ($, e) => ({ text: e.answer })) // the engine beneath: a hook hands it on with next
   return mock.clock(on, { now: T0 })
 }
 
@@ -62,7 +63,7 @@ for (const surface of SURFACES) {
     await clock.advance(600)
     expect((await ui.find({ key: 'vox-pill' }))?.text).toContain('Vox · prêt')
     const keys = (await ui.findAll({ type: 'Button' })).map(b => b.key)
-    expect(keys).toEqual(['vox-arm', 'vox-talk', 'vox-fr', 'vox-en'])
+    expect(keys).toEqual(['vox-arm', 'vox-talk', 'vox-conv', 'vox-fr', 'vox-en'])
 
     await clock.advance(6000) // the app stopped beating
     expect(await ui.find({ key: 'vox-band' })).toBeFalsy()
@@ -244,6 +245,84 @@ for (const command of ['parle', 'say', 'voxscribe:parle', 'voxscribe:say']) {
     })
   })
 }
+
+// Conversation mode. Armed and on, a finished main-loop answer goes to the app with its own text.
+const statusOn = (conversation: boolean) => JSON.stringify({ state: 'idle', session_id: null, since: T0, beat: T0, conversation })
+
+async function armed($: never, on: On, conversation: boolean) {
+  const files = new Map([
+    [`${DIR}/status.json`, statusOn(conversation)],
+    [TRANSCRIPT, '{}'],
+  ])
+  const clock = world(on, files)
+  const ui = await ($ as any).ui.mount({ plugin: 'voxscribe', surface: 'desktop', component: 'AbovePrompt', props: PROPS })
+  await clock.advance(600)
+  await ui.press({ key: 'vox-arm' })
+  files.set(`${DIR}/status.json`, JSON.stringify({ ...JSON.parse(statusOn(conversation)), beat: clock.now() }))
+  await clock.advance(600)
+  return { files, clock, ui }
+}
+
+const ANSWER = { answer: 'Voilà.', durationMs: 10, isAborted: false, turnId: 't1', reason: 'answer' }
+
+test('armed with conversation on, a finished turn hands the app its text and ends as it would have', async ($, on) => {
+  const { files, ui } = await armed($ as never, on, true)
+  expect((await ui.find({ key: 'vox-pill' }))?.text).toContain('Vox · conversation')
+  const ended = await $.turn.complete(ANSWER as never)
+  expect(ended.text).toBe('Voilà.')
+  expect(JSON.parse(files.get(REQUEST) ?? '{}')).toMatchObject({
+    command: 'turn',
+    text: 'Voilà.',
+    transcript_path: TRANSCRIPT,
+    session_id: SESSION,
+  })
+})
+
+test('with conversation off, a turn writes nothing', async ($, on) => {
+  const { files } = await armed($ as never, on, false)
+  await $.turn.complete(ANSWER as never)
+  expect(files.has(REQUEST)).toBe(false)
+})
+
+for (const [name, turn] of [
+  ['a subagent', { ...ANSWER, agentId: 'agent-1' }],
+  ['an interrupted', { ...ANSWER, reason: 'aborted', isAborted: true }],
+  ['an empty', { ...ANSWER, answer: '  ' }],
+] as const) {
+  test(`${name} turn is never read`, async ($, on) => {
+    const { files } = await armed($ as never, on, true)
+    await $.turn.complete(turn as never)
+    expect(files.has(REQUEST)).toBe(false)
+  })
+}
+
+test('an unarmed session is never read', async ($, on) => {
+  const files = new Map([[`${DIR}/status.json`, statusOn(true)]])
+  const clock = world(on, files)
+  await $.ui.mount({ plugin: 'voxscribe', surface: 'desktop', component: 'AbovePrompt', props: PROPS })
+  await clock.advance(600)
+  await $.turn.complete(ANSWER as never)
+  expect(files.has(REQUEST)).toBe(false)
+})
+
+test('the conversation button arms this session and flips the mode, but only brings it here when on elsewhere', async ($, on) => {
+  const files = new Map([[`${DIR}/status.json`, statusOn(false)]])
+  const clock = world(on, files)
+  const ui = await $.ui.mount({ plugin: 'voxscribe', surface: 'desktop', component: 'AbovePrompt', props: PROPS })
+  await clock.advance(600)
+  await ui.press({ key: 'vox-conv' })
+  expect(JSON.parse(files.get(`${DIR}/mic.json`) ?? '{}')).toMatchObject({ session_id: SESSION, action: 'conversation' })
+  expect(JSON.parse(files.get(`${DIR}/target.json`) ?? '{}').session_id).toBe(SESSION)
+
+  // Another session took it, with the mode on: pressing here moves it, it does not turn it off.
+  files.delete(`${DIR}/mic.json`)
+  files.set(`${DIR}/target.json`, JSON.stringify({ session_id: 'session-b', beat: clock.now() }))
+  files.set(`${DIR}/status.json`, JSON.stringify({ ...JSON.parse(statusOn(true)), beat: clock.now() }))
+  await clock.advance(600)
+  await ui.press({ key: 'vox-conv' })
+  expect(JSON.parse(files.get(`${DIR}/target.json`) ?? '{}').session_id).toBe(SESSION)
+  expect(files.has(`${DIR}/mic.json`)).toBe(false)
+})
 
 test('another command passes through untouched', async ($, on) => {
   const { beneath } = reader(on, new Map())

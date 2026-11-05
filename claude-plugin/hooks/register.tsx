@@ -26,6 +26,7 @@ const SPIN = '⠁⠂⠄⡀⢀⠠⠐⠈'
 const band = atom({ plugin: 'voxscribe', key: 'band' } as const, {
   kind: 'offline',
   armed: false,
+  conversation: false,
   since: 0,
   accent: DEFAULT_ACCENT,
 } as VoxBand)
@@ -73,9 +74,20 @@ async function writeTarget($: EngineInterface, session: string | null) {
   await $.fs.write(`${await base($)}/target.json`, JSON.stringify({ session_id: session, beat: session ? lastBeat : 0 }))
 }
 
-async function writeMic($: EngineInterface, action: 'start' | 'stop' | 'cancel') {
+async function writeMic($: EngineInterface, action: 'start' | 'stop' | 'cancel' | 'conversation') {
   const ts = await $.clock.now()
   await $.fs.write(`${await base($)}/mic.json`, JSON.stringify({ session_id: await me($), action, ts }))
+}
+
+/** Where Claude Code keeps this session's transcript, or null when it is not on disk yet. */
+async function transcriptPath($: EngineInterface, session: string): Promise<string | null> {
+  const home = (await $.env.get('CLAUDE_CONFIG_DIR')) || `${(await $.env.get('USERPROFILE')) || (await $.env.get('HOME'))}/.claude`
+  // Claude Code files the transcript under the directory the session started in, its root; cwd covers an older layout.
+  for (const where of [await $.session.root(), await $.session.cwd()]) {
+    const path = `${home}/projects/${where.replace(/[^A-Za-z0-9]/g, '-')}/${session}.jsonl`
+    if (await $.fs.exists(path)) return path
+  }
+  return null
 }
 
 /**
@@ -89,16 +101,7 @@ async function speak($: EngineInterface, command: 'parle' | 'say'): Promise<stri
   if (!alive(await readJson($, `${d}/status.json`), t))
     return fr ? "Vox-Scribe n'est pas lancé : rien ne sera lu." : 'Vox-Scribe is not running: nothing will be read.'
   const session = await me($)
-  const home = (await $.env.get('CLAUDE_CONFIG_DIR')) || `${(await $.env.get('USERPROFILE')) || (await $.env.get('HOME'))}/.claude`
-  // Claude Code files the transcript under the directory the session started in, its root; cwd covers an older layout.
-  let transcript: string | null = null
-  for (const where of [await $.session.root(), await $.session.cwd()]) {
-    const path = `${home}/projects/${where.replace(/[^A-Za-z0-9]/g, '-')}/${session}.jsonl`
-    if (await $.fs.exists(path)) {
-      transcript = path
-      break
-    }
-  }
+  const transcript = await transcriptPath($, session)
   if (!transcript) return fr ? 'Transcription de la session introuvable : rien ne sera lu.' : "This session's transcript was not found: nothing will be read."
   // shortcut: $.fs has no rename, so the write is not atomic; the app waits 150 ms after the last change before reading.
   await $.fs.write(
@@ -116,6 +119,19 @@ async function readAloud($: EngineInterface, command: 'parle' | 'say') {
   } catch (err) {
     $.ui.toast(`/${command}: ${err instanceof Error ? err.message : String(err)}`)
   }
+}
+
+/**
+ * Conversation mode: hand Vox-Scribe a finished turn. It carries its own text, which the transcript may not hold yet; the
+ * app decides whether it is read (ReadAloud.AcceptTurn), so a stale band costs one ignored file.
+ */
+async function handTurn($: EngineInterface, answer: string) {
+  const session = await $.session.id() // not `me`: a /clear changes it
+  const d = await base($)
+  await $.fs.write(
+    `${d.replace(/claude$/, 'speak')}/request.json`,
+    JSON.stringify({ command: 'turn', text: answer, transcript_path: await transcriptPath($, session), session_id: session, ts: await $.clock.now() }),
+  )
 }
 
 /** The commands `speak` answers, typed bare or with the plugin's prefix. */
@@ -182,7 +198,8 @@ async function poll($: EngineInterface, t: number) {
     : mine && (s.state === 'listening' || s.state === 'transcribing')
       ? s.state
       : 'ready'
-  const next: VoxBand = { kind, armed, since: kind === 'listening' ? Number(s.since) || t : 0, accent }
+  const conversation = up && s.conversation === true
+  const next: VoxBand = { kind, armed, conversation, since: kind === 'listening' ? Number(s.since) || t : 0, accent }
   if (JSON.stringify(next) !== JSON.stringify(was)) await update($, band, cur => ({ ...next, armed: armedNow(cur) }))
 
   await drainOutbox($, d, session, t)
@@ -267,6 +284,19 @@ export const register: Register = on => {
     return next(e)
   })
 
+  // Never a subagent's turn, an interrupted one or an empty one. Whatever happens here, the turn ends as it would have.
+  on('turn.complete', async ($, e, next) => {
+    try {
+      if (e.reason === 'answer' && !e.agentId && e.answer.trim() !== '') {
+        const b = await read($, band)
+        if (b.armed && b.conversation) await handTurn($, e.answer)
+      }
+    } catch {
+      // Not read aloud this once; the reply is on screen anyway.
+    }
+    return next(e)
+  })
+
   // Answered here, without `next`: no prompt reaches the model, so no turn and no hook card.
   on('command.run', async ($, e, next) => {
     const command = READS.get(e.command)
@@ -317,6 +347,13 @@ export const register: Register = on => {
         const v = await update($, band, x => ({ ...x, armed: !x.armed }))
         await writeTarget($, v.armed ? await me($) : null)
       })
+      // Conversation follows the armed session: with it on elsewhere, the first press brings it here, the next turns it off.
+      const toggleConversation = press($, async () => {
+        const was = await read($, band)
+        await update($, band, x => ({ ...x, armed: true }))
+        await writeTarget($, await me($))
+        if (was.armed || !was.conversation) await writeMic($, 'conversation')
+      })
       const talk = press($, async () => {
         await update($, band, x => ({ ...x, armed: true }))
         await writeTarget($, await me($))
@@ -354,7 +391,7 @@ export const register: Register = on => {
           ours = row(chip(MK.purple, spinner(), 'Vox · transcription…'))
         } else {
           ours = row(
-            b.armed ? chip(MK.cyan, '◉', 'Vox · cible') : chip(MK.green, '◎', 'Vox · prêt'),
+            b.armed ? chip(MK.cyan, '◉', b.conversation ? 'Vox · conversation' : 'Vox · cible') : chip(MK.green, '◎', 'Vox · prêt'),
             segment(
               'vox-dictation',
               b.armed ? (
@@ -363,6 +400,11 @@ export const register: Register = on => {
                 <Button key="vox-arm" plain label="cibler" onPress={toggleArm} />
               ),
               <Button key="vox-talk" plain label="parler" onPress={talk} />,
+              b.armed && b.conversation ? (
+                <Button key="vox-conv" variant="primary" label="conversation" onPress={toggleConversation} />
+              ) : (
+                <Button key="vox-conv" plain label="conversation" onPress={toggleConversation} />
+              ),
             ),
             // Read the last reply aloud: two actions, neither one a standing choice, so neither is lit.
             segment(
@@ -398,7 +440,7 @@ export const register: Register = on => {
       } else {
         ours = (
           <Box key="vox-band" flexDirection="row" gap={2} alignItems="center">
-            {pill(b.armed ? '◉' : '◎', b.accent, b.armed ? 'Vox · cible' : 'Vox · prêt', b.armed ? ground : MUTED_BG)}
+            {pill(b.armed ? '◉' : '◎', b.accent, b.armed ? (b.conversation ? 'Vox · conversation' : 'Vox · cible') : 'Vox · prêt', b.armed ? ground : MUTED_BG)}
             <Button
               key="vox-arm"
               plain
@@ -411,6 +453,13 @@ export const register: Register = on => {
               plain
               label="🎙 parler"
               onPress={talk}
+            />
+            <Button
+              key="vox-conv"
+              plain
+              dimColor={!(b.armed && b.conversation)}
+              label="💬 conversation"
+              onPress={toggleConversation}
             />
             <Button key="vox-fr" plain dimColor label="🔊 fr" onPress={readFr} />
             <Button key="vox-en" plain dimColor label="🔊 en" onPress={readEn} />

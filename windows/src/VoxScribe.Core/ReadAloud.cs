@@ -52,8 +52,22 @@ public sealed class ReadAloud : IDisposable
         _player = player;
     }
 
+    /// <summary>Said after a turn that put something on screen, instead of spelling it out.</summary>
+    private const string OnScreen = "Le détail est à l'écran.";
+
     /// <summary>One short sentence saying why a reading failed or fell back.</summary>
     public event EventHandler<string>? Failed;
+
+    /// <summary>
+    /// What a conversation turn shows, or empty to clear the panel. Raised on a pool thread.
+    /// </summary>
+    public event EventHandler<IReadOnlyList<PanelBlock>>? Panel;
+
+    /// <summary>
+    /// Whether a finished turn of this session is read. Conversation mode's whole rule, set by
+    /// the app; unset, no turn is ever read.
+    /// </summary>
+    public Func<string, bool>? AcceptTurn { get; set; }
 
     /// <summary>The folder the plugin hook drops <c>request.json</c> into.</summary>
     public static string DefaultDirectory => DataDirectory.File("speak");
@@ -82,6 +96,7 @@ public sealed class ReadAloud : IDisposable
     public void Stop()
     {
         if (Volatile.Read(ref _reading) is { } reading) _ = Task.Run(reading.Cancel);
+        if (Panel is { } panel) _ = Task.Run(() => panel(this, []));
     }
 
     private void OnFileEvent(object? sender, FileSystemEventArgs e)
@@ -100,7 +115,7 @@ public sealed class ReadAloud : IDisposable
         try
         {
             await Task.Delay(150, cancellationToken).ConfigureAwait(false);
-            if (await ReadRequestAsync(path, cancellationToken).ConfigureAwait(false) is not var (id, text, english)) return;
+            if (await ReadRequestAsync(path, cancellationToken).ConfigureAwait(false) is not var (id, text, english, session, transcript)) return;
 
             // A late Changed (antivirus, indexer) re-raises the same request; restarting
             // the reading for it would cut the user off mid-sentence.
@@ -111,6 +126,14 @@ public sealed class ReadAloud : IDisposable
             }
 
             if (!_settings().ReadAloudEnabled) return;
+
+            if (session is not null)
+            {
+                if (AcceptTurn?.Invoke(session) != true) return;
+                var blocks = TurnPanel.Compose(text, transcript is { Length: > 0 } && File.Exists(transcript) ? ReadShared(transcript) : []);
+                Panel?.Invoke(this, blocks);
+                if (blocks.Count > 0) text += "\n\n" + OnScreen;
+            }
 
             var reading = new CancellationTokenSource();
             Interlocked.Exchange(ref _reading, reading)?.Cancel();
@@ -127,12 +150,18 @@ public sealed class ReadAloud : IDisposable
     }
 
     /// <summary>
-    /// The request's identity (its timestamp), the reply it points at and whether <c>/say</c>
-    /// asked for English, or null when unreadable or there is nothing to read.
+    /// The request's identity (its timestamp), the reply, whether <c>/say</c> asked for English,
+    /// and for a finished turn its session and transcript; null when unreadable or there is
+    /// nothing to read.
     /// </summary>
-    private static async Task<(string Id, string Text, bool English)?> ReadRequestAsync(string path, CancellationToken cancellationToken)
+    /// <remarks>
+    /// A turn carries its reply as <c>text</c>: at the moment the turn ends the transcript may
+    /// not hold it yet.
+    /// </remarks>
+    private static async Task<(string Id, string Text, bool English, string? Session, string? Transcript)?> ReadRequestAsync(string path, CancellationToken cancellationToken)
     {
-        // The writer may still hold the file for a moment: retry on a sharing violation.
+        // The writer may still hold the file for a moment, or be halfway through it (the module
+        // has no atomic write, and a turn carries a whole reply): retry on either.
         for (var attempt = 0; ; attempt++)
         {
             try
@@ -140,15 +169,19 @@ public sealed class ReadAloud : IDisposable
                 using var json = JsonDocument.Parse(await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false));
                 var root = json.RootElement;
                 var transcript = root.TryGetProperty("transcript_path", out var t) ? t.GetString() : null;
-                if (transcript is not { Length: > 0 } || !File.Exists(transcript)) return null;
-                var text = LastReply(ReadShared(transcript));
+                var command = root.TryGetProperty("command", out var c) ? c.GetString() : null;
+                var turn = string.Equals(command, "turn", StringComparison.OrdinalIgnoreCase);
+                if (!turn && (transcript is not { Length: > 0 } || !File.Exists(transcript))) return null;
+                var text = turn
+                    ? root.TryGetProperty("text", out var said) ? said.GetString() : null
+                    : LastReply(ReadShared(transcript!));
                 if (string.IsNullOrWhiteSpace(text)) return null;
+                var session = !turn ? null : root.TryGetProperty("session_id", out var s) ? s.GetString() ?? "" : "";
                 var id = root.TryGetProperty("ts", out var ts) ? ts.GetRawText() : Guid.NewGuid().ToString();
-                var english = root.TryGetProperty("command", out var c)
-                    && string.Equals(c.GetString(), "say", StringComparison.OrdinalIgnoreCase);
-                return (id, text, english);
+                var english = string.Equals(command, "say", StringComparison.OrdinalIgnoreCase);
+                return (id, text, english, session, transcript);
             }
-            catch (IOException) when (attempt < 10)
+            catch (Exception e) when ((e is IOException or JsonException) && attempt < 10)
             {
                 await Task.Delay(50, cancellationToken).ConfigureAwait(false);
             }

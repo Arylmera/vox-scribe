@@ -168,6 +168,12 @@ public sealed record SettingsData
     [JsonIgnore]
     public bool ReadAloudEnabled => ReadAloud ?? true;
 
+    /// <summary>
+    /// Conversation mode: every finished turn of the armed Claude Code session is read aloud, and
+    /// its code and edits shown on screen. Off in a file from before it existed.
+    /// </summary>
+    public bool Conversation { get; init; }
+
     /// <summary>Alias that rewrites a reply for speech, streamed.</summary>
     public string OralModel { get => Or(_oralModel, "oral"); init => _oralModel = value; }
 

@@ -29,6 +29,10 @@ internal static class ClaudeSection
                     + "arm a session as the command shortcut's target, talk to it with a click, "
                     + "or have its last reply read aloud. It applies to new sessions, or after /reload-plugins."),
                 TerminalBlock(),
+                Panels.Toggle("Conversation mode", settings.Data.Conversation,
+                    v => save(settings.Data with { Conversation = v }),
+                    "Every reply of the armed session is read aloud, and its code and edits shown in a "
+                    + "panel. The command shortcut talks back; any shortcut stops the voice."),
                 Panels.Labelled("COMMAND WINDOW TITLE CONTAINS", commandTitle),
                 Panels.Note("When no session is armed, the command shortcut types into the first "
                     + "visible window whose title contains this text. \"Claude\" matches the desktop "

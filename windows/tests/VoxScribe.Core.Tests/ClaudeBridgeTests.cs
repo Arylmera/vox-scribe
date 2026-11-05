@@ -110,7 +110,20 @@ public sealed class ClaudeBridgeTests : IDisposable
         {
             var sw = Stopwatch.StartNew();
             while (sw.ElapsedMilliseconds < 5) Thread.SpinWait(500);
-            Arm(Session, TimeSpan.Zero);
+
+            // The read under test may hold the file: uncaught here, that kills the whole test host.
+            for (var attempt = 0; ; attempt++)
+            {
+                try
+                {
+                    Arm(Session, TimeSpan.Zero);
+                    return;
+                }
+                catch (IOException) when (attempt < 100)
+                {
+                    Thread.SpinWait(500);
+                }
+            }
         });
         rewrite.Start();
 

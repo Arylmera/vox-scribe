@@ -67,6 +67,21 @@ public partial class App : Application
                     Dispatcher.UIThread.Post(() => tray.ToolTipText = $"Vox-Scribe — {message}");
             }
 
+            // Conversation mode shows what a reply holds but must not say. Raised off the UI thread.
+            if (_composition.ReadAloud is { } turns)
+            {
+                var panel = new TurnPanelWindow();
+                turns.Panel += (_, blocks) => Dispatcher.UIThread.Post(() => panel.Present(blocks));
+            }
+
+            // The tick follows the setting, however it was changed: tray, Settings or the band.
+            if (TrayIcon.GetIcons(this) is [var trayIcon, ..]
+                && trayIcon.Menu?.Items.OfType<NativeMenuItem>().FirstOrDefault(i => i.ToggleType == NativeMenuItemToggleType.CheckBox) is { } conversation)
+            {
+                conversation.IsChecked = settings.Data.Conversation;
+                settings.Changed += (_, _) => Dispatcher.UIThread.Post(() => conversation.IsChecked = settings.Data.Conversation);
+            }
+
             if (settings.Data.CheckUpdatesAtStartup) _ = OfferUpdateAsync();
 
             // Closing the window leaves VoxScribe running in the tray — the hotkey still works,
@@ -157,6 +172,11 @@ public partial class App : Application
         }
 
         OnTrayQuit(this, EventArgs.Empty);
+    }
+
+    private void OnTrayConversation(object? sender, EventArgs e)
+    {
+        if (_composition?.Settings is { } settings) settings.Update(settings.Data with { Conversation = !settings.Data.Conversation });
     }
 
     private void OnTrayQuit(object? sender, EventArgs e) => Quit();
