@@ -55,6 +55,22 @@ public static partial class SpeechText
         return BlankRuns().Replace(text, "\n\n").Trim();
     }
 
+    /// <summary>Whether a reply reads as English: more of its common words are English than French.</summary>
+    public static bool LooksEnglish(string text)
+    {
+        var words = Word().Matches(text.ToLowerInvariant()).Select(m => m.Value).ToList();
+        return words.Count(EnglishWords.Contains) > words.Count(FrenchWords.Contains);
+    }
+
+    private static readonly HashSet<string> EnglishWords =
+        ["the", "and", "is", "are", "of", "to", "it", "this", "that", "with", "you", "for", "was", "not", "have", "in"];
+
+    private static readonly HashSet<string> FrenchWords =
+        ["le", "la", "les", "et", "est", "sont", "de", "des", "du", "un", "une", "que", "qui", "pour", "pas", "tu", "je", "dans", "ce", "sur"];
+
+    [GeneratedRegex(@"\p{L}+")]
+    private static partial Regex Word();
+
     /// <summary>The first sentence of pre-cleaned text, and what follows it; both empty for no text.</summary>
     public static (string First, string Others) SplitFirst(string clean)
     {

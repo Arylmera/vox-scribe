@@ -34,11 +34,11 @@ public sealed class CleanupShortcutTests
     private static async Task DictateAsync(FakeHotkeySource hotkey, DictationEngine engine)
     {
         hotkey.Press();
-        for (var i = 0; i < 2000 && engine.State != DictationState.Recording; i++) await Task.Yield();
-        for (var i = 0; i < 20000 && engine.Level == 0; i++) await Task.Yield();
+        for (var i = 0; i < 300 && engine.State != DictationState.Recording; i++) await Task.Delay(1);
+        for (var i = 0; i < 300 && engine.Level == 0; i++) await Task.Delay(1);
 
         hotkey.Release();
-        for (var i = 0; i < 20000 && engine.State != DictationState.Idle; i++) await Task.Yield();
+        for (var i = 0; i < 300 && engine.State != DictationState.Idle; i++) await Task.Delay(1);
     }
 
     [Fact]

@@ -35,11 +35,11 @@ public sealed class CommandModeTests
     private static async Task DictateAsync(FakeHotkeySource hotkey, DictationEngine engine)
     {
         hotkey.Press();
-        for (var i = 0; i < 2000 && engine.State != DictationState.Recording; i++) await Task.Yield();
-        for (var i = 0; i < 20000 && engine.Level == 0; i++) await Task.Yield();
+        for (var i = 0; i < 300 && engine.State != DictationState.Recording; i++) await Task.Delay(1);
+        for (var i = 0; i < 300 && engine.Level == 0; i++) await Task.Delay(1);
 
         hotkey.Release();
-        for (var i = 0; i < 20000 && engine.State != DictationState.Idle; i++) await Task.Yield();
+        for (var i = 0; i < 300 && engine.State != DictationState.Idle; i++) await Task.Delay(1);
     }
 
     [Fact]
@@ -191,16 +191,16 @@ public sealed class CommandModeTests
         anchor.WindowTitles.Add("Claude");
 
         command.Press();
-        for (var i = 0; i < 2000 && engine.State != DictationState.Recording; i++) await Task.Yield();
+        for (var i = 0; i < 300 && engine.State != DictationState.Recording; i++) await Task.Delay(1);
         engine.CommandThisUtterance.ShouldBeTrue();
         command.Release();
-        for (var i = 0; i < 20000 && engine.State != DictationState.Idle; i++) await Task.Yield();
+        for (var i = 0; i < 300 && engine.State != DictationState.Idle; i++) await Task.Delay(1);
 
         raw.Press();
-        for (var i = 0; i < 2000 && engine.State != DictationState.Recording; i++) await Task.Yield();
+        for (var i = 0; i < 300 && engine.State != DictationState.Recording; i++) await Task.Delay(1);
         engine.CommandThisUtterance.ShouldBeFalse();
         raw.Release();
-        for (var i = 0; i < 20000 && engine.State != DictationState.Idle; i++) await Task.Yield();
+        for (var i = 0; i < 300 && engine.State != DictationState.Idle; i++) await Task.Delay(1);
     }
 
     [Fact]
@@ -213,7 +213,7 @@ public sealed class CommandModeTests
         injector.Injected.ShouldBe(["hello"]);
 
         undo.Press();
-        for (var i = 0; i < 20000 && injector.Backspaces < 5; i++) await Task.Yield();
+        for (var i = 0; i < 300 && injector.Backspaces < 5; i++) await Task.Delay(1);
 
         injector.Backspaces.ShouldBe(5);
         engine.Journal.InjectedText.ShouldBeEmpty();

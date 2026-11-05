@@ -44,11 +44,11 @@ public sealed class DictationEngineTests
     private static async Task DictateAsync(FakeHotkeySource hotkey, DictationEngine engine)
     {
         hotkey.Press();
-        for (var i = 0; i < 2000 && engine.State != DictationState.Recording; i++) await Task.Yield();
-        for (var i = 0; i < 20000 && engine.Level == 0; i++) await Task.Yield();
+        for (var i = 0; i < 300 && engine.State != DictationState.Recording; i++) await Task.Delay(1);
+        for (var i = 0; i < 300 && engine.Level == 0; i++) await Task.Delay(1);
 
         hotkey.Release();
-        for (var i = 0; i < 20000 && engine.State != DictationState.Idle; i++) await Task.Yield();
+        for (var i = 0; i < 300 && engine.State != DictationState.Idle; i++) await Task.Delay(1);
     }
 
     [Fact]
@@ -86,9 +86,9 @@ public sealed class DictationEngineTests
             FakeAudioCapture.Silence(0.5), hotkey, new FakeTranscriber(""), injector);
 
         hotkey.Press();
-        for (var i = 0; i < 2000 && engine.State != DictationState.Recording; i++) await Task.Yield();
+        for (var i = 0; i < 300 && engine.State != DictationState.Recording; i++) await Task.Delay(1);
         hotkey.Release();
-        for (var i = 0; i < 20000 && engine.State != DictationState.Idle; i++) await Task.Yield();
+        for (var i = 0; i < 300 && engine.State != DictationState.Idle; i++) await Task.Delay(1);
 
         injector.Injected.ShouldBeEmpty();
     }
@@ -105,9 +105,9 @@ public sealed class DictationEngineTests
             FakeAudioCapture.Silence(2.0), hotkey, transcriber, injector);
 
         hotkey.Press();
-        for (var i = 0; i < 2000 && engine.State != DictationState.Recording; i++) await Task.Yield();
+        for (var i = 0; i < 300 && engine.State != DictationState.Recording; i++) await Task.Delay(1);
         hotkey.Release();
-        for (var i = 0; i < 20000 && engine.State != DictationState.Idle; i++) await Task.Yield();
+        for (var i = 0; i < 300 && engine.State != DictationState.Idle; i++) await Task.Delay(1);
 
         transcriber.SegmentLengths.ShouldBeEmpty();
         injector.Injected.ShouldBeEmpty();
@@ -148,10 +148,10 @@ public sealed class DictationEngineTests
             FakeAudioCapture.Silence(2.0), hotkey, new FakeTranscriber(""), injector);
 
         hotkey.Press();
-        for (var i = 0; i < 2000 && engine.State != DictationState.Recording; i++) await Task.Yield();
-        for (var i = 0; i < 20000 && engine.Notice.Length == 0; i++) await Task.Yield();
+        for (var i = 0; i < 300 && engine.State != DictationState.Recording; i++) await Task.Delay(1);
+        for (var i = 0; i < 300 && engine.Notice.Length == 0; i++) await Task.Delay(1);
         hotkey.Release();
-        for (var i = 0; i < 20000 && engine.State != DictationState.Idle; i++) await Task.Yield();
+        for (var i = 0; i < 300 && engine.State != DictationState.Idle; i++) await Task.Delay(1);
 
         engine.Notice.ShouldContain("icrophone");
     }
@@ -295,10 +295,10 @@ public sealed class DictationEngineTests
         engine.Completed += (_, _) => completed++;
 
         hotkey.Press();
-        for (var i = 0; i < 20000 && engine.Level == 0; i++) await Task.Yield();
+        for (var i = 0; i < 300 && engine.Level == 0; i++) await Task.Delay(1);
 
         cancel.Press();
-        for (var i = 0; i < 20000 && engine.State != DictationState.Idle; i++) await Task.Yield();
+        for (var i = 0; i < 300 && engine.State != DictationState.Idle; i++) await Task.Delay(1);
         hotkey.Release();
         for (var i = 0; i < 2000; i++) await Task.Yield();
 
@@ -474,12 +474,12 @@ public sealed class DictationEngineTests
         FakeHotkeySource hotkey, FakeAudioCapture capture, DictationEngine engine)
     {
         hotkey.Press();
-        for (var i = 0; i < 2000 && engine.State != DictationState.Recording; i++) await Task.Yield();
-        for (var i = 0; i < 200000 && !capture.IsCapturing; i++) await Task.Yield();
-        for (var i = 0; i < 200000 && capture.IsCapturing; i++) await Task.Yield();
+        for (var i = 0; i < 300 && engine.State != DictationState.Recording; i++) await Task.Delay(1);
+        for (var i = 0; i < 300 && !capture.IsCapturing; i++) await Task.Delay(1);
+        for (var i = 0; i < 300 && capture.IsCapturing; i++) await Task.Delay(1);
 
         hotkey.Release();
-        for (var i = 0; i < 200000 && engine.State != DictationState.Idle; i++) await Task.Yield();
+        for (var i = 0; i < 300 && engine.State != DictationState.Idle; i++) await Task.Delay(1);
     }
 
     [Fact]
@@ -574,11 +574,11 @@ public sealed class DictationEngineTests
     private static async Task DictateFromButtonAsync(DictationEngine engine)
     {
         engine.TogglePushToTalk();
-        for (var i = 0; i < 2000 && engine.State != DictationState.Recording; i++) await Task.Yield();
-        for (var i = 0; i < 20000 && engine.Level == 0; i++) await Task.Yield();
+        for (var i = 0; i < 300 && engine.State != DictationState.Recording; i++) await Task.Delay(1);
+        for (var i = 0; i < 300 && engine.Level == 0; i++) await Task.Delay(1);
 
         engine.TogglePushToTalk();
-        for (var i = 0; i < 20000 && engine.State != DictationState.Idle; i++) await Task.Yield();
+        for (var i = 0; i < 300 && engine.State != DictationState.Idle; i++) await Task.Delay(1);
     }
 
     [Fact]

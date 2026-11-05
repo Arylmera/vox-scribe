@@ -904,6 +904,14 @@ public sealed class DictationEngine : IAsyncDisposable
             await target.RestoreAsync(CancellationToken.None).ConfigureAwait(false);
     }
 
+    /// <summary>Brings the command window forward, if there is one. Never types.</summary>
+    public async Task ShowCommandWindowAsync()
+    {
+        if (_focusAnchor is null) return;
+        if (await _focusAnchor.FindAsync(CommandWindowTitle, CancellationToken.None).ConfigureAwait(false) is { } target)
+            await target.RestoreAsync(CancellationToken.None).ConfigureAwait(false);
+    }
+
     /// <summary>
     /// Types <paramref name="text"/> into the command target and submits it. If the window is
     /// not there, or will not come forward, nothing is typed anywhere: a prompt meant for

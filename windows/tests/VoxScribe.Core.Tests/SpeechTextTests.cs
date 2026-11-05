@@ -212,7 +212,7 @@ public sealed class ReadAloudSettingsTests
             data.TtsModel.ShouldBe("tts");
             data.TtsVoice.ShouldBe("ff_siwis");
             data.OralPrompt.ShouldBe(SettingsData.DefaultOralPrompt);
-            data.OralPrompt.ShouldStartWith("Tu reformules la réponse écrite");
+            data.OralPrompt.ShouldStartWith("Tu prépares la réponse écrite");
 
             var settings = new AppSettings(path);
             settings.Update(data with { ReadAloud = false });

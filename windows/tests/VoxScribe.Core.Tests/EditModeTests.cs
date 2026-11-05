@@ -26,10 +26,10 @@ public sealed class EditModeTests
     private static async Task DictateAsync(FakeHotkeySource hotkey, DictationEngine engine)
     {
         hotkey.Press();
-        for (var i = 0; i < 2000 && engine.State != DictationState.Recording; i++) await Task.Yield();
-        for (var i = 0; i < 20000 && engine.Level == 0; i++) await Task.Yield();
+        for (var i = 0; i < 300 && engine.State != DictationState.Recording; i++) await Task.Delay(1);
+        for (var i = 0; i < 300 && engine.Level == 0; i++) await Task.Delay(1);
         hotkey.Release();
-        for (var i = 0; i < 20000 && engine.State != DictationState.Idle; i++) await Task.Yield();
+        for (var i = 0; i < 300 && engine.State != DictationState.Idle; i++) await Task.Delay(1);
     }
 
     [Fact]
@@ -90,10 +90,10 @@ public sealed class EditModeTests
         injector.Copies.ShouldBe(1);
 
         engine.TogglePushToTalk();
-        for (var i = 0; i < 2000 && engine.State != DictationState.Recording; i++) await Task.Yield();
-        for (var i = 0; i < 20000 && engine.Level == 0; i++) await Task.Yield();
+        for (var i = 0; i < 300 && engine.State != DictationState.Recording; i++) await Task.Delay(1);
+        for (var i = 0; i < 300 && engine.Level == 0; i++) await Task.Delay(1);
         engine.TogglePushToTalk();
-        for (var i = 0; i < 20000 && engine.State != DictationState.Idle; i++) await Task.Yield();
+        for (var i = 0; i < 300 && engine.State != DictationState.Idle; i++) await Task.Delay(1);
 
         injector.Injected.ShouldBe(["the build passes", "traduis en anglais"]);
         injector.Copies.ShouldBe(1);
@@ -134,12 +134,12 @@ public sealed class EditModeTests
         // A full press/release, like any other chord — the missing endpoint is reported at
         // release, with the pill visible, not swallowed at press while idle (and hidden).
         edit.Press();
-        for (var i = 0; i < 2000 && engine.State != DictationState.Recording; i++) await Task.Yield();
+        for (var i = 0; i < 300 && engine.State != DictationState.Recording; i++) await Task.Delay(1);
         engine.State.ShouldBe(DictationState.Recording, "the chord must record like any other, press-time guard or not");
         engine.Notice.ShouldBe(string.Empty, "nothing is reported until release");
-        for (var i = 0; i < 20000 && engine.Level == 0; i++) await Task.Yield();
+        for (var i = 0; i < 300 && engine.Level == 0; i++) await Task.Delay(1);
         edit.Release();
-        for (var i = 0; i < 20000 && engine.State != DictationState.Idle; i++) await Task.Yield();
+        for (var i = 0; i < 300 && engine.State != DictationState.Idle; i++) await Task.Delay(1);
 
         engine.Notice.ShouldBe("Set a cleanup endpoint to edit by voice");
         injector.Injected.ShouldBeEmpty();

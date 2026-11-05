@@ -199,6 +199,27 @@ public sealed class ConversationTests : IDisposable
         new SettingsData { ProgressVoice = false }.ProgressVoiceEnabled.ShouldBeFalse();
     }
 
+    [Theory]
+    [InlineData("Everything is done and the tests are green, you can try it.", true)]
+    [InlineData("Tout est fait et les tests sont verts, tu peux essayer.", false)]
+    [InlineData("Le build est vert pour la release, the tests pass.", false)]
+    [InlineData("", false)]
+    public void The_language_of_a_reply_is_told_by_its_common_words(string text, bool english) =>
+        SpeechText.LooksEnglish(text).ShouldBe(english);
+
+    private static byte[] Clip(double seconds) => WavTempo.Apply(WavTempo.FallingTone(), 1 / (seconds * 3));
+
+    [Fact]
+    public void Pace_is_pulled_towards_the_usual_one_within_bounds()
+    {
+        WavTempo.EvenRate(180, Clip(10)).ShouldBe(1, 0.02);
+        WavTempo.EvenRate(100, Clip(10)).ShouldBe(1.08);
+        WavTempo.EvenRate(400, Clip(10)).ShouldBe(0.94);
+    }
+
+    [Fact]
+    public void A_short_clip_keeps_its_pace() => WavTempo.EvenRate(20, Clip(5)).ShouldBe(1);
+
     [Fact]
     public void Quick_start_takes_the_first_sentence_and_keeps_the_rest()
     {

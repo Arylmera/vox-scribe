@@ -71,6 +71,7 @@ public partial class App : Application
             if (_composition.ReadAloud is { } turns)
             {
                 var panel = new TurnPanelWindow();
+                if (_composition.Engine is { } engine) panel.Clicked += (_, _) => _ = engine.ShowCommandWindowAsync();
                 turns.Panel += (_, blocks) => Dispatcher.UIThread.Post(() => panel.Present(blocks));
             }
 

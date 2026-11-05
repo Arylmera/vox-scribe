@@ -24,9 +24,15 @@ internal sealed class TurnPanelWindow : Window
 
     private readonly StackPanel _blocks = new() { Spacing = Tokens.Space.Base };
 
+    /// <summary>Raised by a click on the panel, its close button aside.</summary>
+    public event EventHandler? Clicked;
+
     /// <summary>Builds the panel, hidden.</summary>
     public TurnPanelWindow()
     {
+        // A button handles its own press, so the close button never reaches this.
+        PointerPressed += (_, _) => Clicked?.Invoke(this, EventArgs.Empty);
+
         SystemDecorations = SystemDecorations.None;
         Topmost = true;
         ShowInTaskbar = false;

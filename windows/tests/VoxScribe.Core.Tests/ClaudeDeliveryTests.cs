@@ -37,14 +37,14 @@ public sealed class ClaudeDeliveryTests
 
     private static async Task WaitAsync(DictationEngine engine, DictationState state)
     {
-        for (var i = 0; i < 20000 && engine.State != state; i++) await Task.Yield();
+        for (var i = 0; i < 300 && engine.State != state; i++) await Task.Delay(1);
     }
 
     private static async Task DictateAsync(FakeHotkeySource hotkey, DictationEngine engine)
     {
         hotkey.Press();
         await WaitAsync(engine, DictationState.Recording);
-        for (var i = 0; i < 20000 && engine.Level == 0; i++) await Task.Yield();
+        for (var i = 0; i < 300 && engine.Level == 0; i++) await Task.Delay(1);
         hotkey.Release();
         await WaitAsync(engine, DictationState.Idle);
     }
@@ -117,7 +117,7 @@ public sealed class ClaudeDeliveryTests
         engine.BeginCommand();
         await WaitAsync(engine, DictationState.Recording);
         engine.CommandThisUtterance.ShouldBeTrue();
-        for (var i = 0; i < 20000 && engine.Level == 0; i++) await Task.Yield();
+        for (var i = 0; i < 300 && engine.Level == 0; i++) await Task.Delay(1);
 
         engine.EndUtterance();
         await WaitAsync(engine, DictationState.Idle);

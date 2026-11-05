@@ -29,8 +29,8 @@ public sealed class AutoStopTests
     private static async Task PressOnceAndWaitAsync(FakeHotkeySource hotkey, DictationEngine engine)
     {
         hotkey.Press();
-        for (var i = 0; i < 2000 && engine.State != DictationState.Recording; i++) await Task.Yield();
-        for (var i = 0; i < 50000 && engine.State != DictationState.Idle; i++) await Task.Yield();
+        for (var i = 0; i < 300 && engine.State != DictationState.Recording; i++) await Task.Delay(1);
+        for (var i = 0; i < 300 && engine.State != DictationState.Idle; i++) await Task.Delay(1);
     }
 
     /// <summary>
@@ -41,8 +41,8 @@ public sealed class AutoStopTests
     private static async Task PressOnceAndDrainCaptureAsync(FakeHotkeySource hotkey, FakeAudioCapture capture, DictationEngine engine)
     {
         hotkey.Press();
-        for (var i = 0; i < 2000 && !capture.IsCapturing; i++) await Task.Yield();
-        for (var i = 0; i < 200000 && capture.IsCapturing; i++) await Task.Yield();
+        for (var i = 0; i < 300 && !capture.IsCapturing; i++) await Task.Delay(1);
+        for (var i = 0; i < 300 && capture.IsCapturing; i++) await Task.Delay(1);
 
         // A late, fire-and-forget EndAsync (as auto-stop triggers one, see DictationEngine)
         // can still be mid-flight the instant the capture loop's last chunk is consumed. Give

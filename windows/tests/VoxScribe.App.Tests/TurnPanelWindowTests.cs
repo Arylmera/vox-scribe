@@ -58,6 +58,22 @@ public sealed class TurnPanelWindowTests
     }
 
     [AvaloniaFact]
+    public void The_close_button_hides_the_panel_without_a_click_on_it()
+    {
+        var panel = new TurnPanelWindow();
+        var clicks = 0;
+        panel.Clicked += (_, _) => clicks++;
+        panel.Present([Code]);
+
+        panel.GetVisualDescendants().OfType<Button>().Single()
+            .RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+
+        panel.IsVisible.ShouldBeFalse();
+        clicks.ShouldBe(0);
+        panel.Close();
+    }
+
+    [AvaloniaFact]
     public void Nothing_to_show_hides_it_and_the_next_turn_replaces_it()
     {
         var panel = new TurnPanelWindow();

@@ -11,6 +11,8 @@ public static class WavTempo
 {
     private const double FrameSeconds = 0.04;
     private const double ToleranceSeconds = 0.01;
+    private const double EvenPace = 18;
+    private const int MinEvenCharacters = 40;
 
     /// <summary>The clip at <paramref name="rate"/>; the clip itself at 1, or when it is not mono 16-bit PCM.</summary>
     public static byte[] Apply(byte[] wav, double rate)
@@ -23,6 +25,19 @@ public static class WavTempo
             input[i] = BinaryPrimitives.ReadInt16LittleEndian(wav.AsSpan(start + (i * 2)));
 
         return Build(Stretch(input, sampleRate, rate), sampleRate);
+    }
+
+    /// <summary>
+    /// The voice's pace wanders from clip to clip, whatever their length (measured 12.9 to 21.8
+    /// characters a second, around 18). A gentle pull towards that pace, bounded because
+    /// characters only approximate rhythm: a clip full of pauses must not be rushed.
+    /// </summary>
+    public static double EvenRate(int characters, byte[] wav)
+    {
+        ArgumentNullException.ThrowIfNull(wav);
+        if (characters < MinEvenCharacters || Parse(wav) is not var (sampleRate, _, length) || length == 0) return 1;
+        var seconds = length / 2.0 / sampleRate;
+        return Math.Clamp(seconds * EvenPace / characters, 0.94, 1.08);
     }
 
     /// <summary>Two falling notes, a third of a second in all, softened at each end.</summary>

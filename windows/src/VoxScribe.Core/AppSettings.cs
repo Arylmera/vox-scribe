@@ -215,30 +215,32 @@ public sealed record SettingsData
 
     private static string Or(string? value, string fallback) => value is { Length: > 0 } ? value : fallback;
 
-    /// <summary>The oral rewrite prompt tuned on real replies (read-aloud spec, step 5).</summary>
+    /// <summary>The oral prompt: faithful to the reply, changing only what cannot be read aloud.</summary>
     public const string DefaultOralPrompt = """
-        Tu reformules la réponse écrite d'un assistant de code pour qu'elle soit dite à voix haute, comme un collègue qui t'explique de vive voix ce qu'il vient de faire.
+        Tu prépares la réponse écrite d'un assistant de code pour qu'elle soit lue à voix haute. Tu ne la résumes pas et tu ne la reformules pas : tu la recopies en changeant seulement ce qui ne se lit pas à l'oral.
 
         Règles strictes :
-        - Français parlé, naturel, phrases courtes. Tutoiement. Pas de « Alors », pas de « Voici », pas de « Bonne nouvelle ».
-        - Aucune liste, aucun tableau, aucun titre, aucun symbole, aucun emoji. Un tableau devient une ou deux phrases qui disent ce qu'il montre.
-        - Ne prononce jamais un nom de fichier, un chemin, une URL, une commande, un identifiant de commit ou une version précise. Dis plutôt ce que c'est : « la spec », « le hook », « la config de la passerelle ».
-        - Garde les décisions, les résultats chiffrés qui comptent (au plus deux ou trois), les problèmes rencontrés et la question finale s'il y en a une.
-        - N'invente rien : pas de jugement, de comparaison ou de conclusion absents du texte. Ne réponds pas à la question, rapporte-la.
-        - Moins de 30 secondes à voix haute : 70 mots au plus, quelle que soit la longueur d'origine.
+        - Garde ses phrases, ses mots, leur ordre et toutes ses informations. Ne raccourcis rien et n'ajoute rien.
+        - Une liste se lit à la suite, une phrase après l'autre, sans puce ni numéro.
+        - Un tableau devient des phrases qui donnent chacune de ses lignes.
+        - Aucun titre, symbole, emoji ou mise en forme.
+        - Un nom de fichier, un chemin, une URL, une commande ou un identifiant de commit se remplace par ce qu'il désigne : « la spec », « le hook », « la config ». Garde les numéros de version et les chiffres.
+        - Ne réponds pas aux questions du texte, recopie-les.
+        - Réponds uniquement avec le texte à lire.
         """;
 
     /// <summary>The <c>/say</c> counterpart of <see cref="DefaultOralPrompt"/>.</summary>
     public const string DefaultEnglishOralPrompt = """
-        You rewrite a coding assistant's written reply so it can be spoken aloud, like a colleague telling you in person what they just did. The reply may be in another language: always answer in English.
+        You prepare a coding assistant's written reply to be read aloud. You do not summarise or rephrase it: you copy it, changing only what cannot be read aloud.
 
         Strict rules:
-        - Natural spoken English, short sentences. No "So", no "Here is", no "Good news".
-        - No lists, tables, headings, symbols or emoji. A table becomes one or two sentences saying what it shows.
-        - Never say a file name, path, URL, command, commit id or exact version. Say what it is instead: "the spec", "the hook", "the gateway config".
-        - Keep the decisions, the numbers that matter (two or three at most), the problems met and the closing question if there is one.
-        - Invent nothing: no judgement, comparison or conclusion that is not in the text. Do not answer the question, report it.
-        - Under 30 seconds spoken: 70 words at most, whatever the original length.
+        - Keep its sentences, its words, their order and all its information. Shorten nothing and add nothing.
+        - A list is read through, one sentence after another, with no bullets or numbers.
+        - A table becomes sentences giving each of its rows.
+        - No headings, symbols, emoji or formatting.
+        - A file name, path, URL, command or commit id is replaced by what it refers to: "the spec", "the hook", "the config". Keep version numbers and figures.
+        - Do not answer questions in the text, copy them.
+        - Reply only with the text to read.
         """;
 
     /// <summary>
