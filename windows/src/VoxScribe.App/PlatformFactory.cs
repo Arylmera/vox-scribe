@@ -80,10 +80,6 @@ internal static class PlatformFactory
         "Trimming",
         "IL2026:RequiresUnreferencedCode",
         Justification = "VoxScribe.Platform.Windows is published whole and never trimmed.")]
-    /// <summary>The device catalog resolved out of the bundle: what an empty device list cannot show.</summary>
-    public static bool CaptureCatalogLoads() =>
-        Load()?.GetType($"{Namespace}.AudioDeviceCatalog")?.GetMethod("ListCapture") is not null;
-
     public static KeyValuePair<string, string>[] ListCaptureDevices()
     {
         var method = Load()?.GetType($"{Namespace}.AudioDeviceCatalog")?.GetMethod("ListCapture");
@@ -96,6 +92,18 @@ internal static class PlatformFactory
             return []; // no audio service — settings shows only "system default"
         }
     }
+
+    /// <summary>The device catalog resolved out of the bundle: what an empty device list cannot show.</summary>
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2075:DynamicallyAccessedMembers",
+        Justification = "VoxScribe.Platform.Windows is published whole and never trimmed.")]
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2026:RequiresUnreferencedCode",
+        Justification = "VoxScribe.Platform.Windows is published whole and never trimmed.")]
+    public static bool CaptureCatalogLoads() =>
+        Load()?.GetType($"{Namespace}.AudioDeviceCatalog")?.GetMethod("ListCapture") is not null;
 
     /// <summary>Creates the speech playback device, or null off Windows.</summary>
     public static IAudioPlayer? CreateAudioPlayer() =>
