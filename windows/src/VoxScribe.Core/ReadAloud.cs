@@ -43,6 +43,10 @@ public sealed class ReadAloud : IDisposable
     private CancellationTokenSource? _pickUp;
     private CancellationTokenSource? _reading;
     private string? _lastRequest;
+    private ProgressWatcher? _progress;
+    private string? _pendingNote;
+    private bool _speakingNotes;
+    private bool _answering;
 
     /// <param name="settings">Read at each request, so a toggled setting applies at once.</param>
     /// <param name="player">Plays one WAV clip at a time.</param>
@@ -90,11 +94,68 @@ public sealed class ReadAloud : IDisposable
         _watcher.EnableRaisingEvents = true;
     }
 
+    /// <summary>Speaks the progress notes of <paramref name="session"/>'s transcript as they appear.</summary>
+    public void FollowProgress(Func<string?> session, string projects) =>
+        _progress = new ProgressWatcher(session, Note, projects);
+
+    /// <summary>
+    /// One note, as written: no rewrite, so the voice keeps up with the work. One at a time, and
+    /// only the newest waits; the final answer goes first and drops what is waiting.
+    /// </summary>
+    private void Note(string session, string note)
+    {
+        if (AcceptTurn?.Invoke(session) != true || !_settings().ReadAloudEnabled) return;
+
+        lock (_gate)
+        {
+            if (_answering) return;
+            _pendingNote = note;
+            if (_speakingNotes) return;
+            _speakingNotes = true;
+        }
+
+        _ = SpeakNotesAsync();
+    }
+
+    private async Task SpeakNotesAsync()
+    {
+        while (true)
+        {
+            string? note;
+            lock (_gate)
+            {
+                note = _pendingNote;
+                _pendingNote = null;
+                if (note is null || _answering)
+                {
+                    _speakingNotes = false;
+                    return;
+                }
+            }
+
+            try
+            {
+                var reading = new CancellationTokenSource();
+                Interlocked.Exchange(ref _reading, reading)?.Cancel();
+                await SpeakAsync(note, english: false, reading.Token, plain: true).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // Stopped, or the answer took over.
+            }
+            catch (Exception e)
+            {
+                Fail($"Read-aloud failed — {e.Message}");
+            }
+        }
+    }
+
     /// <summary>Stops the reading in progress, if any. Safe from any thread, never blocks.</summary>
     /// <remarks>Called from the keyboard hook thread: the cancel — and the device stop it
     /// triggers — run on the pool instead.</remarks>
     public void Stop()
     {
+        lock (_gate) _pendingNote = null;
         if (Volatile.Read(ref _reading) is { } reading) _ = Task.Run(reading.Cancel);
         if (Panel is { } panel) _ = Task.Run(() => panel(this, []));
     }
@@ -135,9 +196,22 @@ public sealed class ReadAloud : IDisposable
                 if (blocks.Count > 0) text += "\n\n" + OnScreen;
             }
 
-            var reading = new CancellationTokenSource();
-            Interlocked.Exchange(ref _reading, reading)?.Cancel();
-            await SpeakAsync(text, english, reading.Token, quickStart: session is not null).ConfigureAwait(false);
+            lock (_gate)
+            {
+                _pendingNote = null;
+                _answering = true;
+            }
+
+            try
+            {
+                var reading = new CancellationTokenSource();
+                Interlocked.Exchange(ref _reading, reading)?.Cancel();
+                await SpeakAsync(text, english, reading.Token, quickStart: session is not null).ConfigureAwait(false);
+            }
+            finally
+            {
+                lock (_gate) _answering = false;
+            }
         }
         catch (OperationCanceledException)
         {
@@ -263,8 +337,9 @@ public sealed class ReadAloud : IDisposable
     /// Conversation mode: the first sentence is spoken as written while the rewrite works on the
     /// rest, so the voice does not wait for the rewrite's first token.
     /// </param>
+    /// <param name="plain">Spoken as written, with no rewrite at all.</param>
     /// <remarks>Public for the live harness; the watcher is the normal caller.</remarks>
-    public async Task SpeakAsync(string markdown, bool english, CancellationToken cancellationToken, bool quickStart = false)
+    public async Task SpeakAsync(string markdown, bool english, CancellationToken cancellationToken, bool quickStart = false, bool plain = false)
     {
         var settings = _settings();
         var prompt = english ? settings.EnglishOralPrompt : settings.OralPrompt;
@@ -283,7 +358,7 @@ public sealed class ReadAloud : IDisposable
         var baseUrl = endpoint.TrimEnd('/');
         var clean = SpeechText.PreClean(markdown);
         if (clean.Length == 0) return;
-        var (first, rest) = quickStart ? SpeechText.SplitFirst(clean) : ("", clean);
+        var (first, rest) = plain ? (clean, "") : quickStart ? SpeechText.SplitFirst(clean) : ("", clean);
 
         using var run = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var token = run.Token;
@@ -482,6 +557,7 @@ public sealed class ReadAloud : IDisposable
     public void Dispose()
     {
         _watcher?.Dispose();
+        _progress?.Dispose();
         _pickUp?.Cancel();
         _reading?.Cancel();
     }

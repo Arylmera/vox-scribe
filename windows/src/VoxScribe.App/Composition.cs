@@ -268,7 +268,10 @@ public sealed class Composition : IAsyncDisposable
 
             // Conversation mode: only the armed session is read, and never over a dictation.
             if (readAloud is { } turns)
+            {
                 turns.AcceptTurn = session => settings.Data.Conversation && live.State == DictationState.Idle && bridge.LiveTarget() == session;
+                turns.FollowProgress(() => settings.Data.Conversation ? bridge.LiveTarget() : null, ProgressWatcher.DefaultProjects);
+            }
             var shown = engine.State;
             engine.Changed += (_, _) =>
             {
