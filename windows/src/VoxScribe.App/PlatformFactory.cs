@@ -80,6 +80,10 @@ internal static class PlatformFactory
         "Trimming",
         "IL2026:RequiresUnreferencedCode",
         Justification = "VoxScribe.Platform.Windows is published whole and never trimmed.")]
+    /// <summary>The device catalog resolved out of the bundle: what an empty device list cannot show.</summary>
+    public static bool CaptureCatalogLoads() =>
+        Load()?.GetType($"{Namespace}.AudioDeviceCatalog")?.GetMethod("ListCapture") is not null;
+
     public static KeyValuePair<string, string>[] ListCaptureDevices()
     {
         var method = Load()?.GetType($"{Namespace}.AudioDeviceCatalog")?.GetMethod("ListCapture");

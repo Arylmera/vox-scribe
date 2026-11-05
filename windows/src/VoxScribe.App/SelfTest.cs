@@ -126,7 +126,8 @@ public static class SelfTest
         Console.WriteLine($"    key name check: 0xA1 -> {PlatformFactory.KeyDisplayName(0xA1)}");
 
         // Listed by name so a "my microphone is missing" report is diagnosable from the log.
-        // None is no failure, a CI runner has no audio hardware; a list that throws still is.
+        // Zero is no failure, a CI runner has no audio hardware; a catalog that will not load is.
+        failures += Check("capture device catalog loads", PlatformFactory.CaptureCatalogLoads());
         var devices = PlatformFactory.ListCaptureDevices();
         Console.WriteLine($"    capture devices: {devices.Length}{(devices.Length == 0 ? " (expected on a clean runner)" : "")}");
         foreach (var (id, name) in devices) Console.WriteLine($"    mic: {name} ({id})");
