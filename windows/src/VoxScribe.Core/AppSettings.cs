@@ -174,6 +174,13 @@ public sealed record SettingsData
     /// </summary>
     public bool Conversation { get; init; }
 
+    /// <summary>How fast replies are read, 1 being as synthesised; null for a file from before it existed.</summary>
+    public double? ReadingSpeed { get; init; }
+
+    /// <summary>A touch faster by default: the resident voice is gentle but slow.</summary>
+    [JsonIgnore]
+    public double ReadingRate => ReadingSpeed ?? 1.1;
+
     /// <summary>Alias that rewrites a reply for speech, streamed.</summary>
     public string OralModel { get => Or(_oralModel, "oral"); init => _oralModel = value; }
 

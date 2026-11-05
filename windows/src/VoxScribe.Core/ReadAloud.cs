@@ -335,9 +335,8 @@ public sealed class ReadAloud : IDisposable
         {
             await foreach (var sentence in sentences.Reader.ReadAllAsync(token).ConfigureAwait(false))
             {
-                await clips.Writer.WriteAsync(
-                    await SynthesiseAsync(baseUrl, key, settings.TtsModel, voice, sentence, token).ConfigureAwait(false),
-                    token).ConfigureAwait(false);
+                var clip = await SynthesiseAsync(baseUrl, key, settings.TtsModel, voice, sentence, token).ConfigureAwait(false);
+                await clips.Writer.WriteAsync(WavTempo.Apply(clip, settings.ReadingRate), token).ConfigureAwait(false);
             }
         }
 
