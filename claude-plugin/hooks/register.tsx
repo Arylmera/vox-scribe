@@ -131,7 +131,7 @@ async function handTurn($: EngineInterface, answer: string) {
   const d = await base($)
   await $.fs.write(
     `${d.replace(/claude$/, 'speak')}/request.json`,
-    JSON.stringify({ command: 'turn', text: answer, transcript_path: await transcriptPath($, session), session_id: session, ts: await $.clock.now() }),
+    JSON.stringify({ command: 'turn', text: answer, session_id: session, ts: await $.clock.now() }),
   )
 }
 

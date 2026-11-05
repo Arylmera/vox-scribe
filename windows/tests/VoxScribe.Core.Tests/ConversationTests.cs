@@ -24,24 +24,12 @@ public sealed class ConversationTests : IDisposable
 
     private static string Line(object value) => JsonSerializer.Serialize(value);
 
-    private static string User(string text) => Line(new { type = "user", message = new { content = text } });
-
-    private static string ToolResult() =>
-        Line(new { type = "user", message = new { content = new object[] { new { type = "tool_result", content = "ok" } } } });
-
-    private static string Tool(string name, object input, bool sidechain = false) => Line(new
-    {
-        type = "assistant",
-        isSidechain = sidechain,
-        message = new { content = new object[] { new { type = "tool_use", name, input } } },
-    });
-
     [Fact]
     public void Fenced_code_is_lifted_out_with_its_language()
     {
         var blocks = TurnPanel.CodeBlocks("Voici :\n```csharp\nvar a = 1;\n  var b = 2;\n```\nEt ceci :\n```\nls\n```").ToList();
 
-        blocks.ShouldBe([new PanelBlock("csharp", "var a = 1;\n  var b = 2;", false), new PanelBlock("code", "ls", false)]);
+        blocks.ShouldBe([new PanelBlock("csharp", "var a = 1;\n  var b = 2;"), new PanelBlock("code", "ls")]);
     }
 
     [Fact]
@@ -51,43 +39,6 @@ public sealed class ConversationTests : IDisposable
     [Fact]
     public void An_unclosed_fence_runs_to_the_end() =>
         TurnPanel.CodeBlocks("```py\nprint(1)").Single().Body.ShouldBe("print(1)");
-
-    [Fact]
-    public void Only_the_edits_since_the_user_last_spoke_are_shown()
-    {
-        var blocks = TurnPanel.Edits([
-            User("first"),
-            Tool("Edit", new { file_path = "C:\\repo\\old.cs", old_string = "a", new_string = "b" }),
-            User("second"),
-            Tool("Edit", new { file_path = "C:\\repo\\new.cs", old_string = "x\ny", new_string = "z" }),
-            ToolResult(),
-            Tool("Write", new { file_path = "/repo/made.md", content = "hello\n" }),
-        ]);
-
-        blocks.ShouldBe([
-            new PanelBlock("new.cs", "- x\n- y\n+ z", true),
-            new PanelBlock("made.md", "+ hello", true),
-        ]);
-    }
-
-    [Fact]
-    public void A_subagent_and_other_tools_are_not_the_turn_edits()
-    {
-        TurnPanel.Edits([
-            User("go"),
-            Tool("Edit", new { file_path = "a.cs", old_string = "a", new_string = "b" }, sidechain: true),
-            Tool("Read", new { file_path = "b.cs" }),
-            "not json",
-        ]).ShouldBeEmpty();
-    }
-
-    [Fact]
-    public void MultiEdit_lists_each_change()
-    {
-        var input = new { file_path = "a.cs", edits = new[] { new { old_string = "1", new_string = "2" }, new { old_string = "3", new_string = "4" } } };
-
-        TurnPanel.Edits([Tool("MultiEdit", input)]).Single().Body.ShouldBe("- 1\n+ 2\n- 3\n+ 4");
-    }
 
     [Fact]
     public void A_huge_block_is_cut_and_says_so()
@@ -154,7 +105,7 @@ public sealed class ConversationTests : IDisposable
         }
 
         asked.ShouldBe(Session);
-        shown.Single().ShouldBe([new PanelBlock("js", "x()", false)]);
+        shown.Single().ShouldBe([new PanelBlock("js", "x()")]);
         failures.Single().ShouldContain("no gateway endpoint");
     }
 

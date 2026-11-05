@@ -53,7 +53,7 @@ public sealed class ReadAloud : IDisposable
     }
 
     /// <summary>Said after a turn that put something on screen, instead of spelling it out.</summary>
-    private const string OnScreen = "Le détail est à l'écran.";
+    private const string OnScreen = "Le code est à l'écran.";
 
     /// <summary>One short sentence saying why a reading failed or fell back.</summary>
     public event EventHandler<string>? Failed;
@@ -115,7 +115,7 @@ public sealed class ReadAloud : IDisposable
         try
         {
             await Task.Delay(150, cancellationToken).ConfigureAwait(false);
-            if (await ReadRequestAsync(path, cancellationToken).ConfigureAwait(false) is not var (id, text, english, session, transcript)) return;
+            if (await ReadRequestAsync(path, cancellationToken).ConfigureAwait(false) is not var (id, text, english, session)) return;
 
             // A late Changed (antivirus, indexer) re-raises the same request; restarting
             // the reading for it would cut the user off mid-sentence.
@@ -130,7 +130,7 @@ public sealed class ReadAloud : IDisposable
             if (session is not null)
             {
                 if (AcceptTurn?.Invoke(session) != true) return;
-                var blocks = TurnPanel.Compose(text, transcript is { Length: > 0 } && File.Exists(transcript) ? ReadShared(transcript) : []);
+                var blocks = TurnPanel.CodeBlocks(text).ToList();
                 Panel?.Invoke(this, blocks);
                 if (blocks.Count > 0) text += "\n\n" + OnScreen;
             }
@@ -151,14 +151,13 @@ public sealed class ReadAloud : IDisposable
 
     /// <summary>
     /// The request's identity (its timestamp), the reply, whether <c>/say</c> asked for English,
-    /// and for a finished turn its session and transcript; null when unreadable or there is
-    /// nothing to read.
+    /// and for a finished turn its session; null when unreadable or there is nothing to read.
     /// </summary>
     /// <remarks>
     /// A turn carries its reply as <c>text</c>: at the moment the turn ends the transcript may
     /// not hold it yet.
     /// </remarks>
-    private static async Task<(string Id, string Text, bool English, string? Session, string? Transcript)?> ReadRequestAsync(string path, CancellationToken cancellationToken)
+    private static async Task<(string Id, string Text, bool English, string? Session)?> ReadRequestAsync(string path, CancellationToken cancellationToken)
     {
         // The writer may still hold the file for a moment, or be halfway through it (the module
         // has no atomic write, and a turn carries a whole reply): retry on either.
@@ -179,7 +178,7 @@ public sealed class ReadAloud : IDisposable
                 var session = !turn ? null : root.TryGetProperty("session_id", out var s) ? s.GetString() ?? "" : "";
                 var id = root.TryGetProperty("ts", out var ts) ? ts.GetRawText() : Guid.NewGuid().ToString();
                 var english = string.Equals(command, "say", StringComparison.OrdinalIgnoreCase);
-                return (id, text, english, session, transcript);
+                return (id, text, english, session);
             }
             catch (Exception e) when ((e is IOException or JsonException) && attempt < 10)
             {

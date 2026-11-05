@@ -170,7 +170,7 @@ public sealed record SettingsData
 
     /// <summary>
     /// Conversation mode: every finished turn of the armed Claude Code session is read aloud, and
-    /// its code and edits shown on screen. Off in a file from before it existed.
+    /// its code shown on screen. Off in a file from before it existed.
     /// </summary>
     public bool Conversation { get; init; }
 

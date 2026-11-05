@@ -31,7 +31,7 @@ internal static class ClaudeSection
                 TerminalBlock(),
                 Panels.Toggle("Conversation mode", settings.Data.Conversation,
                     v => save(settings.Data with { Conversation = v }),
-                    "Every reply of the armed session is read aloud, and its code and edits shown in a "
+                    "Every reply of the armed session is read aloud, and its code shown in a "
                     + "panel. While a session is armed, every dictation goes to it, whichever window has "
                     + "focus. Any shortcut stops the voice."),
                 Panels.Labelled("COMMAND WINDOW TITLE CONTAINS", commandTitle),

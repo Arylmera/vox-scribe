@@ -273,7 +273,6 @@ test('armed with conversation on, a finished turn hands the app its text and end
   expect(JSON.parse(files.get(REQUEST) ?? '{}')).toMatchObject({
     command: 'turn',
     text: 'Voilà.',
-    transcript_path: TRANSCRIPT,
     session_id: SESSION,
   })
 })
