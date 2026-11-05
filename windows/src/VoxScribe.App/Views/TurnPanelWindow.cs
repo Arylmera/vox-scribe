@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Documents;
 using Avalonia.Layout;
 using Avalonia.Media;
 using VoxScribe.App.Design;
@@ -58,6 +59,43 @@ internal sealed class TurnPanelWindow : Window
         };
     }
 
+    /// <summary>The colour of one line of a diff, or null for the plain ink of a context line.</summary>
+    /// <remarks>Monokai Pro on the dark deck; on the cream one its tints do not read, so deeper ones.</remarks>
+    internal static Color? DiffColour(string line, bool dark)
+    {
+        if (line.StartsWith("+++", StringComparison.Ordinal) || line.StartsWith("---", StringComparison.Ordinal)) return null;
+        if (line.StartsWith('+')) return dark ? Color.FromRgb(0xA9, 0xDC, 0x76) : Color.FromRgb(0x2E, 0x7D, 0x32);
+        if (line.StartsWith('-')) return dark ? Color.FromRgb(0xFF, 0x61, 0x88) : Color.FromRgb(0xC6, 0x28, 0x3F);
+        if (line.StartsWith("@@", StringComparison.Ordinal)) return dark ? Color.FromRgb(0x78, 0xDC, 0xE8) : Color.FromRgb(0x00, 0x7C, 0x8A);
+        return null;
+    }
+
+    private static TextBlock Body(PanelBlock block)
+    {
+        var text = new TextBlock
+        {
+            FontFamily = Tokens.Fonts.Mono,
+            Foreground = Tokens.Brushes.InkOnDeck,
+            TextWrapping = TextWrapping.Wrap,
+        };
+
+        if (!string.Equals(block.Title, "diff", StringComparison.OrdinalIgnoreCase))
+        {
+            text.Text = block.Body;
+            return text;
+        }
+
+        text.Inlines = [];
+        foreach (var line in block.Body.Split('\n'))
+        {
+            var run = new Run(line + "\n");
+            if (DiffColour(line, Themes.IsDark) is { } colour) run.Foreground = new SolidColorBrush(colour);
+            text.Inlines.Add(run);
+        }
+
+        return text;
+    }
+
     /// <summary>Shows <paramref name="blocks"/>, or hides the panel when there are none.</summary>
     public void Present(IReadOnlyList<PanelBlock> blocks)
     {
@@ -76,13 +114,7 @@ internal sealed class TurnPanelWindow : Window
                 FontFamily = Tokens.Fonts.Mono,
                 Foreground = Tokens.Brushes.InkOnDeckAt(Tokens.Emphasis.Soft),
             });
-            _blocks.Children.Add(new TextBlock
-            {
-                Text = block.Body,
-                FontFamily = Tokens.Fonts.Mono,
-                Foreground = Tokens.Brushes.InkOnDeck,
-                TextWrapping = TextWrapping.Wrap,
-            });
+            _blocks.Children.Add(Body(block));
         }
 
         if (Screens.Primary is { } screen)

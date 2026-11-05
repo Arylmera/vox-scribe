@@ -4,6 +4,7 @@ using Avalonia.VisualTree;
 using Shouldly;
 using VoxScribe.App.Views;
 using VoxScribe.Core;
+using Xunit;
 
 namespace VoxScribe.AppTests;
 
@@ -27,6 +28,32 @@ public sealed class TurnPanelWindowTests
         texts.ShouldContain(t => t.Text == "csharp");
         texts.ShouldContain(t => t.Text == "var a = 1;");
         texts.ShouldContain(t => t.Text == "bash");
+        panel.Close();
+    }
+
+    [Theory]
+    [InlineData("+ added", true)]
+    [InlineData("- removed", true)]
+    [InlineData("@@ -1,2 +1,2 @@", true)]
+    [InlineData("  context", false)]
+    [InlineData("+++ b/file.cs", false)]
+    [InlineData("--- a/file.cs", false)]
+    public void Only_the_changed_lines_of_a_diff_are_coloured(string line, bool coloured)
+    {
+        (TurnPanelWindow.DiffColour(line, dark: true) is not null).ShouldBe(coloured);
+        (TurnPanelWindow.DiffColour(line, dark: false) is not null).ShouldBe(coloured);
+    }
+
+    [AvaloniaFact]
+    public void A_diff_block_is_coloured_and_any_other_is_plain()
+    {
+        var panel = new TurnPanelWindow();
+
+        panel.Present([new PanelBlock("diff", "- a\n+ b"), new PanelBlock("csharp", "- a")]);
+
+        var bodies = panel.GetVisualDescendants().OfType<TextBlock>().ToList();
+        bodies.Count(t => t.Inlines is { Count: 2 }).ShouldBe(1);
+        bodies.ShouldContain(t => t.Text == "- a");
         panel.Close();
     }
 
