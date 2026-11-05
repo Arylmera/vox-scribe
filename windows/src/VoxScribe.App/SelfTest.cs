@@ -177,6 +177,9 @@ public static class SelfTest
         PlatformFactory.TapKeyForSelfTest(VkF13);
         failures += Check("a second hook receives keys too", secondSawKey.Wait(wait));
 
+        // Set by name: a rename would silently let a shorter chord eat every longer one.
+        failures += Check("hook takes chord blockers", PlatformFactory.UpdateHotkeyBlockers(plain, []));
+
         return failures;
     }
 

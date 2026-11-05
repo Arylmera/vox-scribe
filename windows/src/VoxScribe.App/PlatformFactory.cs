@@ -140,12 +140,17 @@ internal static class PlatformFactory
     /// Names the keys that suppress <paramref name="hotkey"/> while held, so a longer chord
     /// sharing its keys wins instead of both firing.
     /// </summary>
+    /// <returns>False if the hook has no such property: the self-test's proof that a rename did not silently end this.</returns>
     [UnconditionalSuppressMessage(
         "Trimming",
         "IL2075:DynamicallyAccessedMembers",
         Justification = "VoxScribe.Platform.Windows is published whole and never trimmed.")]
-    public static void UpdateHotkeyBlockers(IHotkeySource hotkey, int[] virtualKeys) =>
-        hotkey.GetType().GetProperty("Blockers")?.SetValue(hotkey, virtualKeys);
+    public static bool UpdateHotkeyBlockers(IHotkeySource hotkey, int[] virtualKeys)
+    {
+        var property = hotkey.GetType().GetProperty("Blockers");
+        property?.SetValue(hotkey, virtualKeys);
+        return property is not null;
+    }
 
     /// <summary>
     /// Starts the global key recorder, or returns null off Windows. Dispose to stop.
