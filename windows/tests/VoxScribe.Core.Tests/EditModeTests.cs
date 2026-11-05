@@ -80,22 +80,28 @@ public sealed class EditModeTests
     }
 
     [Fact]
-    public async Task The_record_button_never_inherits_an_edit()
+    public async Task The_band_button_never_inherits_an_edit()
     {
         var (engine, edit, injector) = Build("le build passe",
             (_, _, _) => Task.FromResult(new EditOutcome("the build passes", null)));
         await using var _ = engine;
+        var delivered = new List<string>();
+        engine.DeliverToClaude = (text, _) =>
+        {
+            delivered.Add(text);
+            return Task.FromResult(ClaudeDelivery.Delivered);
+        };
 
         await DictateAsync(edit, engine);
         injector.Copies.ShouldBe(1);
 
-        engine.TogglePushToTalk();
+        engine.BeginCommand();
         for (var i = 0; i < 300 && engine.State != DictationState.Recording; i++) await Task.Delay(1);
         for (var i = 0; i < 300 && engine.Level == 0; i++) await Task.Delay(1);
-        engine.TogglePushToTalk();
+        engine.EndUtterance();
         for (var i = 0; i < 300 && engine.State != DictationState.Idle; i++) await Task.Delay(1);
 
-        injector.Injected.ShouldBe(["the build passes", "traduis en anglais"]);
+        delivered.ShouldBe(["traduis en anglais"]);
         injector.Copies.ShouldBe(1);
     }
 

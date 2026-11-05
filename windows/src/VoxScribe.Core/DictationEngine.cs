@@ -114,7 +114,7 @@ public sealed class DictationEngine : IAsyncDisposable
 
     /// <summary>
     /// Whether the press that started the utterance left a field worth coming back to. False
-    /// for the in-app button, which the user reaches by clicking VoxScribe's own window.
+    /// for a command, whose target is found at release.
     /// </summary>
     private bool _anchorRequested;
 
@@ -305,27 +305,6 @@ public sealed class DictationEngine : IAsyncDisposable
         _commandHotkey?.Start();
         _editHotkey?.Start();
         return _hotkey.Start();
-    }
-
-    /// <summary>
-    /// Starts or stops recording from a button rather than the hotkey.
-    /// </summary>
-    /// <remarks>
-    /// Routed through the same state machine as the hotkey, deliberately. Two independent
-    /// paths into recording would eventually disagree about whether it is running.
-    /// </remarks>
-    public void TogglePushToTalk()
-    {
-        // Clicking the button focuses VoxScribe, so the field that had focus at press is our
-        // own window: restoring it at release would type the utterance back into the app.
-        if (State == DictationState.Idle)
-        {
-            _anchorRequested = false;
-            // Otherwise the button would inherit the Edit chord's mode from whatever utterance
-            // ran last, and start copying a selection instead of typing what is said.
-            EditThisUtterance = false;
-        }
-        Toggle();
     }
 
     /// <summary>

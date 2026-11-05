@@ -125,6 +125,26 @@ public sealed class ClaudeDeliveryTests
         delivered.ShouldBe(["lance les tests"]);
     }
 
+    /// <summary>The plain dictation comes first: it leaves an anchor request for the button to clear.</summary>
+    [Fact]
+    public async Task The_band_button_never_anchors()
+    {
+        var (engine, _, plain, _, anchor, _) = Build(ClaudeDelivery.Delivered);
+        await using var _ = engine;
+        engine.AnchorFocus = true;
+
+        await DictateAsync(plain, engine);
+        anchor.Captures.ShouldBe(1);
+
+        engine.BeginCommand();
+        await WaitAsync(engine, DictationState.Recording);
+        for (var i = 0; i < 300 && engine.Level == 0; i++) await Task.Delay(1);
+        engine.EndUtterance();
+        await WaitAsync(engine, DictationState.Idle);
+
+        anchor.Captures.ShouldBe(1);
+    }
+
     [Fact]
     public async Task The_band_button_is_ignored_while_a_dictation_runs()
     {

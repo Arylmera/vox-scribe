@@ -572,34 +572,6 @@ public sealed class DictationEngineTests
         injector.Injected[0].ShouldBe("one three");
     }
 
-
-    /// <summary>Starts and stops from the in-app button rather than the shortcut.</summary>
-    private static async Task DictateFromButtonAsync(DictationEngine engine)
-    {
-        engine.TogglePushToTalk();
-        for (var i = 0; i < 300 && engine.State != DictationState.Recording; i++) await Task.Delay(1);
-        for (var i = 0; i < 300 && engine.Level == 0; i++) await Task.Delay(1);
-
-        engine.TogglePushToTalk();
-        for (var i = 0; i < 300 && engine.State != DictationState.Idle; i++) await Task.Delay(1);
-    }
-
-    [Fact]
-    public async Task The_record_button_does_not_anchor_voxscribes_own_window()
-    {
-        var hotkey = new FakeHotkeySource();
-        var injector = new RecordingTextInjector();
-        var anchor = new FakeFocusAnchor(injector);
-
-        await using var engine = BuildAnchored(hotkey, new FakeTranscriber("hello there"), injector, anchor);
-
-        await DictateFromButtonAsync(engine);
-
-        // Clicking the button focuses VoxScribe, so there is no field worth returning to.
-        anchor.Captures.ShouldBe(0);
-        injector.Injected.ShouldBe(["hello there"]);
-    }
-
     [Fact]
     public async Task Anchor_is_captured_at_press_and_restored_before_typing()
     {
