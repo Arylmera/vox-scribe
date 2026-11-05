@@ -154,9 +154,9 @@ public sealed class TranscriptStore
         var lines = _records
             .AsEnumerable()
             .Reverse()
-            .Select(r => JsonSerializer.Serialize(r, TranscriptJsonContext.Default.TranscriptRecord));
+            .Select(r => JsonSerializer.Serialize(r, TranscriptJsonContext.Default.TranscriptRecord) + Environment.NewLine);
 
-        File.WriteAllLines(_path, lines);
+        AtomicFile.Write(_path, string.Concat(lines));
         Changed?.Invoke(this, EventArgs.Empty);
     }
 }

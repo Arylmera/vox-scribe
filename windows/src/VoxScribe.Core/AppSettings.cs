@@ -329,7 +329,7 @@ public sealed class AppSettings
         };
 
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-        File.WriteAllText(_path, JsonSerializer.Serialize(stored, SettingsJsonContext.Default.SettingsData));
+        AtomicFile.Write(_path, JsonSerializer.Serialize(stored, SettingsJsonContext.Default.SettingsData));
 
         Changed?.Invoke(this, EventArgs.Empty);
     }

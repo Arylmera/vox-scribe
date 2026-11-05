@@ -162,7 +162,7 @@ public sealed class DictionaryFile
             Environment.NewLine,
             _entries.Select(e => e.ToFileLine()));
 
-        File.WriteAllText(_path, Header + body + Environment.NewLine, System.Text.Encoding.UTF8);
+        AtomicFile.Write(_path, Header + body + Environment.NewLine, System.Text.Encoding.UTF8);
 
         Changed?.Invoke(this, EventArgs.Empty);
     }

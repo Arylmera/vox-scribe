@@ -241,7 +241,7 @@ public sealed partial class ClaudeBridge : IDisposable
         try
         {
             Directory.CreateDirectory(Outbox);
-            WriteAtomic(outbox, Json(w =>
+            AtomicFile.Write(outbox, Json(w =>
             {
                 w.WriteString("id", id);
                 w.WriteString("text", text);
@@ -359,7 +359,7 @@ public sealed partial class ClaudeBridge : IDisposable
 
             try
             {
-                WriteAtomic(Path.Combine(_directory, "status.json"), body);
+                AtomicFile.Write(Path.Combine(_directory, "status.json"), body);
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException)
             {
@@ -411,29 +411,6 @@ public sealed partial class ClaudeBridge : IDisposable
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-        }
-    }
-
-    /// <summary>
-    /// The module must never read half a file. A reader that opened the target without
-    /// <see cref="FileShare.Delete"/> can briefly block the replace: retried rather than lost,
-    /// the same pattern as <c>ReadAloud</c>'s retry on a sharing violation.
-    /// </summary>
-    private static void WriteAtomic(string path, string content)
-    {
-        var temp = path + ".tmp";
-        File.WriteAllText(temp, content);
-        for (var attempt = 0; ; attempt++)
-        {
-            try
-            {
-                File.Move(temp, path, overwrite: true);
-                return;
-            }
-            catch (Exception e) when ((e is IOException or UnauthorizedAccessException) && attempt < 10)
-            {
-                Thread.Sleep(10);
-            }
         }
     }
 
