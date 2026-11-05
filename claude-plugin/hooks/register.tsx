@@ -27,6 +27,7 @@ const band = atom({ plugin: 'voxscribe', key: 'band' } as const, {
   kind: 'offline',
   armed: false,
   conversation: false,
+  canConverse: false,
   since: 0,
   accent: DEFAULT_ACCENT,
 } as VoxBand)
@@ -199,7 +200,9 @@ async function poll($: EngineInterface, t: number) {
       ? s.state
       : 'ready'
   const conversation = up && s.conversation === true
-  const next: VoxBand = { kind, armed, conversation, since: kind === 'listening' ? Number(s.since) || t : 0, accent }
+  // An app from before conversation mode writes no such field and ignores the button, so it is not drawn.
+  const canConverse = up && typeof s.conversation === 'boolean'
+  const next: VoxBand = { kind, armed, conversation, canConverse, since: kind === 'listening' ? Number(s.since) || t : 0, accent }
   if (JSON.stringify(next) !== JSON.stringify(was)) await update($, band, cur => ({ ...next, armed: armedNow(cur) }))
 
   await drainOutbox($, d, session, t)
@@ -400,7 +403,7 @@ export const register: Register = on => {
                 <Button key="vox-arm" plain label="cibler" onPress={toggleArm} />
               ),
               <Button key="vox-talk" plain label="parler" onPress={talk} />,
-              b.armed && b.conversation ? (
+              !b.canConverse ? null : b.armed && b.conversation ? (
                 <Button key="vox-conv" variant="primary" label="conversation" onPress={toggleConversation} />
               ) : (
                 <Button key="vox-conv" plain label="conversation" onPress={toggleConversation} />
@@ -454,13 +457,15 @@ export const register: Register = on => {
               label="🎙 parler"
               onPress={talk}
             />
-            <Button
-              key="vox-conv"
-              plain
-              dimColor={!(b.armed && b.conversation)}
-              label="💬 conversation"
-              onPress={toggleConversation}
-            />
+            {b.canConverse ? (
+              <Button
+                key="vox-conv"
+                plain
+                dimColor={!(b.armed && b.conversation)}
+                label="💬 conversation"
+                onPress={toggleConversation}
+              />
+            ) : null}
             <Button key="vox-fr" plain dimColor label="🔊 fr" onPress={readFr} />
             <Button key="vox-en" plain dimColor label="🔊 en" onPress={readEn} />
           </Box>

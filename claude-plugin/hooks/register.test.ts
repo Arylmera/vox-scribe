@@ -63,7 +63,7 @@ for (const surface of SURFACES) {
     await clock.advance(600)
     expect((await ui.find({ key: 'vox-pill' }))?.text).toContain('Vox · prêt')
     const keys = (await ui.findAll({ type: 'Button' })).map(b => b.key)
-    expect(keys).toEqual(['vox-arm', 'vox-talk', 'vox-conv', 'vox-fr', 'vox-en'])
+    expect(keys).toEqual(['vox-arm', 'vox-talk', 'vox-fr', 'vox-en'])
 
     await clock.advance(6000) // the app stopped beating
     expect(await ui.find({ key: 'vox-band' })).toBeFalsy()
@@ -277,6 +277,16 @@ test('armed with conversation on, a finished turn hands the app its text and end
     session_id: SESSION,
   })
 })
+
+for (const surface of SURFACES) {
+  test(`${surface}: an app that knows conversation mode gets its button, off or on`, async ($, on) => {
+    const files = new Map([[`${DIR}/status.json`, statusOn(false)]])
+    const clock = world(on, files)
+    const ui = await $.ui.mount({ plugin: 'voxscribe', surface, component: 'AbovePrompt', props: PROPS })
+    await clock.advance(600)
+    expect((await ui.findAll({ type: 'Button' })).map(b => b.key)).toEqual(['vox-arm', 'vox-talk', 'vox-conv', 'vox-fr', 'vox-en'])
+  })
+}
 
 test('with conversation off, a turn writes nothing', async ($, on) => {
   const { files } = await armed($ as never, on, false)

@@ -5,6 +5,8 @@ export type VoxBand = {
   armed: boolean
   /** Conversation mode is on in the app: this session's replies are read aloud when it is armed. */
   conversation: boolean
+  /** The running app knows conversation mode: an older one gets no button. */
+  canConverse: boolean
   /** When the current state began (app clock, ms): the listening timer counts from it. */
   since: number
   /** The app theme's accent, "#RRGGBB" (its dark variant). */
