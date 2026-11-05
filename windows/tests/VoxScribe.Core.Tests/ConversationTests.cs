@@ -160,6 +160,45 @@ public sealed class ConversationTests : IDisposable
         failures.ShouldHaveSingleItem().ShouldContain("no gateway endpoint");
     }
 
+    [Theory]
+    [InlineData(ClaudeDelivery.NotAcknowledged, false, true)]
+    [InlineData(ClaudeDelivery.NotAcknowledged, true, true)]
+    [InlineData(ClaudeDelivery.NoTarget, true, true)]
+    [InlineData(ClaudeDelivery.NoTarget, false, false)]
+    [InlineData(ClaudeDelivery.Delivered, true, false)]
+    public void Only_a_lost_dictation_sounds_the_alert(ClaudeDelivery delivery, bool conversation, bool lost) =>
+        ReadAloud.IsLost(delivery, conversation).ShouldBe(lost);
+
+    [Fact]
+    public void The_alert_is_a_playable_clip_of_a_third_of_a_second()
+    {
+        var wav = WavTempo.FallingTone();
+
+        System.Text.Encoding.ASCII.GetString(wav, 0, 4).ShouldBe("RIFF");
+        ((wav.Length - 44) / 2.0 / 24000).ShouldBe(1.0 / 3, 0.01);
+        wav.Skip(44).ShouldContain(b => b != 0);
+    }
+
+    [Fact]
+    public async Task A_failing_sound_device_never_reaches_the_dictation()
+    {
+        using var reader = new ReadAloud(() => new SettingsData(), new BrokenPlayer());
+
+        await reader.AlertAsync();
+    }
+
+    private sealed class BrokenPlayer : IAudioPlayer
+    {
+        public Task PlayAsync(byte[] wav, CancellationToken cancellationToken) => throw new IOException("no device");
+    }
+
+    [Fact]
+    public void Progress_voice_is_on_unless_turned_off()
+    {
+        new SettingsData().ProgressVoiceEnabled.ShouldBeTrue();
+        new SettingsData { ProgressVoice = false }.ProgressVoiceEnabled.ShouldBeFalse();
+    }
+
     [Fact]
     public void Quick_start_takes_the_first_sentence_and_keeps_the_rest()
     {

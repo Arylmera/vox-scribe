@@ -94,6 +94,26 @@ public sealed class ReadAloud : IDisposable
         _watcher.EnableRaisingEvents = true;
     }
 
+    /// <summary>Whether this delivery lost a dictation the user cannot see failing.</summary>
+    /// <remarks>With no session armed, a dictation outside conversation is simply typed: nothing is lost.</remarks>
+    public static bool IsLost(ClaudeDelivery delivery, bool conversation) =>
+        delivery == ClaudeDelivery.NotAcknowledged || (delivery == ClaudeDelivery.NoTarget && conversation);
+
+    /// <summary>A short falling tone: the dictation did not arrive. Never throws.</summary>
+    public async Task AlertAsync()
+    {
+#pragma warning disable CA1031 // a failing sound device must never reach the dictation
+        try
+        {
+            await _player.PlayAsync(WavTempo.FallingTone(), CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception e)
+        {
+            Fail($"Alert sound failed — {e.Message}");
+        }
+#pragma warning restore CA1031
+    }
+
     /// <summary>Speaks the progress notes of <paramref name="session"/>'s transcript as they appear.</summary>
     public void FollowProgress(Func<string?> session, string projects) =>
         _progress = new ProgressWatcher(session, Note, projects);
@@ -104,7 +124,8 @@ public sealed class ReadAloud : IDisposable
     /// </summary>
     private void Note(string session, string note)
     {
-        if (AcceptTurn?.Invoke(session) != true || !_settings().ReadAloudEnabled) return;
+        var settings = _settings();
+        if (AcceptTurn?.Invoke(session) != true || !settings.ReadAloudEnabled || !settings.ProgressVoiceEnabled) return;
 
         lock (_gate)
         {

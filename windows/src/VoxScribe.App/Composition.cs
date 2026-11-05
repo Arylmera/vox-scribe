@@ -260,7 +260,13 @@ public sealed class Composition : IAsyncDisposable
             // plugin no session is ever armed and command mode is exactly what it was.
             claude = new ClaudeBridge(ClaudeBridge.DefaultDirectory);
             var bridge = claude;
-            engine.DeliverToClaude = bridge.TryDeliverAsync;
+            var alert = readAloud;
+            engine.DeliverToClaude = async (text, cancellationToken) =>
+            {
+                var delivery = await bridge.TryDeliverAsync(text, cancellationToken).ConfigureAwait(false);
+                if (alert is not null && ReadAloud.IsLost(delivery, settings.Data.Conversation)) _ = alert.AlertAsync();
+                return delivery;
+            };
             bridge.Accent = () => ($"#{Design.Themes.ActiveVariant.Dark:X6}", $"#{Design.Themes.ActiveVariant.Light:X6}");
             bridge.Conversation = () => settings.Data.Conversation;
             settings.Changed += (_, _) => bridge.Refresh();

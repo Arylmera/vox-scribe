@@ -174,6 +174,13 @@ public sealed record SettingsData
     /// </summary>
     public bool Conversation { get; init; }
 
+    /// <summary>Whether conversation mode also speaks progress notes; null for a file from before it existed.</summary>
+    public bool? ProgressVoice { get; init; }
+
+    /// <summary>On unless explicitly turned off.</summary>
+    [JsonIgnore]
+    public bool ProgressVoiceEnabled => ProgressVoice ?? true;
+
     /// <summary>How fast replies are read, 1 being as synthesised; null for a file from before it existed.</summary>
     public double? ReadingSpeed { get; init; }
 

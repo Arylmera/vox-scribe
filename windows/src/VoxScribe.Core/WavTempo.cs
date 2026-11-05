@@ -25,6 +25,22 @@ public static class WavTempo
         return Build(Stretch(input, sampleRate, rate), sampleRate);
     }
 
+    /// <summary>Two falling notes, a third of a second in all, softened at each end.</summary>
+    public static byte[] FallingTone()
+    {
+        const int Rate = 24000;
+        var note = Rate / 6;
+        var samples = new float[note * 2];
+        for (var i = 0; i < samples.Length; i++)
+        {
+            var hertz = i < note ? 660.0 : 440.0;
+            var envelope = Math.Sin(Math.PI * (i % note) / note);
+            samples[i] = (float)(9000 * envelope * Math.Sin(2 * Math.PI * hertz * i / Rate));
+        }
+
+        return Build(samples, Rate);
+    }
+
     private static float[] Stretch(float[] x, int sampleRate, double rate)
     {
         var frame = (int)(sampleRate * FrameSeconds);

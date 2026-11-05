@@ -34,6 +34,9 @@ internal static class ClaudeSection
                     "Every reply of the armed session is read aloud, and its code shown in a "
                     + "panel. While a session is armed, every dictation goes to it, whichever window has "
                     + "focus. Any shortcut stops the voice."),
+                Panels.Toggle("Speak progress in conversation", settings.Data.ProgressVoiceEnabled,
+                    v => save(settings.Data with { ProgressVoice = v }),
+                    "Claude's short notes between tools are read as it works. Off, only final replies are read."),
                 Panels.Labelled("COMMAND WINDOW TITLE CONTAINS", commandTitle),
                 Panels.Note("When no session is armed, the command shortcut types into the first "
                     + "visible window whose title contains this text. \"Claude\" matches the desktop "
