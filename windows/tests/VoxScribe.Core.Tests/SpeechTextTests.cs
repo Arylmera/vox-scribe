@@ -23,10 +23,18 @@ public class PreCleanTests
     }
 
     [Fact]
+    public void A_file_name_is_never_spelled_out()
+    {
+        SpeechText.PreClean("Sauvegardée dans `settings.json.bak-oral-fidelity`, voir aussi README.md.")
+            .ShouldBe("Sauvegardée dans le fichier, voir aussi le fichier.");
+        SpeechText.PreClean("La version 2.1.8 de Vox-Scribe, à 1.5 près.").ShouldBe("La version 2.1.8 de Vox-Scribe, à 1.5 près.");
+    }
+
+    [Fact]
     public void Inline_code_is_unwrapped_and_a_path_becomes_its_last_segment()
     {
         SpeechText.PreClean("Lance `dotnet test` dans `windows/src/ReadAloud.cs` ou `C:\\x\\y.md`.")
-            .ShouldBe("Lance dotnet test dans ReadAloud.cs ou y.md.");
+            .ShouldBe("Lance dotnet test dans le fichier ou le fichier.");
     }
 
     [Fact]

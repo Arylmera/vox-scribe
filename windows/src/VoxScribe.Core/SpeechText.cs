@@ -47,6 +47,7 @@ public static partial class SpeechText
         var text = string.Join('\n', lines);
         text = Url().Replace(text, string.Empty);
         text = InlineCode().Replace(text, m => LastSegment(m.Groups[1].Value));
+        text = FileName().Replace(text, "le fichier"); // never spelled out, dashes and dots included
         text = text.Replace("**", string.Empty, StringComparison.Ordinal)
                    .Replace("__", string.Empty, StringComparison.Ordinal);
 
@@ -75,6 +76,9 @@ public static partial class SpeechText
 
     [GeneratedRegex(@"^(#{1,6}\s+|[-*+]\s+|\d+[.)]\s+)")]
     private static partial Regex LineMarker();
+
+    [GeneratedRegex(@"(?<![\w.-])[\w-]+(\.[\w-]+)*\.(jsonl?|md|cs|py|tsx?|ps1|ya?ml|txt|log|exe|sh|toml|html?|css|axaml)(\.[\w-]+)*(?![\w-])")]
+    private static partial Regex FileName();
 
     [GeneratedRegex(@"https?://\S+")]
     private static partial Regex Url();

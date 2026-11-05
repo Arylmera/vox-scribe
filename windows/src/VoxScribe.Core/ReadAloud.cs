@@ -411,6 +411,7 @@ public sealed class ReadAloud : IDisposable
             await foreach (var sentence in sentences.Reader.ReadAllAsync(token).ConfigureAwait(false))
             {
                 var clip = await SynthesiseAsync(baseUrl, key, settings.TtsModel, voice, sentence, token).ConfigureAwait(false);
+                LogRate(sentence, clip);
                 await clips.Writer.WriteAsync(WavTempo.Apply(clip, settings.ReadingRate), token).ConfigureAwait(false);
             }
         }
@@ -458,6 +459,26 @@ public sealed class ReadAloud : IDisposable
 
         Trace.WriteLine(string.Create(System.Globalization.CultureInfo.InvariantCulture,
             $"Read-aloud: first token {firstToken:0.0} s, first audio {firstAudio:0.0} s, {chunks} chunks, done {clock.Elapsed.TotalSeconds:0.0} s{(token.IsCancellationRequested ? " (stopped)" : "")}"));
+    }
+
+    /// <summary>
+    /// shortcut: a measurement, one line per clip, to learn whether the voice's pace really follows
+    /// sentence length before correcting it; remove once answered.
+    /// </summary>
+    private static void LogRate(string sentence, byte[] clip)
+    {
+        try
+        {
+            var rate = clip.Length > 28 ? BitConverter.ToInt32(clip, 24) : 0;
+            if (rate <= 0) return;
+            var seconds = (clip.Length - 44) / 2.0 / rate;
+            File.AppendAllText(DataDirectory.File("speech-rate.log"), string.Create(System.Globalization.CultureInfo.InvariantCulture,
+                $"{sentence.Length}\t{seconds:0.00}\t{sentence.Length / seconds:0.0}\n"));
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            // A measurement never gets in the way of the voice.
+        }
     }
 
     /// <summary>Streams the <c>oral</c> rewrite as content deltas.</summary>
