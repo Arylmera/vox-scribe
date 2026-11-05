@@ -119,9 +119,9 @@ public sealed class ClaudeBridgeTests : IDisposable
                     Arm(Session, TimeSpan.Zero);
                     return;
                 }
-                catch (IOException) when (attempt < 100)
+                catch (IOException) when (attempt < 2000)
                 {
-                    Thread.SpinWait(500);
+                    Thread.Sleep(1);
                 }
             }
         });

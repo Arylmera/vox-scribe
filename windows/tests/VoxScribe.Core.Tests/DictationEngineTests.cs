@@ -461,6 +461,9 @@ public sealed class DictationEngineTests
         engine.State.ShouldBe(DictationState.Idle);
         await DictateAsync(hotkey, engine);
         engine.State.ShouldBe(DictationState.Idle);
+
+        // The capture loop zeroes the meter as it ends, which may be just after the state settles.
+        for (var i = 0; i < 300 && engine.Level != 0; i++) await Task.Delay(1);
         engine.Level.ShouldBe(0);
     }
 

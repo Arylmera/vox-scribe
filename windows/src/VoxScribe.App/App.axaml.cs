@@ -180,6 +180,8 @@ public partial class App : Application
         if (_composition?.Settings is { } settings) settings.Update(settings.Data with { Conversation = !settings.Data.Conversation });
     }
 
+    private void OnTrayAlert(object? sender, EventArgs e) => _ = _composition?.ReadAloud?.AlertAsync();
+
     private void OnTrayQuit(object? sender, EventArgs e) => Quit();
 
     /// <summary>Exits for real, past the hide-to-tray guard.</summary>

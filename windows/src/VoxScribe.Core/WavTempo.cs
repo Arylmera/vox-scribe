@@ -50,7 +50,7 @@ public static class WavTempo
         {
             var hertz = i < note ? 660.0 : 440.0;
             var envelope = Math.Sin(Math.PI * (i % note) / note);
-            samples[i] = (float)(9000 * envelope * Math.Sin(2 * Math.PI * hertz * i / Rate));
+            samples[i] = (float)(16000 * envelope * Math.Sin(2 * Math.PI * hertz * i / Rate));
         }
 
         return Build(samples, Rate);

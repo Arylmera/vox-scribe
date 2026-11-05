@@ -20,6 +20,7 @@
             <NativeMenuItem Header="Settings…" Click="OnTraySettings" />
             <NativeMenuItem Header="Show/hide mascot" Click="OnTrayMascot" />
             <NativeMenuItem Header="Conversation mode" ToggleType="CheckBox" Click="OnTrayConversation" />
+            <NativeMenuItem Header="Test alert sound" Click="OnTrayAlert" />
             <NativeMenuItemSeparator />
             <NativeMenuItem Header="Quit" Click="OnTrayQuit" />
           </NativeMenu>

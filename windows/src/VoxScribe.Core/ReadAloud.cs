@@ -459,6 +459,7 @@ public sealed class ReadAloud : IDisposable
             catch (Exception e) when (!token.IsCancellationRequested)
             {
                 Fail($"Read-aloud stopped — {Reason(e)}");
+                _ = AlertAsync(); // a reply that goes silent is as lost as a dictation
                 await run.CancelAsync().ConfigureAwait(false);
             }
             catch (OperationCanceledException)

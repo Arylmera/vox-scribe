@@ -78,7 +78,11 @@ public sealed class SettingsMigrationTests
             var settings = new AppSettings(path);
             settings.Update(settings.Data with
             {
-                Mascot = "slime", MascotHidden = true, MascotAccent = "moss", MascotX = 120, MascotY = 900,
+                Mascot = "slime",
+                MascotHidden = true,
+                MascotAccent = "moss",
+                MascotX = 120,
+                MascotY = 900,
             });
 
             new AppSettings(path).Data.ShouldSatisfyAllConditions(
