@@ -264,6 +264,7 @@ public sealed class Composition : IAsyncDisposable
             bridge.Accent = () => ($"#{Design.Themes.ActiveVariant.Dark:X6}", $"#{Design.Themes.ActiveVariant.Light:X6}");
             bridge.Conversation = () => settings.Data.Conversation;
             settings.Changed += (_, _) => bridge.Refresh();
+            engine.SendEverything = () => settings.Data.Conversation && bridge.HasTarget;
 
             // Conversation mode: only the armed session is read, and never over a dictation.
             if (readAloud is { } turns)

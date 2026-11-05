@@ -43,6 +43,37 @@ public sealed class CommandModeTests
     }
 
     [Fact]
+    public async Task In_conversation_a_plain_dictation_goes_to_the_session()
+    {
+        var (engine, raw, _, _, injector, _) = Build();
+        await using var _ = engine;
+        var sent = new List<string>();
+        engine.SendEverything = () => true;
+        engine.DeliverToClaude = (text, _) =>
+        {
+            sent.Add(text);
+            return Task.FromResult(ClaudeDelivery.Delivered);
+        };
+
+        await DictateAsync(raw, engine);
+
+        sent.ShouldBe(["le build passe"]);
+        injector.Injected.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Without_an_armed_session_a_plain_dictation_is_typed_as_ever()
+    {
+        var (engine, raw, _, _, injector, _) = Build();
+        await using var _ = engine;
+        engine.SendEverything = () => false;
+
+        await DictateAsync(raw, engine);
+
+        injector.Injected.ShouldBe(["le build passe"]);
+    }
+
+    [Fact]
     public async Task A_command_is_typed_into_the_named_window_and_submitted()
     {
         var (engine, _, command, _, injector, anchor) = Build();

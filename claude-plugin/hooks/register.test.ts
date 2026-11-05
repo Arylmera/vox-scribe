@@ -334,6 +334,14 @@ test('the conversation button arms this session and flips the mode, but only bri
   expect(files.has(`${DIR}/mic.json`)).toBe(false)
 })
 
+test('a dictation enters as the person\'s own prompt; another plugin keeps its name', async ($, on) => {
+  world(on, new Map())
+  on('prompt.submit', ($, e) => ({ text: e.text, origin: e.origin }))
+  const ours = await $.prompt.submit({ text: 'bonjour', origin: { kind: 'plugin', name: 'voxscribe' } } as never)
+  expect(ours.origin).toBeUndefined()
+  expect(ours.text).toBe('bonjour')
+})
+
 test('another command passes through untouched', async ($, on) => {
   const { beneath } = reader(on, new Map())
   expect((await $.command.run({ command: 'compact' })).text).toBe('the prompt the model would read')

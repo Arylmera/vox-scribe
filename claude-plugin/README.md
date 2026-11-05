@@ -10,8 +10,8 @@ Companion to the Vox-Scribe app (Windows). The app does the work; this plugin on
   - **🎙 parler** dictates to this session with a click; **■ envoyer** sends, **✕ annuler** drops it.
   - **🔊 fr / 🔊 en** — the same as typing `/parle` and `/say`.
   - **💬 conversation** — every reply of the armed session is read aloud as it ends, in French, and its
-    code and edits appear in a panel on screen. The command shortcut talks back, any shortcut stops the
-    voice. One session at a time: it follows the target. Also in the tray menu and Settings → CLAUDE.
+    code and edits appear in a panel on screen. While armed, every dictation goes to the session, whichever
+    window has focus; any shortcut stops the voice. One session at a time: it follows the target. Also in the tray menu and Settings → CLAUDE.
     A file changed through Bash is not in the panel, only Edit and Write calls are. Needs the module.
   - In the desktop app the band takes the Instrument look of the Cogitator band above it: the state
     as a chip ringed in Monokai Pro (green ready, cyan targeted, red listening, purple transcribing),

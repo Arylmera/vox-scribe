@@ -74,6 +74,7 @@ public sealed partial class ClaudeBridge : IDisposable
     private FileSystemWatcher? _watcher;
     private CancellationTokenSource? _pickUp;
     private long _lastMic;
+    private bool _hasTarget;
 
     /// <param name="directory">Where the files live; <see cref="DefaultDirectory"/> in the app.</param>
     /// <param name="clock">Judges beats; the system clock by default.</param>
@@ -314,6 +315,9 @@ public sealed partial class ClaudeBridge : IDisposable
     /// <summary>Whether conversation mode is on. Read on every status write; null means off.</summary>
     public Func<bool>? Conversation { get; set; }
 
+    /// <summary>A session was armed at the last status write: at most a beat old, and free of disk reads.</summary>
+    public bool HasTarget => Volatile.Read(ref _hasTarget);
+
     /// <summary>Writes the status now rather than at the next beat: a setting just changed.</summary>
     public void Refresh() => ThreadPool.QueueUserWorkItem(_ => WriteStatus());
 
@@ -334,7 +338,9 @@ public sealed partial class ClaudeBridge : IDisposable
             string? mic;
             lock (_gate) (state, command, since, mic) = (_state, _command, _since, MicSession);
 
-            var session = state != "idle" && command ? mic ?? LiveTarget() : null;
+            var target = LiveTarget();
+            Volatile.Write(ref _hasTarget, target is not null);
+            var session = state != "idle" && command ? mic ?? target : null;
             var accent = Accent?.Invoke();
             var body = Json(w =>
             {

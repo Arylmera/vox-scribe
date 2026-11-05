@@ -356,6 +356,12 @@ public sealed class DictationEngine : IAsyncDisposable
     public Func<string, CancellationToken, Task<ClaudeDelivery>>? DeliverToClaude { get; set; }
 
     /// <summary>
+    /// Conversation mode: true turns every dictation into a command, whichever shortcut started
+    /// it. Runs on the keyboard hook thread, so it must not touch the disk. An edit stays an edit.
+    /// </summary>
+    public Func<bool>? SendEverything { get; set; }
+
+    /// <summary>
     /// Rewrites a selection: (selection, instruction) → the edit. Null when no endpoint is
     /// configured, which makes the Edit chord explain itself instead of recording. May throw;
     /// the engine catches whatever it throws and reports it as a notice rather than letting it
@@ -596,6 +602,7 @@ public sealed class DictationEngine : IAsyncDisposable
     {
         if (State == DictationState.Idle)
         {
+            command |= !edit && SendEverything?.Invoke() == true;
             _cleanThisUtterance = cleanup;
             CommandThisUtterance = command;
             EditThisUtterance = edit;
